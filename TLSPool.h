@@ -2,7 +2,7 @@
 #include "Windows.h"
 #include "SingleThreadObjectPool.h"
 
-static constexpr int TLS_POOL_INITIAL_SIZE = 2;
+static constexpr int TLS_POOL_INITIAL_SIZE = 200;
 static constexpr int GLOBAL_POOL_INITIAL_SIZE = TLS_POOL_INITIAL_SIZE*10;
 
 

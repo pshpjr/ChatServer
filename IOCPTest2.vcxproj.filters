@@ -1,0 +1,131 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Content">
+      <UniqueIdentifier>{e1d77bd0-0a58-4071-a3f2-a166e524ad99}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lib">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Lib\Network">
+      <UniqueIdentifier>{c096e041-ad2f-4354-8c5e-b71d8425878f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lib\Network\IOCP">
+      <UniqueIdentifier>{aee9e4d8-84c8-4dd5-b54c-a6b0765d959a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lib\Network\IOCP\Normal">
+      <UniqueIdentifier>{6591feb1-de69-4e97-915f-3bad4a4514da}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lib\Network\IOCP\RUDP">
+      <UniqueIdentifier>{2d9ce27b-d4e6-4119-8c19-808bec5f3adb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lib\Network\Other">
+      <UniqueIdentifier>{a8ffabb5-139c-4bba-9519-d01606836826}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lib\Core">
+      <UniqueIdentifier>{07dd0df9-3c70-4b91-8c50-ba46af711d7d}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="NormalSocket.cpp">
+      <Filter>Lib\Network\IOCP\Normal</Filter>
+    </ClCompile>
+    <ClCompile Include="RUDPSocket.cpp">
+      <Filter>Lib\Network\IOCP\RUDP</Filter>
+    </ClCompile>
+    <ClCompile Include="NormalIOCP.cpp">
+      <Filter>Lib\Network\IOCP\Normal</Filter>
+    </ClCompile>
+    <ClCompile Include="Session.cpp">
+      <Filter>Lib\Network\IOCP\Normal</Filter>
+    </ClCompile>
+    <ClCompile Include="CSerializeBuffer.cpp">
+      <Filter>Lib\Network\Other</Filter>
+    </ClCompile>
+    <ClCompile Include="CRingBuffer.cpp">
+      <Filter>Lib\Network\Other</Filter>
+    </ClCompile>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>Lib\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="LockGuard.cpp">
+      <Filter>Lib\Network\Other</Filter>
+    </ClCompile>
+    <ClCompile Include="Executable.cpp">
+      <Filter>Lib\Network\Other</Filter>
+    </ClCompile>
+    <ClCompile Include="MemoryPool.cpp">
+      <Filter>Lib\Network\Other</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreGlobal.cpp">
+      <Filter>Lib\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="CrashDump.cpp">
+      <Filter>Lib\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="IOCPTest2.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="NormalSocket.h">
+      <Filter>Lib\Network\IOCP\Normal</Filter>
+    </ClInclude>
+    <ClInclude Include="RUDPSocket.h">
+      <Filter>Lib\Network\IOCP\RUDP</Filter>
+    </ClInclude>
+    <ClInclude Include="Socket.h">
+      <Filter>Lib\Network</Filter>
+    </ClInclude>
+    <ClInclude Include="Types.h">
+      <Filter>Lib\Network\IOCP\Normal</Filter>
+    </ClInclude>
+    <ClInclude Include="NormalIOCP.h">
+      <Filter>Lib\Network\IOCP\Normal</Filter>
+    </ClInclude>
+    <ClInclude Include="Session.h">
+      <Filter>Lib\Network\IOCP\Normal</Filter>
+    </ClInclude>
+    <ClInclude Include="Container.h">
+      <Filter>Lib\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="CSerializeBuffer.h">
+      <Filter>Lib\Network\Other</Filter>
+    </ClInclude>
+    <ClInclude Include="Overlapped.h">
+      <Filter>Lib\Network\Other</Filter>
+    </ClInclude>
+    <ClInclude Include="CRingBuffer.h">
+      <Filter>Lib\Network\Other</Filter>
+    </ClInclude>
+    <ClInclude Include="stdafx.h">
+      <Filter>Lib\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="BuildOption.h">
+      <Filter>Lib\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Macro.h">
+      <Filter>Lib\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="IOCP.h">
+      <Filter>Lib\Network</Filter>
+    </ClInclude>
+    <ClInclude Include="Protocol.h">
+      <Filter>Lib\Network</Filter>
+    </ClInclude>
+    <ClInclude Include="LockGuard.h">
+      <Filter>Lib\Network\Other</Filter>
+    </ClInclude>
+    <ClInclude Include="Executable.h">
+      <Filter>Lib\Network\Other</Filter>
+    </ClInclude>
+    <ClInclude Include="MemoryPool.h">
+      <Filter>Lib\Network\Other</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreGlobal.h">
+      <Filter>Lib\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="CrashDump.h">
+      <Filter>Lib\Core</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

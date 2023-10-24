@@ -71,6 +71,12 @@
     <ClCompile Include="Server.cpp">
       <Filter>Content</Filter>
     </ClCompile>
+    <ClCompile Include="PacketQueue.cpp">
+      <Filter>Content</Filter>
+    </ClCompile>
+    <ClCompile Include="ContentJob.cpp">
+      <Filter>Content</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="NormalSocket.h">
@@ -153,6 +159,12 @@
     </ClInclude>
     <ClInclude Include="TLSPool.h">
       <Filter>Other</Filter>
+    </ClInclude>
+    <ClInclude Include="PacketQueue.h">
+      <Filter>Content</Filter>
+    </ClInclude>
+    <ClInclude Include="ContentJob.h">
+      <Filter>Content</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

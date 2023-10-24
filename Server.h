@@ -6,10 +6,10 @@
 class Server : public IOCP
 {
 	
-	bool OnAccept(Socket socket);
-	virtual void OnConnect(SessionID sessionId);
-	virtual void OnDisconnect(SessionID sessionId);
-	virtual void OnRecvPacket(SessionID sessionId, CSerializeBuffer& buffer);
+	bool OnAccept(SockAddr_in socket) override;
+	virtual void OnConnect(SessionID sessionId) override;
+	virtual void OnDisconnect(SessionID sessionId) override;
+	virtual void OnRecvPacket(SessionID sessionId, CSerializeBuffer& buffer) override;
 
 	
 };

@@ -1,13 +1,16 @@
 #include "stdafx.h"
 #include "Server.h"
 
-bool Server::OnAccept(Socket socket)
+bool Server::OnAccept(SockAddr_in socket)
 {
-	return false;
+	return true;
 }
 
 void Server::OnConnect(SessionID sessionId)
 {
+
+
+
 }
 
 void Server::OnDisconnect(SessionID sessionId)

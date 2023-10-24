@@ -1,2 +1,4 @@
 #include "stdafx.h"
-#include "ConetntJob.h"
+#include "ContentJob.h"
+
+TLSPool<ContentJob, 0, false> ContentJob::_pool;

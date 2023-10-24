@@ -22,6 +22,8 @@ public:
 	virtual void OnConnect(SessionID sessionId) {};
 	virtual void OnDisconnect(SessionID sessionId) {};
 	virtual void OnRecvPacket(SessionID sessionId, CSerializeBuffer& buffer) {};
+	virtual void OnInit() {};
+	virtual void OnStart() {};
 
 	int64 GetAcceptTps();
 	int64 GetRecvTps();

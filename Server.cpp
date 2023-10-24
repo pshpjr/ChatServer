@@ -29,3 +29,7 @@ void Server::OnRecvPacket(SessionID sessionId, CSerializeBuffer& buffer)
 
 	_packetQueue.Enqueue(job);
 }
+
+void Server::OnStart()
+{
+}

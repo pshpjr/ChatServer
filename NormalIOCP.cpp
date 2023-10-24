@@ -77,7 +77,7 @@ bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread)
 		}
 		printf("WorkerThread %p\n", _threadArray[i]);
 	}
-
+	OnInit();
 
 	return true;
 }
@@ -85,6 +85,7 @@ bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread)
 void IOCP::Start()
 {
 	_isRunning = true;
+	OnStart();
 }
 
 void IOCP::Stop()

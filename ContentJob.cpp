@@ -9,3 +9,12 @@ void ContentJob::Free()
 	
 	_pool.Free(this);
 }
+
+ContentJob* ContentJob::Alloc(CSerializeBuffer* buffer)
+{
+	auto ret = _pool.Alloc();
+
+	ret->_buffer = buffer;
+	buffer->IncreaseRef();
+	return ret;
+}

@@ -22,14 +22,8 @@ public:
 	{
 		return _pool.Alloc();
 	}
-	static ContentJob* Alloc(CSerializeBuffer* buffer)
-	{
-		auto ret =  _pool.Alloc();
+	static ContentJob* Alloc(CSerializeBuffer* buffer);
 
-		ret->_buffer = buffer;
-		buffer->IncreaseRef();
-		return ret;
-	}
 
 
 private:

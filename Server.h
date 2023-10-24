@@ -10,6 +10,8 @@ public:
 	virtual void OnConnect(SessionID sessionId) override;
 	virtual void OnDisconnect(SessionID sessionId) override;
 	virtual void OnRecvPacket(SessionID sessionId, CSerializeBuffer& buffer) override;
+	virtual void OnStart() override;
+	
 
 	PacketQueue _packetQueue;
 };

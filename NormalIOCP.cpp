@@ -98,6 +98,7 @@ void IOCP::Stop()
 	{
 		printf("WaitForMultipleObjects failed %d\n", GetLastError());
 	}
+	OnEnd();
 }
 
 bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer)

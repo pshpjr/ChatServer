@@ -24,6 +24,7 @@ public:
 	virtual void OnRecvPacket(SessionID sessionId, CSerializeBuffer& buffer) {};
 	virtual void OnInit() {};
 	virtual void OnStart() {};
+	virtual void OnEnd() {};
 
 	int64 GetAcceptTps();
 	int64 GetRecvTps();

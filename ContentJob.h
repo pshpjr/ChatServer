@@ -11,7 +11,8 @@ public:
 		None,
 		Connect,
 		Disconnect,
-		Packet
+		Packet,
+		TimeoutCheck
 	};
 
 	ePacketType _type;

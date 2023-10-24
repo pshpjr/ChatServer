@@ -2,6 +2,7 @@
 #include "IOCP.h"
 #pragma comment(lib, "winmm.lib")
 #include "PacketQueue.h"
+#include <thread>
 
 class Server : public IOCP
 {
@@ -11,8 +12,11 @@ public:
 	virtual void OnDisconnect(SessionID sessionId) override;
 	virtual void OnRecvPacket(SessionID sessionId, CSerializeBuffer& buffer) override;
 	virtual void OnStart() override;
-	
+	virtual void OnEnd() override;
+	void TimeoutCheck();
+
 
 	PacketQueue _packetQueue;
+	std::thread timeoutThread;
 };
 

@@ -16,15 +16,21 @@ public:
 	ePacketType _type;
 	CSerializeBuffer* _buffer;
 
+	void Free();
+
 	static ContentJob* Alloc() 
 	{
 		return _pool.Alloc();
 	}
-
-	static void Free(ContentJob* job) 
+	static ContentJob* Alloc(CSerializeBuffer* buffer)
 	{
-		return _pool.Free(job);
+		auto ret =  _pool.Alloc();
+
+		ret->_buffer = buffer;
+		buffer->IncreaseRef();
+		return ret;
 	}
+
 
 private:
 	ContentJob() : _type(ePacketType::None),_buffer(nullptr)

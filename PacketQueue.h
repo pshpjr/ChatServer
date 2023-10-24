@@ -2,6 +2,7 @@
 #include "ContentJob.h"
 class PacketQueue
 {
+public:
 	PacketQueue()
 	{
 		InitializeCriticalSection(&_lock);

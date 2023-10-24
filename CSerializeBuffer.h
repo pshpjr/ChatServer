@@ -79,6 +79,10 @@ public:
 	void writeHeader();
 
 
+	/// <summary>
+	/// Alloc을 받으면 레퍼런스가 1임. 
+	/// </summary>
+	/// <returns></returns>
 	static CSerializeBuffer* Alloc() 
 	{
 		auto ret = _pool.Alloc();

@@ -26,6 +26,9 @@
     <Filter Include="Lib\Core">
       <UniqueIdentifier>{07dd0df9-3c70-4b91-8c50-ba46af711d7d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Other">
+      <UniqueIdentifier>{fbf44842-e4a3-41a3-b1ca-2d4a29d54d14}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="NormalSocket.cpp">
@@ -67,6 +70,18 @@
     <ClCompile Include="IOCPTest2.cpp" />
     <ClCompile Include="Server.cpp">
       <Filter>Content</Filter>
+    </ClCompile>
+    <ClCompile Include="LockFreeStack.cpp">
+      <Filter>Other</Filter>
+    </ClCompile>
+    <ClCompile Include="SingleThreadObjectPool.cpp">
+      <Filter>Other</Filter>
+    </ClCompile>
+    <ClCompile Include="TLSLockFreeQueue.cpp">
+      <Filter>Other</Filter>
+    </ClCompile>
+    <ClCompile Include="TLSPool.cpp">
+      <Filter>Other</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -135,6 +150,21 @@
     </ClInclude>
     <ClInclude Include="Server.h">
       <Filter>Content</Filter>
+    </ClInclude>
+    <ClInclude Include="LockFreeQueue.h">
+      <Filter>Other</Filter>
+    </ClInclude>
+    <ClInclude Include="LockFreeStack.h">
+      <Filter>Other</Filter>
+    </ClInclude>
+    <ClInclude Include="SingleThreadObjectPool.h">
+      <Filter>Other</Filter>
+    </ClInclude>
+    <ClInclude Include="TLSLockFreeQueue.h">
+      <Filter>Other</Filter>
+    </ClInclude>
+    <ClInclude Include="TLSPool.h">
+      <Filter>Other</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

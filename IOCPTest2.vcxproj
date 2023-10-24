@@ -24,7 +24,7 @@
     <ProjectGuid>{d02f569b-0d9d-460f-bf75-a96725830bd6}</ProjectGuid>
     <RootNamespace>IOCPTest2</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>NetLib</ProjectName>
+    <ProjectName>IOCP_ChatServer</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -144,6 +144,7 @@
     <ClCompile Include="CSerializeBuffer.cpp" />
     <ClCompile Include="Executable.cpp" />
     <ClCompile Include="IOCPTest2.cpp" />
+    <ClCompile Include="LockFreeStack.cpp" />
     <ClCompile Include="LockGuard.cpp" />
     <ClCompile Include="MemoryPool.cpp" />
     <ClCompile Include="NormalIOCP.cpp" />
@@ -151,9 +152,12 @@
     <ClCompile Include="RUDPSocket.cpp" />
     <ClCompile Include="Server.cpp" />
     <ClCompile Include="Session.cpp" />
+    <ClCompile Include="SingleThreadObjectPool.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="TLSLockFreeQueue.cpp" />
+    <ClCompile Include="TLSPool.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BuildOption.h" />
@@ -165,6 +169,8 @@
     <ClInclude Include="CSerializeBuffer.h" />
     <ClInclude Include="Executable.h" />
     <ClInclude Include="IOCP.h" />
+    <ClInclude Include="LockFreeQueue.h" />
+    <ClInclude Include="LockFreeStack.h" />
     <ClInclude Include="LockGuard.h" />
     <ClInclude Include="Macro.h" />
     <ClInclude Include="MemoryPool.h" />
@@ -175,8 +181,11 @@
     <ClInclude Include="RUDPSocket.h" />
     <ClInclude Include="Server.h" />
     <ClInclude Include="Session.h" />
+    <ClInclude Include="SingleThreadObjectPool.h" />
     <ClInclude Include="Socket.h" />
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="TLSLockFreeQueue.h" />
+    <ClInclude Include="TLSPool.h" />
     <ClInclude Include="Types.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

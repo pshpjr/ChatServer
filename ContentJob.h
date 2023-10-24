@@ -4,6 +4,7 @@ class CSerializeBuffer;
 
 class ContentJob
 {
+	USE_TLS_POOL(ContentJob)
 public:
 	enum class ePacketType 
 	{

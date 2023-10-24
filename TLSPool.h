@@ -170,3 +170,9 @@ private:
 	int _pooledNodeCount = 0;
 };
 
+#ifndef USE_TLS_POOL
+
+#define USE_TLS_POOL(CLASS) 	friend TLSPool<CLASS, 0, false>; friend SingleThreadObjectPool<CLASS, 0, false>;
+
+
+#endif

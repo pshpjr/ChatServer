@@ -85,6 +85,7 @@ bool Socket::isValid() const
 	return _socket != INVALID_SOCKET;
 }
 
+
 bool Socket::Bind(String ip, uint16 port)
 {
 	memset(&_sockAddr, 0, sizeof(_sockAddr));

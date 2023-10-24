@@ -9,7 +9,7 @@
 #include "CSerializeBuffer.h"
 #include "LockGuard.h"
 
-bool IOCP::Init(String ip, uint16 port, uint16 backlog, uint16 maxNetThread)
+bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread)
 {
 	_isRunning = true;
 	_maxNetThread = maxNetThread;
@@ -99,7 +99,7 @@ void IOCP::Stop()
 	}
 }
 
-bool IOCP::SendPacket(uint64 sessionId, CSerializeBuffer* buffer)
+bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer)
 {
 	auto session = getLockedSession(sessionId);
 	if (session == nullptr)
@@ -114,7 +114,7 @@ bool IOCP::SendPacket(uint64 sessionId, CSerializeBuffer* buffer)
 	return true;
 }
 
-bool IOCP::DisconnectSession(uint64 sessionId)
+bool IOCP::DisconnectSession(SessionID sessionId)
 {
 
 	AcquireSRWLockExclusive(&_sessionManagerLock);
@@ -193,7 +193,7 @@ void IOCP::AcceptThread(LPVOID arg)
 	{
 		Socket clientSocket = _listenSocket.Accept();
 
-		if (OnAccept(clientSocket) == false)
+		if (OnAccept(clientSocket.GetSockAddr()) == false)
 		{
 			clientSocket.Close();
 			continue;

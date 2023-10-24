@@ -149,6 +149,7 @@
     <ClCompile Include="NormalIOCP.cpp" />
     <ClCompile Include="NormalSocket.cpp" />
     <ClCompile Include="RUDPSocket.cpp" />
+    <ClCompile Include="Server.cpp" />
     <ClCompile Include="Session.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
@@ -156,6 +157,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BuildOption.h" />
+    <ClInclude Include="CommonProtocol.h" />
     <ClInclude Include="Container.h" />
     <ClInclude Include="CoreGlobal.h" />
     <ClInclude Include="CrashDump.h" />
@@ -171,6 +173,7 @@
     <ClInclude Include="Overlapped.h" />
     <ClInclude Include="Protocol.h" />
     <ClInclude Include="RUDPSocket.h" />
+    <ClInclude Include="Server.h" />
     <ClInclude Include="Session.h" />
     <ClInclude Include="Socket.h" />
     <ClInclude Include="stdafx.h" />

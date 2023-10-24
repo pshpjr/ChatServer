@@ -16,7 +16,6 @@ protected:
 	Session* getLockedSession(SessionID sessionID);
 
 
-
 public:
 	virtual ~NormalIOCP();
 

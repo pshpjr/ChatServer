@@ -65,6 +65,9 @@
       <Filter>Lib\Core</Filter>
     </ClCompile>
     <ClCompile Include="IOCPTest2.cpp" />
+    <ClCompile Include="Server.cpp">
+      <Filter>Content</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="NormalSocket.h">
@@ -126,6 +129,12 @@
     </ClInclude>
     <ClInclude Include="CrashDump.h">
       <Filter>Lib\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="CommonProtocol.h">
+      <Filter>Content</Filter>
+    </ClInclude>
+    <ClInclude Include="Server.h">
+      <Filter>Content</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

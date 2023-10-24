@@ -6,87 +6,24 @@
 #include <chrono>
 
 #include "Server.h"
-#pragma comment(lib, "winmm.lib")
-#include<thread>
+
+
+
+
+
 int main()
 {
 	timeBeginPeriod(1);
 
-	Server iocp;
+	Server server;
 
-	iocp.Init(L"0.0.0.0",11777,20,4);
+	server.Init(L"0.0.0.0",11777,20,4);
 
-	int gameLoop = 0;
-	int MaxLoopMs = 0;
-	auto targetTime = std::chrono::system_clock::now()+chrono::milliseconds(20);
-	auto secLoop = targetTime + std::chrono::seconds(2);
-	bool getCommand = false;
 
-	while (true)
-	{
-
-		iocp.Update();
-
-		auto now = std::chrono::system_clock::now();
-
-		if (now >= secLoop)
-		{
-			secLoop += std::chrono::seconds(1);
-			printf("-------------------------\n");
-			printf("InputState : %d\n", getCommand);
-			printf("game : %d Max : %d\n", gameLoop,MaxLoopMs);
-			printf("AcceptTps : %lld SendTps : %lld RecvTps : %lld \n", iocp.GetAcceptTps(),iocp.GetSendTps(),iocp.GetRecvTps());
-			printf("Player: %d\n", iocp.GetPlayerCount());
-			printf("-------------------------\n");
-			gameLoop = 0;
-			MaxLoopMs = 9999;
-		}
-		if(GetAsyncKeyState(VK_UP))
-		{
-			getCommand = true;
-		}
-		if (GetAsyncKeyState(VK_DOWN))
-		{
-			getCommand = true;
-		}
-
-		if(getCommand)
-		{
-			if (GetAsyncKeyState('E'))
-			{
-				iocp.Stop();
-				break;
-			}
-		}
-
-		gameLoop++;
-		targetTime += chrono::milliseconds(20);
-		auto sleepTime =std::chrono::duration_cast<std::chrono::milliseconds>(targetTime - now);
-
-		MaxLoopMs = min(MaxLoopMs, sleepTime.count());
-
-		if (sleepTime.count()<0)
-			sleepTime = std::chrono::milliseconds(0);
-
-		Sleep(sleepTime.count());
-	}
 
 
 }
 
-enum iotype {
-	push,
-	pop
-};
-struct debugData
-{
-	iotype type;
-	unsigned long long oldTop;
-	unsigned long long newTop;
-	int data;
-	long long Count;
-	std::thread::id tId;
-};
 
 // 프로그램 실행: <Ctrl+F5> 또는 [디버그] > [디버깅하지 않고 시작] 메뉴
 // 프로그램 디버그: <F5> 키 또는 [디버그] > [디버깅 시작] 메뉴

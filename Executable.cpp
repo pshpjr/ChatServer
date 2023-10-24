@@ -35,13 +35,15 @@ void RecvExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
 
 		session->_recvQ.Dequeue(sizeof(Header));
 
-		CSerializeBuffer buffer;
+		auto& buffer = *CSerializeBuffer::Alloc();
 		session->_recvQ.Peek(buffer.GetBufferPtr(), header.len);
 		session->_recvQ.Dequeue(header.len);
 		buffer.MoveWritePos(header.len);
 		InterlockedIncrement(&((IOCP*)iocp)->_recvCount);
-		//InterlockedIncrement64(&_recvCount);
+
 		((IOCP*)iocp)->OnRecvPacket(session->_sessionID, buffer);
+		buffer.Release();
+
 	}
 	session->registerRecv();
 

@@ -95,7 +95,7 @@ void IOCP::Stop()
 	auto result = WaitForMultipleObjects(_maxNetThread, _threadArray, true, INFINITE);
 	if( result==WAIT_FAILED)
 	{
-				printf("WaitForMultipleObjects failed %d\n", GetLastError());
+		printf("WaitForMultipleObjects failed %d\n", GetLastError());
 	}
 }
 

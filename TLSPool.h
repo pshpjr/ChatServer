@@ -9,6 +9,7 @@ static constexpr int GLOBAL_POOL_INITIAL_SIZE = TLS_POOL_INITIAL_SIZE*10;
 template <typename T, int dataId, bool usePlacement = false>
 class TLSPool
 {
+
 public:
 	using poolType = SingleThreadObjectPool<T, dataId, usePlacement>;
 	using Node = typename poolType::Node;

@@ -144,7 +144,6 @@
     <ClCompile Include="CSerializeBuffer.cpp" />
     <ClCompile Include="Executable.cpp" />
     <ClCompile Include="IOCPTest2.cpp" />
-    <ClCompile Include="LockFreeStack.cpp" />
     <ClCompile Include="LockGuard.cpp" />
     <ClCompile Include="MemoryPool.cpp" />
     <ClCompile Include="NormalIOCP.cpp" />
@@ -152,12 +151,9 @@
     <ClCompile Include="RUDPSocket.cpp" />
     <ClCompile Include="Server.cpp" />
     <ClCompile Include="Session.cpp" />
-    <ClCompile Include="SingleThreadObjectPool.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="TLSLockFreeQueue.cpp" />
-    <ClCompile Include="TLSPool.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BuildOption.h" />

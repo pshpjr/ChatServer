@@ -71,18 +71,6 @@
     <ClCompile Include="Server.cpp">
       <Filter>Content</Filter>
     </ClCompile>
-    <ClCompile Include="LockFreeStack.cpp">
-      <Filter>Other</Filter>
-    </ClCompile>
-    <ClCompile Include="SingleThreadObjectPool.cpp">
-      <Filter>Other</Filter>
-    </ClCompile>
-    <ClCompile Include="TLSLockFreeQueue.cpp">
-      <Filter>Other</Filter>
-    </ClCompile>
-    <ClCompile Include="TLSPool.cpp">
-      <Filter>Other</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="NormalSocket.h">

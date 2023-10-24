@@ -5,8 +5,6 @@
 //#include "SettingParser.h"
 //#include "Profiler.h"
 
-#include "CMap.h"
-
 CLogger* GLogger = nullptr;
 SettingParser* GSettingParser = nullptr;
 Profiler* GProfiler = nullptr;

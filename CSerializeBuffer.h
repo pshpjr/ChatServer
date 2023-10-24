@@ -6,6 +6,8 @@ class Player;
 class CSerializeBuffer
 {
 	friend class SessionManager;
+	friend class TLSPool<CSerializeBuffer, 0, false>;
+	friend class SingleThreadObjectPool<CSerializeBuffer, 0, false>;
 	enum bufferOption { BUFFER_SIZE = 4096 };
 
 	struct HeapBreakDebug
@@ -27,7 +29,6 @@ class CSerializeBuffer
 	CSerializeBuffer& operator=(CSerializeBuffer&& other) noexcept = delete;
 
 public:
-
 
 	~CSerializeBuffer()
 	{

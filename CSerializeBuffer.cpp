@@ -1,7 +1,7 @@
 ﻿#include "stdafx.h"
 #include "CSerializeBuffer.h"
 
-
+TLSPool<CSerializeBuffer, 0, false> CSerializeBuffer::_pool;
 
 void CSerializeBuffer::writeHeader()
 {

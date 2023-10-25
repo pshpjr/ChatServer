@@ -42,7 +42,7 @@ public:
 
 	int		GetObjectCount(void) const { return _objectCount; }
 
-	int SizeCheck() const {
+	void SizeCheck() const {
 		int size = 0;
 		Node* _cur = _top;
 		while (_cur != nullptr) {
@@ -51,7 +51,7 @@ public:
 		
 		}
 
-		return size;
+		ASSERT_CRASH(_objectCount == size);
 	}
 
 private:
@@ -130,10 +130,8 @@ data* SingleThreadObjectPool<data, dataId, usePlacement>::Alloc()
 	retNode->_tail = (Node*)0x3412;
 	retNode->_head = (Node*)0x3412;
 #endif
-	int size = SizeCheck();
-	if (_objectCount != size) {
-		DebugBreak();
-	}
+	SizeCheck();
+
 
 	return (data*)(&(retNode->_data));
 }
@@ -165,9 +163,8 @@ bool SingleThreadObjectPool<data, dataId, usePlacement>::Free(data* pdata)
 
 	_objectCount++;
 
-	if (_objectCount != SizeCheck()) {
-		DebugBreak();
-	}
+	SizeCheck();
+
 
 	return true;
 }

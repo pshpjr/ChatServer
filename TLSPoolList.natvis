@@ -12,5 +12,11 @@
 			</LinkedListItems>
 		</Expand>
 	</Type>
+
+	<Type Name ="Debug">
+		<DisplayString>{{ tID = {threadID}, line = {line}, sendingSize = {	sendingSize}, isSend = {isSending} }</DisplayString>
+		
+		
+	</Type>
 	
 </AutoVisualizer>

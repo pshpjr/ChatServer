@@ -126,8 +126,9 @@ public:
 		{
 			pool->_top = AcquireNode(TLS_POOL_INITIAL_SIZE);
 			pool->_objectCount = TLS_POOL_INITIAL_SIZE;
-		}
 
+		}
+		pool->SizeCheck();
 		return pool->Alloc();
 	}
 
@@ -162,7 +163,7 @@ public:
 			pool->_objectCount -= TLS_POOL_INITIAL_SIZE;
 
 		}
-
+		pool->SizeCheck();
 	}
 
 

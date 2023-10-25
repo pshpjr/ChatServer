@@ -32,6 +32,7 @@ public:
 
 	~CSerializeBuffer()
 	{
+		DebugBreak();
 		for(int  i = 0; i < 100; ++i)
 		{
 			if(_heapBreakDebug.emptySpace[i] != 0)

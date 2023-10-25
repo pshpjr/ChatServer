@@ -57,13 +57,25 @@ void RecvExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
 
 void PostSendExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
 {
-
 	Session* session = (Session*)key;
+	auto& sendingQ = session->_sendingQ;
 
-	session->_sendQ.DequeueCBuffer(session->sendingSerializeBuffers);
+	CSerializeBuffer* buffer = nullptr;
+	while (sendingQ.Dequeue(buffer))
+	{
+		buffer->Release();
+	}
+
+
 	session->dataNotSend = 0;
 	isSend = false;
+
+	
 	int oldSending = InterlockedExchange(&session->_isSending, 0);
+	if (oldSending != 1) {
+		DebugBreak();
+	}
+
 	InterlockedIncrement(&((IOCP*)iocp)->_sendCount);
 	
 	session->trySend();

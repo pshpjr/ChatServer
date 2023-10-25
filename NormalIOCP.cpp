@@ -109,6 +109,11 @@ bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer)
 
 	UnlockGuard<Session> lock(*session);
 
+	int size = buffer->GetFullSize();
+		if (size == 0) {
+			DebugBreak();
+	}
+
 	session->Enqueue(buffer);
 	session->dataNotSend++;
 	PostQueuedCompletionStatus(_iocp, -1, (ULONG_PTR)session, &session->_sendExecute._overlapped);

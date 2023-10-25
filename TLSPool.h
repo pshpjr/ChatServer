@@ -144,19 +144,23 @@ public:
 
 		if (pool->GetObjectCount() > TLS_POOL_INITIAL_SIZE*2)
 		{
+
 			Node* releaseHead = pool->_top;
 
 			Node* releaseTail = pool->_top;
 
-			for (int i = 0; i < TLS_POOL_INITIAL_SIZE; ++i) {
+			for (int i = 0; i < TLS_POOL_INITIAL_SIZE-1; ++i) {
 				releaseTail = releaseTail->_tail;
 			}
 
 			Node* newHead = releaseTail->_tail;
 			pool->_top = newHead;
 
+
 			ReleaseNode(releaseHead, releaseTail, TLS_POOL_INITIAL_SIZE);
+
 			pool->_objectCount -= TLS_POOL_INITIAL_SIZE;
+
 		}
 
 	}

@@ -9,24 +9,27 @@ bool Server::OnAccept(SockAddr_in socket)
 
 void Server::OnConnect(SessionID sessionId)
 {
-	auto job = *ContentJob::Alloc();
-	job._type = ContentJob::ePacketType::Connect;
+	auto job = ContentJob::Alloc();
+	job->_type = ContentJob::ePacketType::Connect;
+	job->_id = sessionId;
 	
 	_packetQueue.Enqueue(job);
 }
 
 void Server::OnDisconnect(SessionID sessionId)
 {
-	auto job = *ContentJob::Alloc();
-	job._type = ContentJob::ePacketType::Disconnect;
+	auto job = ContentJob::Alloc();
+	job->_type = ContentJob::ePacketType::Disconnect;
+	job->_id = sessionId;
 
 	_packetQueue.Enqueue(job);
 }
 
 void Server::OnRecvPacket(SessionID sessionId, CSerializeBuffer& buffer)
 {
-	auto job = *ContentJob::Alloc(&buffer);
-	job._type = ContentJob::ePacketType::Packet;
+	auto job = ContentJob::Alloc(&buffer);
+	job->_type = ContentJob::ePacketType::Packet;
+	job->_id = sessionId;
 
 	_packetQueue.Enqueue(job);
 }
@@ -49,7 +52,7 @@ void Server::TimeoutCheck()
 		auto job = ContentJob::Alloc();
 		job->_type = ContentJob::ePacketType::TimeoutCheck;
 		job->_buffer = nullptr;
-		_packetQueue.Enqueue(*job);
+		_packetQueue.Enqueue(job);
 
 		auto sleepTime = std::chrono::duration_cast<std::chrono::milliseconds>(nextWakeup - std::chrono::system_clock::now()).count();
 		nextWakeup += std::chrono::seconds(1);

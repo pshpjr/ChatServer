@@ -42,6 +42,17 @@ public:
 
 	int		GetObjectCount(void) const { return _objectCount; }
 
+	int SizeCheck() const {
+		int size = 0;
+		Node* _cur = _top;
+		while (_cur != nullptr) {
+			_cur = _cur->_tail;
+			size++;
+		
+		}
+
+		return size;
+	}
 
 private:
 	Node* _top = nullptr;
@@ -61,20 +72,16 @@ SingleThreadObjectPool<data, dataId, usePlacement>::SingleThreadObjectPool(int i
 	{
 		Node* newNode = (Node*)malloc(sizeof(Node));
 
+		if constexpr (usePlacement == false) 
+		{
+			new(newNode) Node();
+		}
+
+
 		newNode->_tail = _top;
 		_top = newNode;
 	}
 
-	if constexpr (usePlacement == false)
-	{
-		Node* pNode = _top;
-		while (pNode != nullptr)
-		{
-			new(pNode) Node();
-
-			pNode = pNode->_tail;
-		}
-	}
 
 	_objectCount = iBlockNum;
 	_allocCount = iBlockNum;
@@ -123,6 +130,10 @@ data* SingleThreadObjectPool<data, dataId, usePlacement>::Alloc()
 	retNode->_tail = (Node*)0x3412;
 	retNode->_head = (Node*)0x3412;
 #endif
+	int size = SizeCheck();
+	if (_objectCount != size) {
+		DebugBreak();
+	}
 
 	return (data*)(&(retNode->_data));
 }
@@ -153,6 +164,11 @@ bool SingleThreadObjectPool<data, dataId, usePlacement>::Free(data* pdata)
 	_top = dataNode;
 
 	_objectCount++;
+
+	if (_objectCount != SizeCheck()) {
+		DebugBreak();
+	}
+
 	return true;
 }
 

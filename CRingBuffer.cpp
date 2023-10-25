@@ -163,8 +163,6 @@ bool CRingBuffer::RegisterCBuffer(WSABUF* buffer,int  bufferCount)
 	int iter = _front;
 	for (int i = 0; i < bufferCount; ++i)
 	{
-		if((*(CSerializeBuffer**)(_buffer + iter))->getBufferSize() != 3000)
-			DebugBreak();
 
 		buffer[i].buf = (*(CSerializeBuffer**)(_buffer + iter))->GetFullBuffer();
 		buffer[i].len = (*(CSerializeBuffer**)(_buffer + iter))->GetFullSize();
@@ -184,7 +182,7 @@ bool CRingBuffer::DequeueCBuffer(int count)
 	for (int i = 0; i < count; ++i)
 	{
 		auto ptr = *(CSerializeBuffer**)(_buffer + iter);
-		delete ptr;
+		ptr->Clear();
 		iter = (iter + sizeof(void*)) % BUFFER_SIZE;
 	}
 	return true;

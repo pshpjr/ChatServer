@@ -5,7 +5,8 @@ TLSPool<ContentJob, 0, false> ContentJob::_pool;
 
 void ContentJob::Free()
 {
-	_buffer->Release();
+	if(_buffer != nullptr)
+		_buffer->Release();
 	
 	_pool.Free(this);
 }

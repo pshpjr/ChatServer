@@ -9,15 +9,62 @@
 #include <chrono>
 
 
+
 int main()
 {
 	timeBeginPeriod(1);
 
 	Server server;
 
-	server.Init(L"0.0.0.0",11777,20,4);
+	server.Init(L"0.0.0.0", 6000,20,4);
+
+	while (true) 
+	{
+		server._packetQueue.Swap();
+
+		ContentJob* job;
+
+		while (true) 
+		{
+			job = server._packetQueue.Dequeue();
+
+			if (job == nullptr) 
+			{
+				break;
+			}
 
 
+			switch (job->_type)
+			{
+			case ContentJob::ePacketType::Connect:
+				break;
+			case ContentJob::ePacketType::Disconnect:
+				break;
+			case ContentJob::ePacketType::TimeoutCheck:
+				break;
+			case ContentJob::ePacketType::Packet:
+			{
+				int64 data;
+				auto sendBuffer = CSerializeBuffer::Alloc();
+				*job->_buffer >> data;
+				sendBuffer->MakeHeader();
+				*sendBuffer << data;
+				sendBuffer->Seal();
+
+				server.SendPacket(job->_id, sendBuffer);
+				break;
+			}
+			default:
+				DebugBreak();
+			}
+
+			job->Free();
+
+
+		}
+
+		Sleep(20);
+	}
 
 
 }

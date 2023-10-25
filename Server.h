@@ -18,5 +18,6 @@ public:
 
 	PacketQueue _packetQueue;
 	std::thread timeoutThread;
+	long wakeupFlag = 0;
 };
 

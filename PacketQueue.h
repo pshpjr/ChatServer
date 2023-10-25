@@ -19,27 +19,28 @@ public:
 	}
 
 
-	void Enqueue(ContentJob& job) 
+	void Enqueue(ContentJob* job) 
 	{
 		EnterCriticalSection(&_lock);
 		_queue[_enqueueIndex].push(job);
 		LeaveCriticalSection(&_lock);
 	}
 
-	bool Dequeue(ContentJob& out) 
+	ContentJob* Dequeue()
 	{
-		if (_queue[_enqueueIndex].empty()) {
-			return false;
+		if (_queue[_dequeueIndex].empty()) {
+			return nullptr;
 		}
 
-		out = _queue[_enqueueIndex].front();
-		_queue[_enqueueIndex].pop();
+		auto ret = _queue[_dequeueIndex].front();
+		_queue[_dequeueIndex].pop();
+		return ret;
 	}
 
 private:
 	int _enqueueIndex = 0;
 	int _dequeueIndex = 1;
-	queue<ContentJob> _queue[2];
+	queue<ContentJob*> _queue[2];
 
 	CRITICAL_SECTION _lock;
 

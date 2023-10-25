@@ -17,7 +17,7 @@ public:
 
 	ePacketType _type;
 	CSerializeBuffer* _buffer;
-
+	SessionID _id;
 	void Free();
 
 	static ContentJob* Alloc() 

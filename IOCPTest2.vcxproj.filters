@@ -29,6 +29,9 @@
     <Filter Include="Other">
       <UniqueIdentifier>{fbf44842-e4a3-41a3-b1ca-2d4a29d54d14}</UniqueIdentifier>
     </Filter>
+    <Filter Include="NatVis">
+      <UniqueIdentifier>{a6d5ce17-dab3-4fbc-a238-b570fbd2e4c9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="NormalSocket.cpp">
@@ -169,5 +172,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="TLSPoolList.natvis">
+      <Filter>NatVis</Filter>
+    </Natvis>
   </ItemGroup>
 </Project>

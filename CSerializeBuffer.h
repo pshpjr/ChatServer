@@ -91,7 +91,7 @@ public:
 		ret->IncreaseRef();
 		return ret;
 	}
-
+	long _refCount = 0;
 
 public:
 	CSerializeBuffer& operator <<(unsigned char value);
@@ -143,7 +143,7 @@ private:
 	char* _front = nullptr;
 	char* _rear = nullptr;
 	int _bufferSize = BUFFER_SIZE;
-	long _refCount = 0;
+
 	
 	HeapBreakDebug _heapBreakDebug = {0,};
 

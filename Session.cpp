@@ -6,7 +6,7 @@
 #include "IOCP.h"
 
 
-Session::Session(Socket socket, uint64 sessionId, IOCP& owner) : _socket(socket), _sessionID(sessionId), _owner(owner)
+Session::Session(Socket socket, uint64 sessionId, IOCP& owner) : _socket(socket), _sessionID(sessionId), _owner(owner),_sendingQ(100)
 {
 	InitializeCriticalSection(&_lock);
 }

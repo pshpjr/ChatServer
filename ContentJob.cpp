@@ -5,9 +5,13 @@ TLSPool<ContentJob, 0, false> ContentJob::_pool;
 
 void ContentJob::Free()
 {
-	if(_buffer != nullptr)
+	if (_buffer != nullptr) 
+	{
 		_buffer->Release();
+	}
+
 	
+
 	_pool.Free(this);
 }
 

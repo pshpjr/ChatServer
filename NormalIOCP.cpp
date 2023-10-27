@@ -114,7 +114,6 @@ bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer)
 	{
 		DebugBreak();
 	}
-	buffer->IncreaseRef();
 	session->Enqueue(buffer);
 	session->dataNotSend++;
 	PostQueuedCompletionStatus(_iocp, -1, (ULONG_PTR)session, &session->_sendExecute._overlapped);

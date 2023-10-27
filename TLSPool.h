@@ -14,6 +14,16 @@ public:
 	using poolType = SingleThreadObjectPool<T, dataId, usePlacement>;
 	using Node = typename poolType::Node;
 
+	int checkNode(Node* top) {
+		auto count = 0;
+		auto start = top;
+
+		while (start != nullptr) {
+			start = start->_tail;
+			count++;
+		}
+		return count;
+	}
 
 	TLSPool():poolID(InterlockedIncrement(&GPoolID))
 	{
@@ -58,23 +68,17 @@ public:
 		Node* newTop = _top;
 		Node* ret = nullptr;
 
-		//if(_pooledNodeCount == 0)
-		//{
-		//	DebugBreak();
-		//}
-
-
 
 		if(_pooledNodeCount < size)
 		{
-			for (int i = 0; i < size; ++i)
-			{
-				Node* newNode = createNode();
+			//for (int i = 0; i < size; ++i)
+			//{
+			//	Node* newNode = createNode();
 
-				newNode->_tail = newTop;
-				newTop = newNode;
-			}
-			_top = newTop;
+			//	newNode->_tail = newTop;
+			//	newTop = newNode;
+			//}
+			//_top = newTop;
 
 			for (int i = 0; i < size; ++i)
 			{
@@ -112,12 +116,14 @@ public:
 		_top = Head;
 
 		_pooledNodeCount += size;
+
 		LeaveCriticalSection(&_cs);
 	}
 
 
 	T* Alloc()
 	{
+		InterlockedIncrement64(&allocCount);
 		poolType* pool = (poolType*)TlsGetValue(localPoolTlsIndex);
 
 		if (pool == nullptr)
@@ -128,10 +134,13 @@ public:
 
 		if(pool->GetObjectCount() == 0)
 		{
-			printf("%d\n", GetCurrentThreadId());
 			pool->_top = AcquireNode(TLS_POOL_INITIAL_SIZE);
 			pool->_objectCount = TLS_POOL_INITIAL_SIZE;
 
+			auto checkResult = checkNode(pool->_top);
+			if (checkResult != pool->_objectCount)
+				DebugBreak();
+			checkResult = 0;
 		}
 
 		return pool->Alloc();
@@ -139,6 +148,7 @@ public:
 
 	void Free(T* data)
 	{
+		InterlockedIncrement64(&freeCount);
 		poolType* pool = (poolType*)TlsGetValue(localPoolTlsIndex);
 
 		if (pool == nullptr)
@@ -151,8 +161,6 @@ public:
 
 		if (pool->GetObjectCount() > TLS_POOL_INITIAL_SIZE*2)
 		{
-			printf("%d\n", GetCurrentThreadId());
-
 			Node* releaseHead = pool->_top;
 
 			Node* releaseTail = pool->_top;
@@ -183,7 +191,8 @@ private:
 	long poolID = 0;
 	const int _localPoolSize = TLS_POOL_INITIAL_SIZE;
 	const int _globalPoolSize = GLOBAL_POOL_INITIAL_SIZE;
-
+	long long freeCount = 0;
+	long long allocCount = 0;
 
 	struct Debug
 	{

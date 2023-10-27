@@ -18,7 +18,7 @@ class LockFreeQueue
 
 public:
 
-	LockFreeQueue() : queueID(InterlockedIncrement(&ID))
+	LockFreeQueue(int basePoolSize) : _pool(basePoolSize)
 	{
 		Node* dummy = _pool.Alloc();
 		
@@ -27,41 +27,35 @@ public:
 		_tail = dummy;
 	}
 
+	long Size() const { return _size; }
+
 	void Enqueue(const T& data)
 	{
-		Node* allocNode = _pool.Alloc();
-		Node* newNode = allocNode;
+		Node* newNode = _pool.Alloc();
 		newNode->data = data;
 
 		newNode->next = nullptr;
-		
+		auto nextTailCount = InterlockedIncrement16(&tailCount);
+		Node* newTail = (Node*)((unsigned long long)newNode | ((unsigned long long)(nextTailCount)) << 47);
+
+
 
 		while (true)
 		{
 			Node* tail = _tail;
 			Node* tailNode = (Node*)((unsigned long long)tail & pointerMask);
-			auto headCount = (unsigned short)((unsigned long long)tail >> 47);
+			auto enqCount = InterlockedIncrement(&tryEnqueueCount);
+			if (enqCount == 100)
+			{
+				DebugBreak();
+			}
 
 
-			//auto debugCount = InterlockedIncrement64(&debugIndex);
-			//auto index = debugCount % debugSize;
-
-
-
-			//debug[index].threadID = std::this_thread::get_id();
-			//debug[index].type = IoTypes::TryEnqueue;
-			//debug[index].oldHead = (unsigned long long)tailNode;
-			//debug[index].newHead = (unsigned long long)((Node*)((unsigned long long)newNode & pointerMask));
-
-			//debug[index].oldHead = (unsigned long long)tailNode->data;
-			//debug[index].newHead = (unsigned long long)((Node*)((unsigned long long)newTail &pointerMask))->data;
-
-
-			Node* newTail = (Node*)((unsigned long long)newNode | ((unsigned long long)(headCount + 1)) << 47);
-			if (tailNode->next == NULL)
+			if (tailNode->next == nullptr)
 			{
 				if (InterlockedCompareExchangePointer((PVOID*)&tailNode->next, newTail, nullptr) == nullptr)
 				{
+					InterlockedExchange(&tryEnqueueCount, 0);
 					//auto debugCount = InterlockedIncrement64(&debugIndex);
 					//auto index = debugCount % debugSize;
 
@@ -70,11 +64,8 @@ public:
 					//debug[index].oldHead = (unsigned long long)tailNode;
 					//debug[index].newHead = (unsigned long long)((Node*)((unsigned long long)newTail &pointerMask));
 
-
-
 					if(InterlockedCompareExchangePointer((PVOID*)&_tail, newTail, tail)==tail)
 					{
-
 
 					}
 
@@ -94,39 +85,28 @@ public:
 	{
 		if (_size == 0)
 			return false;
+
 		while (true)
 		{
-			//내가 deq 하려고 했는데 남이 해버리면
-			//나는 이 지점에 왔을 때 head next가 널이 되어버림.
 			Node* head = _head;
 			Node* headNode = (Node*)((unsigned long long)head & pointerMask);
 
 			Node* next = headNode->next;
 			Node* nextNode = (Node*)((unsigned long long)next & pointerMask);
 
-
-			//auto debugCount = InterlockedIncrement64(&debugIndex);
-			//auto index = debugCount % debugSize;
-
-			//debug[index].threadID = std::this_thread::get_id();
-			//debug[index].type = IoTypes::TryDequeue;
-
-			//debug[index].oldHead = (unsigned long long)headNode;
-			//debug[index].newHead = (unsigned long long)nextNode;
-
 			if (next == nullptr)
 				return false;
 
-			auto headCount = (unsigned short)((unsigned long long)head >> 47);
-
 			data = nextNode->data;
+
 			if (InterlockedCompareExchangePointer((PVOID*)&_head, next, head) == head)
 			{
 
 				Node* tail = _tail;
 				Node* tailNode = (Node*)((unsigned long long)tail & pointerMask);
-				if (tailNode->next != nullptr)
+				if (tail == head)
 				{
+					//내가 뺀 애가 tail이면 풀에 넣기 전에 수정해줘야 함. 아니면 꼬임.
 					InterlockedCompareExchangePointer((PVOID*)&_tail, tailNode->next, tail);
 				}
 
@@ -140,21 +120,23 @@ public:
 		return true;
 	}
 
-	long _size = 0;
+
 private:
+	const unsigned long long pointerMask = 0x000'7FFF'FFFF'FFFF;
+
 	Node* _head = nullptr;
 	Node* _tail = nullptr;
+	short tailCount = 0;
+	static long ID;
+	long _size = 0;
+	MultiThreadObjectPool<Node, false> _pool;
 
-	const unsigned long long pointerMask = 0x000'7FFF'FFFF'FFFF;
-	psh::CMemoryPool<Node, 0, false> _pool { 200 };
 
+	//DEBUG
 	static const int debugSize = 3000;
 	long long debugIndex = 0;
 	//debugData<T> debug[debugSize];
-	long long tailCount = 0;
-	const int queueID;
 
-	static long ID;
 
 	long tryEnqueueCount = 0;
 

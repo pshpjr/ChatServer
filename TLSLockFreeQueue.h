@@ -17,7 +17,7 @@ class TLSLockFreeQueue
 	};
 
 public:
-	TLSLockFreeQueue() : queueID(InterlockedIncrement(&ID))
+	TLSLockFreeQueue() : queueID(InterlockedIncrement(&GID))
 	{
 		Node* dummy = _pool.Alloc();
 
@@ -35,24 +35,14 @@ public:
 		newNode->next = (Node*)queueID;
 		newNode->queueID = queueID;
 
+		auto headCount = InterlockedIncrement16(&tailCount);
+		Node* newTail = (Node*)((unsigned long long)newNode | ((unsigned long long)(headCount)) << 47);
+
 		while (true)
 		{
 			Node* tail = _tail;
 			Node* tailNode = (Node*)((unsigned long long)tail & pointerMask);
-			auto headCount = (unsigned short)((unsigned long long)tail >> 47);
-
-			Node* newTail = (Node*)((unsigned long long)newNode | ((unsigned long long)(headCount + 1)) << 47);
-
-
-			//auto debugCount = InterlockedIncrement64(&debugIndex);
-			//auto index = debugCount % debugSize;
-
-			//debug[index].threadID = std::this_thread::get_id();
-			//debug[index].type = IoTypes::TryEnqueue;
-			//debug[index].oldHead = (unsigned long long)tailNode;
-			//debug[index].newHead = (unsigned long long)((Node*)((unsigned long long)newNode & pointerMask));
-			//debug[index].data = newNode->data;
-
+			
 			if (tailNode->next == (Node*)queueID)
 			{
 				if (InterlockedCompareExchangePointer((PVOID*)&tailNode->next, newTail, (Node*)queueID) == (Node*)queueID)
@@ -65,6 +55,9 @@ public:
 					break;
 				}
 			}
+			//tail의 next가 queueiD가 아니면 경우의 수는 2가지
+			//다른 큐의 id이거나 이미 tail 뒤에 누가 넣었거나, 다른 큐에 들어갔거나
+			//내 큐의 tail이라면 cas 통과하지만, 그 외의 경우에는 _tail과 다를 것임. 
 			else
 			{
 				InterlockedCompareExchangePointer((PVOID*)&_tail, tailNode->next, tail);
@@ -72,6 +65,18 @@ public:
 			
 		}
 		InterlockedIncrement(&_size);
+
+
+
+
+		//auto debugCount = InterlockedIncrement64(&debugIndex);
+		//auto index = debugCount % debugSize;
+
+		//debug[index].threadID = std::this_thread::get_id();
+		//debug[index].type = IoTypes::TryEnqueue;
+		//debug[index].oldHead = (unsigned long long)tailNode;
+		//debug[index].newHead = (unsigned long long)((Node*)((unsigned long long)newNode & pointerMask));
+		//debug[index].data = newNode->data;
 	}
 
 	bool Dequeue(T& data)
@@ -93,10 +98,11 @@ public:
 
 			Node* next = headNode->next;
 			Node* nextNode = (Node*)((unsigned long long)next & pointerMask);
+
 			if (nextNode < (Node*)64000)
 				return false;
 
-			auto debugCount = InterlockedIncrement64(&debugIndex);
+			//auto debugCount = InterlockedIncrement64(&debugIndex);
 			//auto index = debugCount % debugSize;
 
 			//debug[index].threadID = std::this_thread::get_id();
@@ -105,9 +111,6 @@ public:
 			//debug[index].oldHead = (unsigned long long)headNode;
 			//debug[index].newHead = (unsigned long long)nextNode;
 			//debug[index].data = nextNode->data;
-
-
-			auto headCount = (unsigned short)((unsigned long long)head >> 47);
 
 			data = nextNode->data;
 
@@ -120,7 +123,6 @@ public:
 				{
 					//내가 뺀 애가 tail이면 풀에 넣기 전에 수정해줘야 함. 아니면 꼬임.
 					InterlockedCompareExchangePointer((PVOID*)&_tail, tailNode->next, tail);
-
 				}
 
 
@@ -146,16 +148,18 @@ private:
 	inline static TLSPool<Node, 0, false> _pool;
 
 
+	short tailCount = 0;
+	const int queueID;
+	static long GID;
+
+
 	static const int debugSize =1000;
 	long long debugIndex = 0;
 	//debugData<T> debug[debugSize];
-	long long tailCount = 0;
-	const int queueID;
 
-	static long ID;
 
 	long tryEnqueueCount = 0;
 
 };
 template <typename T>
-long TLSLockFreeQueue<T>::ID = 0;
+long TLSLockFreeQueue<T>::GID = 0;

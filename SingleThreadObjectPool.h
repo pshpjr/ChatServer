@@ -50,8 +50,6 @@ public:
 			size++;
 		
 		}
-
-		ASSERT_CRASH(_objectCount == size);
 	}
 
 private:
@@ -61,6 +59,8 @@ private:
 	static constexpr int _identifier = dataId << 16;
 	static int _instanceCount;
 };
+
+
 template <typename data, int dataId, bool usePlacement>
 int SingleThreadObjectPool<data, dataId, usePlacement>::_instanceCount = 0;
 
@@ -130,7 +130,7 @@ data* SingleThreadObjectPool<data, dataId, usePlacement>::Alloc()
 	retNode->_tail = (Node*)0x3412;
 	retNode->_head = (Node*)0x3412;
 #endif
-	SizeCheck();
+	//SizeCheck();
 
 
 	return (data*)(&(retNode->_data));
@@ -163,7 +163,7 @@ bool SingleThreadObjectPool<data, dataId, usePlacement>::Free(data* pdata)
 
 	_objectCount++;
 
-	SizeCheck();
+	//SizeCheck();
 
 
 	return true;

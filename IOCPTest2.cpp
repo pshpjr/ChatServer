@@ -16,7 +16,7 @@ int main()
 
 	Server server;
 
-	server.Init(L"0.0.0.0", 6000,20,4);
+	server.Init(L"0.0.0.0", 6000,20,1);
 
 	while (true) 
 	{
@@ -45,13 +45,14 @@ int main()
 			case ContentJob::ePacketType::Packet:
 			{
 				int64 data;
-				auto sendBuffer = CSerializeBuffer::Alloc();
+				auto& sendBuffer = *CSerializeBuffer::Alloc();
 				*job->_buffer >> data;
-				sendBuffer->MakeHeader();
-				*sendBuffer << data;
-				sendBuffer->Seal();
 
-				server.SendPacket(job->_id, sendBuffer);
+				sendBuffer.MakeHeader();
+				sendBuffer << data;
+				sendBuffer.Seal();
+
+				server.SendPacket(job->_id, &sendBuffer);
 				break;
 			}
 			default:

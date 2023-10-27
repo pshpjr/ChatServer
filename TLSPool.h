@@ -2,7 +2,7 @@
 #include "Windows.h"
 #include "SingleThreadObjectPool.h"
 
-static constexpr int TLS_POOL_INITIAL_SIZE = 200;
+static constexpr int TLS_POOL_INITIAL_SIZE = 2000;
 static constexpr int GLOBAL_POOL_INITIAL_SIZE = TLS_POOL_INITIAL_SIZE*10;
 
 
@@ -15,11 +15,11 @@ public:
 	using Node = typename poolType::Node;
 
 
-	TLSPool()
+	TLSPool():poolID(InterlockedIncrement(&GPoolID))
 	{
+
 		InitializeCriticalSection(&_cs);
 		localPoolTlsIndex = TlsAlloc();
-
 
 		_pooledNodeCount = GLOBAL_POOL_INITIAL_SIZE;
 
@@ -57,6 +57,14 @@ public:
 
 		Node* newTop = _top;
 		Node* ret = nullptr;
+
+		//if(_pooledNodeCount == 0)
+		//{
+		//	DebugBreak();
+		//}
+
+
+
 		if(_pooledNodeCount < size)
 		{
 			for (int i = 0; i < size; ++i)
@@ -90,7 +98,6 @@ public:
 
 			_pooledNodeCount -= size;
 		}
-
 		LeaveCriticalSection(&_cs);
 
 		return ret;
@@ -105,7 +112,6 @@ public:
 		_top = Head;
 
 		_pooledNodeCount += size;
-
 		LeaveCriticalSection(&_cs);
 	}
 
@@ -116,19 +122,18 @@ public:
 
 		if (pool == nullptr)
 		{
-			auto newPool = new poolType(TLS_POOL_INITIAL_SIZE);
-			TlsSetValue(localPoolTlsIndex,newPool);
-			pool = newPool;
+			pool = new poolType(TLS_POOL_INITIAL_SIZE);
+			TlsSetValue(localPoolTlsIndex, pool);
 		}
-
 
 		if(pool->GetObjectCount() == 0)
 		{
+			printf("%d\n", GetCurrentThreadId());
 			pool->_top = AcquireNode(TLS_POOL_INITIAL_SIZE);
 			pool->_objectCount = TLS_POOL_INITIAL_SIZE;
 
 		}
-		pool->SizeCheck();
+
 		return pool->Alloc();
 	}
 
@@ -137,14 +142,16 @@ public:
 		poolType* pool = (poolType*)TlsGetValue(localPoolTlsIndex);
 
 		if (pool == nullptr)
-			TlsSetValue(localPoolTlsIndex, new poolType(TLS_POOL_INITIAL_SIZE));
-
-		pool = (poolType*)TlsGetValue(localPoolTlsIndex);
+		{
+			pool = new poolType(TLS_POOL_INITIAL_SIZE);
+			TlsSetValue(localPoolTlsIndex, pool);
+		}
 
 		pool->Free(data);
 
 		if (pool->GetObjectCount() > TLS_POOL_INITIAL_SIZE*2)
 		{
+			printf("%d\n", GetCurrentThreadId());
 
 			Node* releaseHead = pool->_top;
 
@@ -155,15 +162,14 @@ public:
 			}
 
 			Node* newHead = releaseTail->_tail;
-			pool->_top = newHead;
 
+			pool->_top = newHead;
 
 			ReleaseNode(releaseHead, releaseTail, TLS_POOL_INITIAL_SIZE);
 
 			pool->_objectCount -= TLS_POOL_INITIAL_SIZE;
 
 		}
-		pool->SizeCheck();
 	}
 
 
@@ -173,6 +179,23 @@ private:
 	inline static DWORD localPoolTlsIndex = 0;
 	Node* _top = nullptr;
 	int _pooledNodeCount = 0;
+	inline static long GPoolID;
+	long poolID = 0;
+	const int _localPoolSize = TLS_POOL_INITIAL_SIZE;
+	const int _globalPoolSize = GLOBAL_POOL_INITIAL_SIZE;
+
+
+	struct Debug
+	{
+		int threadID;
+		int type;
+		int globalPoolSize;
+		long long globalPoolAddr;
+		int localPoolSize;
+		long long localPoolAddr;
+	};
+	long debugIndex = 0;
+	Debug debug[1000];
 };
 
 #ifndef USE_TLS_POOL

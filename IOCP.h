@@ -7,6 +7,8 @@ class IOCP : public IOCP_CLASS
 
 
 public:
+	IOCP();
+
 	using SessionID = uint64;
 	using Port = uint16;
 

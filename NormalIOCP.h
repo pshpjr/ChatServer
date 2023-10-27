@@ -2,7 +2,7 @@
 #include "Container.h"
 #include "Socket.h"
 #include "Types.h"
-
+#include "LockFreeStack.h"
 class Session;
 
 class NormalIOCP
@@ -15,8 +15,7 @@ protected:
 	Session* FindSession(uint64 id);
 	Session* getLockedSession(SessionID sessionID);
 
-
-public:
+protected:
 	virtual ~NormalIOCP();
 
 	//IOCP
@@ -36,7 +35,12 @@ public:
 
 // SESSION_MANAGER
 	int g_id = 0;
+	static const int MAX_SESSIONS = 16000;
 	HashMap<uint64, Session*> _sessions;
+	Session sessions[MAX_SESSIONS];
+	LockFreeStack<short> freeIndex;
+
+
 	SRWLOCK _sessionManagerLock;
 	uint64 g_sessionId = 0;
 };

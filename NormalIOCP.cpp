@@ -206,19 +206,28 @@ void IOCP::AcceptThread(LPVOID arg)
 		}
 		_acceptCount++;
 
-		auto newSession = new Session(clientSocket, g_sessionId++, *(IOCP*)(this));
+		short sessionIndex;
+		if (freeIndex.Pop(sessionIndex) == false) 
+		{
+			printf("!!!!!serverIsFull!!!!!\n");
+			clientSocket.Close();
+			continue;
+		}
+		uint64 sessionID = (uint64)sessionIndex << 17;
+		sessionID |= g_sessionId++;
 
-		//아직 안 쓰니까 그냥 수정해도 됨.
-		newSession->_refCount = 1;
-		RegisterSession(*newSession);
+		sessions[sessionIndex].SetOwner(*(IOCP*)(this));
+		sessions[sessionIndex].SetSessionID(sessionID);
+		sessions[sessionIndex].SetSocket(clientSocket);
 
-		newSession->RegisterIOCP(_iocp);
+		sessions[sessionIndex]._refCount = 1;
 
+		RegisterSession(sessions[sessionIndex]);
 
-		OnConnect(newSession->GetSessionID());
-		newSession->_postRecvNotIncrease();
+		sessions[sessionIndex].RegisterIOCP(_iocp);
 
-
+		OnConnect(sessions[sessionIndex].GetSessionID());
+		sessions[sessionIndex]._postRecvNotIncrease();
 	}
 	printf("AcceptThreadEnd\n");
 }
@@ -263,7 +272,13 @@ unsigned __stdcall IOCP::AcceptEntry(LPVOID arg)
 	return 0;
 }
 
-
+IOCP::IOCP() 
+{
+	for (int i = 0; i < MAX_SESSIONS; i++)
+	{
+		freeIndex.Push(i);
+	}
+}
  
 NormalIOCP::~NormalIOCP()
 {
@@ -322,3 +337,5 @@ Session* NormalIOCP::getLockedSession(SessionID sessionID)
 	ReleaseSRWLockShared(&_sessionManagerLock);
 	return result->second;
 }
+
+

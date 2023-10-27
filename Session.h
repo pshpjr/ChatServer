@@ -17,6 +17,7 @@ class Session
 	friend class SendExecutable;
 	friend class IOCP;
 public:
+	Session();
 	Session(Socket socket, uint64 sessionId, IOCP& owner);
 	void Enqueue(CSerializeBuffer* buffer);
 	void Close();
@@ -28,6 +29,9 @@ public:
 	void _postRecvNotIncrease();
 	void RegisterIOCP(HANDLE iocpHandle);
 	uint64 GetSessionID() { return _sessionID; } 
+	void SetSocket(Socket socket) { _socket = socket; };
+	void SetSessionID(uint64 sessionID) { _sessionID = sessionID; }
+	void SetOwner(IOCP& owner) { _owner = &owner; }
 private:
 
 	Socket _socket;
@@ -48,7 +52,7 @@ private:
 	CRITICAL_SECTION _lock;
 	bool _isDisconnected = false;
 	//세션 여기저기 옮기지 못 하게 하나로 고정.
-	IOCP& _owner;
+	IOCP* _owner;
 
 	//long DebugIndex = 0;
 	//struct Debug {

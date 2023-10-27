@@ -14,7 +14,7 @@ int main()
 {
 	timeBeginPeriod(1);
 
-	Server server;
+	Server& server = *new Server;
 
 	server.Init(L"0.0.0.0", 6000,20,2);
 

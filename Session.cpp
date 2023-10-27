@@ -6,6 +6,10 @@
 #include "IOCP.h"
 
 
+Session::Session(): _sendingQ(100), _owner(nullptr)
+{
+}
+
 Session::Session(Socket socket, uint64 sessionId, IOCP& owner) : _socket(socket), _sessionID(sessionId), _owner(owner),_sendingQ(100)
 {
 	InitializeCriticalSection(&_lock);
@@ -81,7 +85,8 @@ void Session::trySend()
 		break;
 	}
 	InterlockedIncrement(&_refCount);
-	//이 지점에 둘이 들어올 수 있나?
+
+
 	int sendPackets = 0;
 	WSABUF sendWsaBuf[MAX_SEND_COUNT];
 	for (int i = 0; i < MAX_SEND_COUNT; i++)
@@ -102,6 +107,7 @@ void Session::trySend()
 	if (sendPackets == 0)
 	{
 		InterlockedExchange(&_isSending, false);
+		Release();
 		return;
 	}
 

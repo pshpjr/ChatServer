@@ -29,7 +29,9 @@ public:
 	{
 		for (Node* p = _top; p != nullptr;)
 		{
-			Node* next = ((Node*)(pointerMask & (long long)p))->next;
+
+			p = (Node*)(pointerMask & (long long)p);
+			Node* next = p->next;
 			if constexpr (!usePlacement)
 			{
 				p->~Node();

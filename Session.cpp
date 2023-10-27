@@ -80,7 +80,7 @@ void Session::trySend()
 		}
 		break;
 	}
-
+	InterlockedIncrement(&_refCount);
 	//이 지점에 둘이 들어올 수 있나?
 	int sendPackets = 0;
 	WSABUF sendWsaBuf[MAX_SEND_COUNT];
@@ -107,7 +107,7 @@ void Session::trySend()
 
 
 
-	InterlockedIncrement(&_refCount);
+
 	_postSendExecute.isSend = true;
 
 	for (int i = 0; i < sendPackets; ++i)

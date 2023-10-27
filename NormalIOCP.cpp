@@ -183,7 +183,6 @@ void IOCP::WorkerThread(LPVOID arg)
 		}
 		else
 		{
-
 			overlapped = (Executable*)((char*)overlapped - sizeof(LPVOID));
 			overlapped->Execute((PULONG_PTR)session, transferred, this);
 		}

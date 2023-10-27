@@ -16,7 +16,7 @@ int main()
 
 	Server server;
 
-	server.Init(L"0.0.0.0", 6000,20,1);
+	server.Init(L"0.0.0.0", 6000,20,2);
 
 	while (true) 
 	{

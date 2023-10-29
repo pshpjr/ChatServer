@@ -3,17 +3,22 @@
 #include "Socket.h"
 #include "Types.h"
 #include "LockFreeStack.h"
-class Session;
+#include "Session.h"
 
 class NormalIOCP
 {
-	public:
-		bool DeleteSession(SessionID id);
+	friend class Session;
+	friend class RecvExecutable;
+	friend class SendExecutable;
+	friend class PostSendExecutable;
+public:
+	bool DeleteSession(SessionID id);
 protected:
 	void RegisterSession(Session& session);
 
 	Session* FindSession(uint64 id);
 	Session* getLockedSession(SessionID sessionID);
+	unsigned short GetSessionIndex(uint64 sessionID) const { return sessionID & indexMask; }
 
 protected:
 	virtual ~NormalIOCP();
@@ -36,12 +41,12 @@ protected:
 // SESSION_MANAGER
 	int g_id = 0;
 	static const int MAX_SESSIONS = 16000;
-	HashMap<uint64, Session*> _sessions;
 	Session sessions[MAX_SESSIONS];
 	LockFreeStack<short> freeIndex;
+	const unsigned long long idMask = 0x000'7FFF'FFFF'FFFF;
+	const unsigned long long indexMask = 0x7FFF'8000'0000'0000;
+	const long releaseFlag = 0x0010'0000;
 
-
-	SRWLOCK _sessionManagerLock;
 	uint64 g_sessionId = 0;
 };
 

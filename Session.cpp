@@ -6,26 +6,23 @@
 #include "IOCP.h"
 
 
-Session::Session(): _sendingQ(100), _owner(nullptr)
+Session::Session(): _owner(nullptr)
 {
 }
 
-Session::Session(Socket socket, uint64 sessionId, IOCP& owner) : _socket(socket), _sessionID(sessionId), _owner(owner),_sendingQ(100)
-{
+Session::Session(Socket socket, uint64 sessionId, IOCP& owner) : _socket(socket), _sessionID(sessionId), _owner(&owner)
+{ 
 	InitializeCriticalSection(&_lock);
 }
 
 void Session::Enqueue(CSerializeBuffer* buffer)
 {
-	Lock();
 	_sendQ.Enqueue(buffer);
-	Unlock();
 }
 
 void Session::Close()
 {
-	Lock();
-	Unlock();
+	_disconnect = true;
 
 	_socket.Close();
 }
@@ -34,14 +31,24 @@ bool Session::Release()
 {
 	int refDecResult = InterlockedDecrement(&_refCount);
 
-	//refCount만으로 이렇게 처리해도 되는가?
+	//각종 정리를 하고 반환한다. 
 	if (refDecResult == 0)
 	{
-		_owner.DeleteSession(_sessionID);
+		auto releaseFlagResult = InterlockedOr(&_refCount, releaseFlag);
+	//0이 아니란 소리는 누가 Inc하거나, 누가 release 하고 있단 소리. 
+		if (releaseFlagResult != 0) 
+		{
+			return false;
+		}
 
-		Close();
-		delete this;
+		//소켓 닫는 거 말고 또 할 거 있나?
+		//직렬화 버퍼 같은 거. .
 
+		Reset();
+
+		auto index = _sessionID & indexMask;
+
+		_owner->freeIndex.Push(index);
 		return true;
 	}
 	return false;
@@ -54,7 +61,10 @@ const int MAX_SEND_COUNT = 50;
 
 void Session::trySend()
 {
-
+	if (_disconnect == true) 
+	{
+		return;
+	}
 	while (true)
 	{
 		//이걸로 disconnect시 전송 을 방지할 수 있을까?
@@ -84,7 +94,14 @@ void Session::trySend()
 		}
 		break;
 	}
-	InterlockedIncrement(&_refCount);
+	
+	auto refIncResult = InterlockedIncrement(&_refCount);
+	if (refIncResult >= releaseFlag) 
+	{
+		InterlockedDecrement(&_refCount);
+		return;
+	}
+
 
 
 	int sendPackets = 0;
@@ -189,5 +206,24 @@ void Session::_postRecvNotIncrease()
 void Session::RegisterIOCP(HANDLE iocpHandle)
 {
 	CreateIoCompletionPort((HANDLE)_socket._socket, iocpHandle, (ULONG_PTR)this, 0);
+}
+
+void Session::Reset()
+{
+	_sendExecute.Clear();
+	_recvExecute.Clear();
+	_postSendExecute.Clear();
+	_sessionID = -1;
+
+	CSerializeBuffer* sendBuffer;
+	while (_sendQ.Dequeue(sendBuffer))
+	{
+		sendBuffer->Release();
+	}
+	_recvQ.Clear();
+	while (_sendingQ.Dequeue(sendBuffer))
+	{
+		sendBuffer->Release();
+	}
 }
 

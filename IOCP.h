@@ -32,6 +32,7 @@ public:
 	int64 GetRecvTps();
 	int64 GetSendTps();
 
+
 private:
 	void WorkerThread(LPVOID arg);
 	void AcceptThread(LPVOID arg);

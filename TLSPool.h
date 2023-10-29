@@ -71,14 +71,14 @@ public:
 
 		if(_pooledNodeCount < size)
 		{
-			//for (int i = 0; i < size; ++i)
-			//{
-			//	Node* newNode = createNode();
+			for (int i = 0; i < size; ++i)
+			{
+				Node* newNode = createNode();
 
-			//	newNode->_tail = newTop;
-			//	newTop = newNode;
-			//}
-			//_top = newTop;
+				newNode->_tail = newTop;
+				newTop = newNode;
+			}
+			_top = newTop;
 
 			for (int i = 0; i < size; ++i)
 			{
@@ -87,7 +87,7 @@ public:
 				newNode->_tail = ret;
 				ret = newNode;
 			}
-			_pooledNodeCount += size;
+			//_pooledNodeCount += size;
 		}
 		else
 		{
@@ -102,6 +102,8 @@ public:
 
 			_pooledNodeCount -= size;
 		}
+
+
 		LeaveCriticalSection(&_cs);
 
 		return ret;
@@ -116,6 +118,8 @@ public:
 		_top = Head;
 
 		_pooledNodeCount += size;
+
+
 
 		LeaveCriticalSection(&_cs);
 	}
@@ -137,10 +141,7 @@ public:
 			pool->_top = AcquireNode(TLS_POOL_INITIAL_SIZE);
 			pool->_objectCount = TLS_POOL_INITIAL_SIZE;
 
-			auto checkResult = checkNode(pool->_top);
-			if (checkResult != pool->_objectCount)
-				DebugBreak();
-			checkResult = 0;
+
 		}
 
 		return pool->Alloc();

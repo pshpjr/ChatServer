@@ -16,7 +16,6 @@ bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread)
 
 
 	_threadArray = new HANDLE[_maxNetThread+2];
-	InitializeSRWLock(&_sessionManagerLock);
 
 
 	WSADATA wsaData;
@@ -103,40 +102,43 @@ void IOCP::Stop()
 
 bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer)
 {
-	auto session = getLockedSession(sessionId);
-	if (session == nullptr)
-		return false;
+	auto sessionIndex = (sessionId >> 47);
+	auto& session = sessions[sessionIndex];
 
-	UnlockGuard<Session> lock(*session);
+	auto refResult = InterlockedIncrement(&session._refCount);
+	if (session.GetSessionID() != sessionId) 
+	{
+		InterlockedDecrement(&session._refCount);
+		buffer->Release();
+		return false;
+	}
+	if (refResult == releaseFlag)
+		DebugBreak();
+
+	if (refResult > releaseFlag)
+	{
+		InterlockedDecrement(&sessions[sessionIndex]._refCount);
+		buffer->Release();
+		return false;
+	}
 
 	int size = buffer->GetFullSize();
 	if (size == 0) 
 	{
 		DebugBreak();
 	}
-	session->Enqueue(buffer);
-	session->dataNotSend++;
-	PostQueuedCompletionStatus(_iocp, -1, (ULONG_PTR)session, &session->_sendExecute._overlapped);
+	session.Enqueue(buffer);
+	session.dataNotSend++;
+	PostQueuedCompletionStatus(_iocp, -1, (ULONG_PTR)&session, &session._sendExecute._overlapped);
 
 	return true;
 }
 
 bool IOCP::DisconnectSession(SessionID sessionId)
 {
+	auto sessionIndex = (sessionId >> 47);
 
-	AcquireSRWLockExclusive(&_sessionManagerLock);
-	auto result =_sessions.find(sessionId);
-	if(result==_sessions.end())
-	{
-		ReleaseSRWLockExclusive(&_sessionManagerLock);
-		return false;
-	}
-	auto session = result->second;
-	//_sessions.erase(result);
-
-	ReleaseSRWLockExclusive(&_sessionManagerLock);
-
-	session->Close();
+	sessions[sessionIndex].Close();
 
 	return true;  
 }
@@ -213,16 +215,16 @@ void IOCP::AcceptThread(LPVOID arg)
 			clientSocket.Close();
 			continue;
 		}
-		uint64 sessionID = (uint64)sessionIndex << 17;
+
+		uint64 sessionID = (uint64)sessionIndex << 47;
 		sessionID |= g_sessionId++;
 
 		sessions[sessionIndex].SetOwner(*(IOCP*)(this));
 		sessions[sessionIndex].SetSessionID(sessionID);
 		sessions[sessionIndex].SetSocket(clientSocket);
 
-		sessions[sessionIndex]._refCount = 1;
+		auto refResult = InterlockedIncrement(&sessions[sessionIndex]._refCount);
 
-		RegisterSession(sessions[sessionIndex]);
 
 		sessions[sessionIndex].RegisterIOCP(_iocp);
 
@@ -274,7 +276,7 @@ unsigned __stdcall IOCP::AcceptEntry(LPVOID arg)
 
 IOCP::IOCP() 
 {
-	for (int i = 0; i < MAX_SESSIONS; i++)
+	for (int i = MAX_SESSIONS-1; i >=0 ; i--)
 	{
 		freeIndex.Push(i);
 	}
@@ -295,47 +297,12 @@ NormalIOCP::~NormalIOCP()
 }
 
 
-void NormalIOCP::RegisterSession(Session& session)
-{
-	AcquireSRWLockExclusive(&_sessionManagerLock);
-	_sessions.insert({ session.GetSessionID(), &session });
-	ReleaseSRWLockExclusive(&_sessionManagerLock);
-}
-
-bool NormalIOCP::DeleteSession(SessionID id)
-{
-	AcquireSRWLockExclusive(&_sessionManagerLock);
-	auto result = _sessions.erase(id);
-	ReleaseSRWLockExclusive(&_sessionManagerLock);
-	return result == 1;
-}
-
-
 Session* NormalIOCP::FindSession(uint64 id)
 {
-	AcquireSRWLockShared(&_sessionManagerLock);
-	auto session = _sessions.find(id);
-	ReleaseSRWLockShared(&_sessionManagerLock);
-	if (session == _sessions.end())
-	{
-		return nullptr;
-	}
+	auto sessionIndex = id & idMask;
 
-	return session->second;
+	return &sessions[sessionIndex];
 }
 
-Session* NormalIOCP::getLockedSession(SessionID sessionID)
-{
-	AcquireSRWLockShared(&_sessionManagerLock);
-	auto result = _sessions.find(sessionID);
-	if (result == _sessions.end())
-	{
-		ReleaseSRWLockShared(&_sessionManagerLock);
-		return nullptr;
-	}
-	result->second->Lock();
-	ReleaseSRWLockShared(&_sessionManagerLock);
-	return result->second;
-}
 
 

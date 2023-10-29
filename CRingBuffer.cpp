@@ -153,28 +153,6 @@ int CRingBuffer::Enqueue(char* data, int dataSize)
 	return insertSize;
 }
 
-bool CRingBuffer::RegisterCBuffer(WSABUF* buffer,int  bufferCount)
-{
-	if (_front == _rear)
-		return 0;
-	int peekSize = 8;
-	//size는 늘어나기만 함.
-
-	int iter = _front;
-	for (int i = 0; i < bufferCount; ++i)
-	{
-		if((*(CSerializeBuffer**)(_buffer + iter))->getBufferSize() != 3000)
-			DebugBreak();
-
-		buffer[i].buf = (*(CSerializeBuffer**)(_buffer + iter))->GetFullBuffer();
-		buffer[i].len = (*(CSerializeBuffer**)(_buffer + iter))->GetFullSize();
-		ASSERT_CRASH(buffer[i].len > 0, "Out of Case");
-		iter = (iter + sizeof(void*)) % BUFFER_SIZE;
-
-	}
-
-	return true;
-}
 
 bool CRingBuffer::DequeueCBuffer(int count)
 {
@@ -184,7 +162,7 @@ bool CRingBuffer::DequeueCBuffer(int count)
 	for (int i = 0; i < count; ++i)
 	{
 		auto ptr = *(CSerializeBuffer**)(_buffer + iter);
-		delete ptr;
+		ptr->Clear();
 		iter = (iter + sizeof(void*)) % BUFFER_SIZE;
 	}
 	return true;

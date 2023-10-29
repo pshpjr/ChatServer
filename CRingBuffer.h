@@ -113,7 +113,6 @@ public:
 	uint32 FreeSize() const { return BUFFER_SIZE - Size() - 1; }
 
 	bool EnqueueCBuffer(CSerializeBuffer* buffer);
-	bool RegisterCBuffer(WSABUF* buffer, int  bufferCount);
 	bool DequeueCBuffer( int count);
 private:
 

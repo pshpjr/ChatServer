@@ -1,70 +1,38 @@
 ﻿#pragma once
 #include "Types.h"
-
+#include "TLSPool.h"
 class Player;
 
 class CSerializeBuffer
 {
 	friend class SessionManager;
-	enum bufferOption { BUFFER_SIZE = 3000 };
+	friend class TLSPool<CSerializeBuffer, 0, false>;
+	friend class SingleThreadObjectPool<CSerializeBuffer, 0, false>;
+	enum bufferOption { BUFFER_SIZE = 4096 };
 
 	struct HeapBreakDebug
 	{
 		char emptySpace[100];
 	};
 
-public:
 	CSerializeBuffer() :_head(new char[BUFFER_SIZE]), _buffer(_head), _front(_buffer), _rear(_buffer)
 	{
 
 	}
-	CSerializeBuffer(char* buffer) : _buffer(buffer), _front(_buffer), _rear(_buffer) {  }
 
+	CSerializeBuffer(const CSerializeBuffer& other) = delete;
 
-	CSerializeBuffer(const CSerializeBuffer& other)
-		: _buffer(other._buffer),
-		_front(other._front),
-		_rear(other._rear),
-		_bufferSize(other._bufferSize)
-	{
-	}
+	CSerializeBuffer(CSerializeBuffer&& other) noexcept = delete;
 
-	CSerializeBuffer(CSerializeBuffer&& other) noexcept
-		: _buffer(other._buffer),
-		_front(other._front),
-		_rear(other._rear),
-		_bufferSize(other._bufferSize)
-	{
-		other._buffer = nullptr;
-		other._front = nullptr;
-		other._rear = nullptr;
-		other._bufferSize = 0;
-	}
+	CSerializeBuffer& operator=(const CSerializeBuffer& other) = delete;
 
-	CSerializeBuffer& operator=(const CSerializeBuffer& other)
-	{
-		if (this == &other)
-			return *this;
-		_buffer = other._buffer;
-		_front = other._front;
-		_rear = other._rear;
-		_bufferSize = other._bufferSize;
-		return *this;
-	}
+	CSerializeBuffer& operator=(CSerializeBuffer&& other) noexcept = delete;
 
-	CSerializeBuffer& operator=(CSerializeBuffer&& other) noexcept
-	{
-		if (this == &other)
-			return *this;
-		_buffer = other._buffer;
-		_front = other._front;
-		_rear = other._rear;
-		_bufferSize = other._bufferSize;
-		return *this;
-	}
+public:
 
 	~CSerializeBuffer()
 	{
+		DebugBreak();
 		for(int  i = 0; i < 100; ++i)
 		{
 			if(_heapBreakDebug.emptySpace[i] != 0)
@@ -90,20 +58,42 @@ public:
 		_front = _rear;
 	}
 
+	void IncreaseRef() { InterlockedIncrement(&_refCount); }
+	void Release()
+	{
+		if(InterlockedDecrement(&_refCount) == 0)
+		{
+			_pool.Free(this);
+		}
+	}
+
 
 	int getBufferSize() const { return  _bufferSize; }
-	int		GetPacketSize(void) const { return static_cast<int>(_rear - _front); }
-	int		GetFullSize() const { return static_cast<int>(_rear - _buffer); }
+	int	GetPacketSize(void) const { return static_cast<int>(_rear - _front); }
+	int	GetFullSize() const { return static_cast<int>(_rear - _buffer); }
 	char* GetFullBuffer() const { return _head; }
 
 	char* GetBufferPtr(void) const { return _buffer; }
-	void		MoveWritePos(int size) { _rear += size; }
-	void		MoveReadPos(int size) { _front += size; }
+	void MoveWritePos(int size) { _rear += size; }
+	void MoveReadPos(int size) { _front += size; }
 
-public:
 	void writeHeader();
 
 
+	/// <summary>
+	/// Alloc을 받으면 레퍼런스가 1임. 
+	/// </summary>
+	/// <returns></returns>
+	static CSerializeBuffer* Alloc() 
+	{
+		auto ret = _pool.Alloc();
+		ret->Clear();
+		ret->IncreaseRef();
+		return ret;
+	}
+	long _refCount = 0;
+
+public:
 	CSerializeBuffer& operator <<(unsigned char value);
 	CSerializeBuffer& operator <<(char value);
 
@@ -123,7 +113,7 @@ public:
 	CSerializeBuffer& operator <<(double value);
 
 	CSerializeBuffer& operator <<(LPWSTR value);
-	CSerializeBuffer& operator<<(LPCWSTR value);
+	CSerializeBuffer& operator <<(LPCWSTR value);
 	CSerializeBuffer& operator <<(String& value);
 
 	CSerializeBuffer& operator >>(unsigned char& value);
@@ -146,12 +136,18 @@ public:
 
 	CSerializeBuffer& operator >>(LPWSTR value);
 	CSerializeBuffer& operator >>(String& value);
+
 private:
 	char* _head = nullptr;
 	char* _buffer = nullptr;
 	char* _front = nullptr;
 	char* _rear = nullptr;
 	int _bufferSize = BUFFER_SIZE;
+
+	
 	HeapBreakDebug _heapBreakDebug = {0,};
 
+	static TLSPool<CSerializeBuffer, 0, false> _pool;
 };
+
+

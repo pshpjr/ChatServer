@@ -6,22 +6,23 @@
 #include "IOCP.h"
 
 
-Session::Session(Socket socket, uint64 sessionId, IOCP& owner) : _socket(socket), _sessionID(sessionId), _owner(owner)
+Session::Session(): _owner(nullptr)
 {
+}
+
+Session::Session(Socket socket, uint64 sessionId, IOCP& owner) : _socket(socket), _sessionID(sessionId), _owner(&owner)
+{ 
 	InitializeCriticalSection(&_lock);
 }
 
 void Session::Enqueue(CSerializeBuffer* buffer)
 {
-	Lock();
-	_sendQ.EnqueueCBuffer(buffer);
-	Unlock();
+	_sendQ.Enqueue(buffer);
 }
 
 void Session::Close()
 {
-	Lock();
-	Unlock();
+	_disconnect = true;
 
 	_socket.Close();
 }
@@ -30,26 +31,40 @@ bool Session::Release()
 {
 	int refDecResult = InterlockedDecrement(&_refCount);
 
-	//refCount만으로 이렇게 처리해도 되는가?
+	//각종 정리를 하고 반환한다. 
 	if (refDecResult == 0)
 	{
-		_owner.DeleteSession(_sessionID);
+		auto releaseFlagResult = InterlockedOr(&_refCount, releaseFlag);
+	//0이 아니란 소리는 누가 Inc하거나, 누가 release 하고 있단 소리. 
+		if (releaseFlagResult != 0) 
+		{
+			return false;
+		}
 
-		Close();
-		delete this;
+		//소켓 닫는 거 말고 또 할 거 있나?
+		//직렬화 버퍼 같은 거. .
 
+		Reset();
+
+		auto index = _sessionID & indexMask;
+
+		_owner->freeIndex.Push(index);
 		return true;
 	}
 	return false;
 }
 
 
-
-long threadsInSend = 0;
-
 const int MAX_SEND_COUNT = 50;
+
+
+
 void Session::trySend()
 {
+	if (_disconnect == true) 
+	{
+		return;
+	}
 	while (true)
 	{
 		//이걸로 disconnect시 전송 을 방지할 수 있을까?
@@ -61,9 +76,9 @@ void Session::trySend()
 
 		if (_sendQ.Size() == 0)
 		{
+
 			return;
 		}
-
 		if (InterlockedExchange(&_isSending, true) == 1)
 		{
 
@@ -72,29 +87,53 @@ void Session::trySend()
 
 		if (_sendQ.Size() == 0)
 		{
+
 			InterlockedExchange(&_isSending, false);
 
 			continue;
 		}
 		break;
 	}
-
-
-	int bufferSize = _sendQ.Size()/8;
-	if (bufferSize == 0)
+	
+	auto refIncResult = InterlockedIncrement(&_refCount);
+	if (refIncResult >= releaseFlag) 
 	{
-		InterlockedExchange(&_isSending, false);
+		InterlockedDecrement(&_refCount);
 		return;
 	}
 
-	InterlockedIncrement(&_refCount);
-	_postSendExecute.isSend = true;
+
+
+	int sendPackets = 0;
 	WSABUF sendWsaBuf[MAX_SEND_COUNT];
-	sendingSerializeBuffers = MIN(MAX_SEND_COUNT, bufferSize);
+	for (int i = 0; i < MAX_SEND_COUNT; i++)
+	{
+		CSerializeBuffer* buffer;
+		if (!_sendQ.Dequeue(buffer))
+		{
+			break;
+		}
+		sendPackets++;
+		_sendingQ.Enqueue(buffer);
 
-	_sendQ.RegisterCBuffer(sendWsaBuf, sendingSerializeBuffers);
+		sendWsaBuf[i].buf = buffer->GetFullBuffer();
+		sendWsaBuf[i].len = buffer->GetFullSize();
+		ASSERT_CRASH(sendWsaBuf[i].len > 0, "Out of Case");
+	}
 
-	for (int i = 0; i < sendingSerializeBuffers; ++i)
+	if (sendPackets == 0)
+	{
+		InterlockedExchange(&_isSending, false);
+		Release();
+		return;
+	}
+
+
+
+
+	_postSendExecute.isSend = true;
+
+	for (int i = 0; i < sendPackets; ++i)
 	{
 		if((*sendWsaBuf[i].buf) == 0xdd)
 		{
@@ -105,7 +144,8 @@ void Session::trySend()
 	DWORD flags = 0;
 	_postSendExecute.Clear();
 	ASSERT_CRASH(_postSendExecute._overlapped.InternalHigh == 0);
-	int sendResult = _socket.Send(sendWsaBuf, sendingSerializeBuffers, flags ,&_postSendExecute._overlapped);
+
+	int sendResult = _socket.Send(sendWsaBuf, sendPackets, flags ,&_postSendExecute._overlapped);
 	if (sendResult == SOCKET_ERROR)
 	{
 		printf("SocketError\n");
@@ -119,7 +159,6 @@ void Session::trySend()
 		Release();
 	}
 
-	threadsInSend--;
 }
 
 void Session::registerRecv()
@@ -167,5 +206,24 @@ void Session::_postRecvNotIncrease()
 void Session::RegisterIOCP(HANDLE iocpHandle)
 {
 	CreateIoCompletionPort((HANDLE)_socket._socket, iocpHandle, (ULONG_PTR)this, 0);
+}
+
+void Session::Reset()
+{
+	_sendExecute.Clear();
+	_recvExecute.Clear();
+	_postSendExecute.Clear();
+	_sessionID = -1;
+
+	CSerializeBuffer* sendBuffer;
+	while (_sendQ.Dequeue(sendBuffer))
+	{
+		sendBuffer->Release();
+	}
+	_recvQ.Clear();
+	while (_sendingQ.Dequeue(sendBuffer))
+	{
+		sendBuffer->Release();
+	}
 }
 

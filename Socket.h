@@ -22,7 +22,6 @@ public:
 	bool Connect(String ip, uint16 port);
 	void Close();
 	bool isValid() const;
-
 	int Send(LPWSABUF buf, DWORD bufCount, DWORD flag,  LPWSAOVERLAPPED lpOverlapped);
 	int Recv(LPWSABUF buf, DWORD bufCount, LPDWORD flag, LPWSAOVERLAPPED lpOverlapped);
 

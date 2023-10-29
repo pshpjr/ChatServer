@@ -35,13 +35,15 @@ void RecvExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
 
 		session->_recvQ.Dequeue(sizeof(Header));
 
-		CSerializeBuffer buffer;
+		auto& buffer = *CSerializeBuffer::Alloc();
 		session->_recvQ.Peek(buffer.GetBufferPtr(), header.len);
 		session->_recvQ.Dequeue(header.len);
 		buffer.MoveWritePos(header.len);
 		InterlockedIncrement(&((IOCP*)iocp)->_recvCount);
-		//InterlockedIncrement64(&_recvCount);
+
 		((IOCP*)iocp)->OnRecvPacket(session->_sessionID, buffer);
+		buffer.Release();
+
 	}
 	session->registerRecv();
 
@@ -55,13 +57,25 @@ void RecvExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
 
 void PostSendExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
 {
-
 	Session* session = (Session*)key;
+	auto& sendingQ = session->_sendingQ;
 
-	session->_sendQ.DequeueCBuffer(session->sendingSerializeBuffers);
+	CSerializeBuffer* buffer = nullptr;
+	while (sendingQ.Dequeue(buffer))
+	{
+		buffer->Release();
+	}
+
+
 	session->dataNotSend = 0;
 	isSend = false;
+
+	
 	int oldSending = InterlockedExchange(&session->_isSending, 0);
+	if (oldSending != 1) {
+		DebugBreak();
+	}
+
 	InterlockedIncrement(&((IOCP*)iocp)->_sendCount);
 	
 	session->trySend();

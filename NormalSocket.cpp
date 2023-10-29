@@ -13,25 +13,27 @@ Socket::Socket(SOCKET socket, SOCKADDR_IN addr) : NormalSocket(socket, addr)
 
 void Socket::Close()
 {
-	//auto result = CancelIoEx((HANDLE)_socket, nullptr);
-	//if(result == 0)
-	//{
-	//	auto error = GetLastError();
 
-	//	if(error == ERROR_NOT_FOUND)
-	//	{
-	//		printf("error : %d\n", error);
-	//	}
-	//	else
-	//	{
-	//		DebugBreak();
-	//		printf("error : %d\n", error);
-	//	}
+	auto result = CancelIoEx((HANDLE)_socket, nullptr);
+	if(result == 0)
+	{
+		auto error = GetLastError();
 
-	//}
+		if(error == ERROR_NOT_FOUND)
+		{
+			printf("error : %d\n", error);
+		}
+		else
+		{
+			DebugBreak();
+			printf("error : %d\n", error);
+		}
+
+	}
 	_beforeSocket = _socket;
-	closesocket(_socket);
 	_socket = INVALID_SOCKET;
+	closesocket(_beforeSocket);
+
 }
 
 int Socket::Send(LPWSABUF buf, DWORD bufCount, DWORD flag, LPWSAOVERLAPPED lpOverlapped)
@@ -84,6 +86,7 @@ bool Socket::isValid() const
 {
 	return _socket != INVALID_SOCKET;
 }
+
 
 bool Socket::Bind(String ip, uint16 port)
 {

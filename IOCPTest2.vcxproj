@@ -24,7 +24,7 @@
     <ProjectGuid>{d02f569b-0d9d-460f-bf75-a96725830bd6}</ProjectGuid>
     <RootNamespace>IOCPTest2</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>NetLib</ProjectName>
+    <ProjectName>IOCP_ChatServer</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -138,6 +138,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ContentJob.cpp" />
     <ClCompile Include="CoreGlobal.cpp" />
     <ClCompile Include="CrashDump.cpp" />
     <ClCompile Include="CRingBuffer.cpp" />
@@ -148,7 +149,9 @@
     <ClCompile Include="MemoryPool.cpp" />
     <ClCompile Include="NormalIOCP.cpp" />
     <ClCompile Include="NormalSocket.cpp" />
+    <ClCompile Include="PacketQueue.cpp" />
     <ClCompile Include="RUDPSocket.cpp" />
+    <ClCompile Include="Server.cpp" />
     <ClCompile Include="Session.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
@@ -156,6 +159,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BuildOption.h" />
+    <ClInclude Include="CommonProtocol.h" />
+    <ClInclude Include="ContentJob.h" />
     <ClInclude Include="Container.h" />
     <ClInclude Include="CoreGlobal.h" />
     <ClInclude Include="CrashDump.h" />
@@ -163,18 +168,31 @@
     <ClInclude Include="CSerializeBuffer.h" />
     <ClInclude Include="Executable.h" />
     <ClInclude Include="IOCP.h" />
+    <ClInclude Include="LockFreeQueue.h" />
+    <ClInclude Include="LockFreeStack.h" />
     <ClInclude Include="LockGuard.h" />
     <ClInclude Include="Macro.h" />
     <ClInclude Include="MemoryPool.h" />
     <ClInclude Include="NormalIOCP.h" />
     <ClInclude Include="NormalSocket.h" />
     <ClInclude Include="Overlapped.h" />
+    <ClInclude Include="PacketQueue.h" />
     <ClInclude Include="Protocol.h" />
     <ClInclude Include="RUDPSocket.h" />
+    <ClInclude Include="Server.h" />
     <ClInclude Include="Session.h" />
+    <ClInclude Include="SingleThreadObjectPool.h" />
     <ClInclude Include="Socket.h" />
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="TLSLockFreeQueue.h" />
+    <ClInclude Include="TLSPool.h" />
     <ClInclude Include="Types.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="cpp.hint" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="TLSPoolList.natvis" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

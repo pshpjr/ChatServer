@@ -9,11 +9,16 @@
 #include "CSerializeBuffer.h"
 #include "LockGuard.h"
 
-bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread)
+bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread, char staticKey)
 {
 	_isRunning = true;
 	_maxNetThread = maxNetThread;
-
+	_staticKey = staticKey;
+	if (staticKey) {
+		for (auto& session : sessions) {
+			session.SetNetSession(staticKey);
+		}
+	}
 
 	_threadArray = new HANDLE[_maxNetThread+2];
 
@@ -122,7 +127,7 @@ bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer)
 		return false;
 	}
 
-	int size = buffer->GetFullSize();
+	int size = buffer->GetDataSize();
 	if (size == 0) 
 	{
 		DebugBreak();
@@ -161,6 +166,8 @@ int64 IOCP::GetSendTps()
 
 void IOCP::WorkerThread(LPVOID arg)
 {
+	srand(GetCurrentThreadId());
+
 	while (true)
 	{
 		DWORD transferred = 0;

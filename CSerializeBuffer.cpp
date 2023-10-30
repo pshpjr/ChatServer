@@ -3,9 +3,90 @@
 
 TLSPool<CSerializeBuffer, 0, false> CSerializeBuffer::_pool;
 
-void CSerializeBuffer::writeHeader()
+void CSerializeBuffer::writeLanHeader()
 {
-	*(((uint16*)_front)-1) = GetPacketSize();
+	*(((uint16*)_front)-1) = GetDataSize();
+	_head = (char*)(((uint16*)_front) - 1);
+}
+
+void CSerializeBuffer::writeNetHeader(int code)
+{
+	NetHeader* head = (NetHeader*)_buffer;
+	head->len = GetFullSize();
+	head->checkSum = 0;
+
+	char* checksumIndex = GetDataPtr();
+	int checkLen = GetDataSize() + 1;
+	for (int i = 0; i < checkLen; i++)
+	{
+		head->checkSum += *checksumIndex;
+		checksumIndex++;
+	}
+	head->code = code;
+	head->randomKey = rand()%256;
+}
+
+void CSerializeBuffer::Encode(char staticKey)
+{
+	using Header = CSerializeBuffer::NetHeader;
+
+	Header* head = (Header*)GetHead();
+	char* payLoad = (char*)(head + 1);
+	int payLoadLen = head->len - sizeof(Header);
+
+	head->checkSum = 0;
+	char* checksumIndex = payLoad;
+	for (int i = 0; i < payLoadLen; i++)
+	{
+		head->checkSum += *payLoad;
+		checksumIndex++;
+	}
+
+	char* encodeData = payLoad - 1;
+	int encodeLen = payLoadLen + 1;
+
+
+	char p = 0;
+	char e = 0;
+
+	for (size_t i = 1; i <= encodeLen; i++)
+	{
+		p = (*encodeData) ^ (p + head->randomKey + i);
+		e = p ^ (e + staticKey + i);
+		*encodeData = e;
+		encodeData++;
+	}
+}
+
+void CSerializeBuffer::Decode(char staticKey)
+{
+	using Header = CSerializeBuffer::NetHeader;
+
+	Header* head = (Header*)GetHead();
+	char* payLoad = (char*)(head + 1);
+	int payLoadLen = head->len - sizeof(Header);
+
+
+	unsigned char* decodeData = &head->checkSum;
+	int decodeLen = payLoadLen + 1;
+
+	char p = 0;
+	char e = 0;
+	char oldP = 0;
+	for (size_t i = 1; i <= decodeLen; i++)
+	{
+		p = (*decodeData) ^ (e + staticKey + i);
+		e = *decodeData;
+		*decodeData = p ^ (oldP + head->randomKey + i);
+		oldP = p;
+		decodeData++;
+	}
+}
+
+void CSerializeBuffer::setEncryptHeader(NetHeader header)
+{
+	*(NetHeader*)_head = header;
+
 }
 
 CSerializeBuffer& CSerializeBuffer::operator<<(unsigned char value)

@@ -149,7 +149,6 @@
     <ClCompile Include="MemoryPool.cpp" />
     <ClCompile Include="NormalIOCP.cpp" />
     <ClCompile Include="NormalSocket.cpp" />
-    <ClCompile Include="PacketEncryptor.cpp" />
     <ClCompile Include="PacketQueue.cpp" />
     <ClCompile Include="RUDPSocket.cpp" />
     <ClCompile Include="Server.cpp" />
@@ -177,7 +176,6 @@
     <ClInclude Include="NormalIOCP.h" />
     <ClInclude Include="NormalSocket.h" />
     <ClInclude Include="Overlapped.h" />
-    <ClInclude Include="PacketEncryptor.h" />
     <ClInclude Include="PacketQueue.h" />
     <ClInclude Include="Protocol.h" />
     <ClInclude Include="RUDPSocket.h" />

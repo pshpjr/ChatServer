@@ -10,48 +10,100 @@
 void RecvExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
 {
 
-	Session* session = (Session*)key;
+	Session& session = *(Session*)key;
 
-	session->_recvQ.MoveRear(transferred);
+	session._recvQ.MoveRear(transferred);
+
+	char sKey = session._staticKey;
+
+	if (sKey) 
+	{
+		recvEncrypt(session,iocp);
+	}
+	else 
+	{
+		recvNormal(session,iocp);
+	}
+
+	session.registerRecv();
+
+
+	uint64 sessionID = session._sessionID;
+	if (session.Release())
+	{
+		((IOCP*)iocp)->OnDisconnect(sessionID);
+	}
+}
+
+void RecvExecutable::recvNormal(Session& session, void* iocp)
+{
+	using Header = CSerializeBuffer::LANHeader;
 
 	while (true)
 	{
-		if (session->_recvQ.Size() < sizeof(Header))
+		if (session._recvQ.Size() < sizeof(Header))
 		{
 
 			break;
 		}
 
 		Header header;
-		session->_recvQ.Peek((char*)&header, sizeof(Header));
+		session._recvQ.Peek((char*)&header, sizeof(Header));
 
 
-		if (session->_recvQ.Size() < header.len)
+		if (session._recvQ.Size() < header.len)
 		{
 
 			break;
 		}
 
-
-		session->_recvQ.Dequeue(sizeof(Header));
+		session._recvQ.Dequeue(sizeof(Header));
 
 		auto& buffer = *CSerializeBuffer::Alloc();
-		session->_recvQ.Peek(buffer.GetBufferPtr(), header.len);
-		session->_recvQ.Dequeue(header.len);
+		session._recvQ.Peek(buffer.GetDataPtr(), header.len);
+		session._recvQ.Dequeue(header.len);
 		buffer.MoveWritePos(header.len);
 		InterlockedIncrement(&((IOCP*)iocp)->_recvCount);
 
-		((IOCP*)iocp)->OnRecvPacket(session->_sessionID, buffer);
+		((IOCP*)iocp)->OnRecvPacket(session._sessionID, buffer);
 		buffer.Release();
-
 	}
-	session->registerRecv();
+}
 
+void RecvExecutable::recvEncrypt(Session& session, void* iocp)
+{
+	using Header = CSerializeBuffer::NetHeader;
 
-	uint64 sessionID = session->_sessionID;
-	if (session->Release())
+	while (true)
 	{
-		((IOCP*)iocp)->OnDisconnect(sessionID);
+		if (session._recvQ.Size() < sizeof(Header))
+		{
+
+			break;
+		}
+
+		Header header;
+		session._recvQ.Peek((char*)&header, sizeof(Header));
+
+
+		if (session._recvQ.Size() < header.len)
+		{
+			break;
+		}
+
+
+		session._recvQ.Dequeue(sizeof(Header));
+
+		auto& buffer = *CSerializeBuffer::Alloc();
+
+
+		session._recvQ.Peek(buffer.GetDataPtr(), header.len);
+		session._recvQ.Dequeue(header.len);
+		buffer.MoveWritePos(header.len);
+		InterlockedIncrement(&((IOCP*)iocp)->_recvCount);
+
+		((IOCP*)iocp)->OnRecvPacket(session._sessionID, buffer);
+		buffer.Release();
 	}
 }
 

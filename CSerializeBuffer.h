@@ -3,19 +3,38 @@
 #include "TLSPool.h"
 class Player;
 
+
 class CSerializeBuffer
 {
 	friend class SessionManager;
 	friend class TLSPool<CSerializeBuffer, 0, false>;
 	friend class SingleThreadObjectPool<CSerializeBuffer, 0, false>;
+	friend class PostSendExecutable;
+	friend class IOCP;
+	friend class Session;
+	friend class RecvExecutable;
 	enum bufferOption { BUFFER_SIZE = 4096 };
+
+	struct LANHeader {
+		uint16 len;
+	};
+
+
+	struct NetHeader {
+		char code;
+		short len;
+		char randomKey;
+		unsigned char checkSum;
+	};
+
 
 	struct HeapBreakDebug
 	{
 		char emptySpace[100];
 	};
 
-	CSerializeBuffer() :_head(new char[BUFFER_SIZE]), _buffer(_head), _front(_buffer), _rear(_buffer)
+	//버퍼랑 데이터 위치는 고정. 헤더랑 딴 건 가변
+	CSerializeBuffer() :_buffer(new char[BUFFER_SIZE+sizeof(NetHeader)]),_head(_buffer), _data(_buffer+sizeof(NetHeader)), _front(_data), _rear(_data)
 	{
 
 	}
@@ -39,46 +58,18 @@ public:
 				DebugBreak();
 		}
 
-		delete[] _head;
+		delete[] _buffer;
 	}
 
-	void Clear()
-	{
-		_front = _buffer;
-		_rear = _buffer;
-	}
-	void MakeHeader()
-	{
-		_rear += sizeof(uint16);
-		_front = _rear;
-	}
-	void Seal()
-	{
-		writeHeader();
-		_front = _rear;
-	}
-
-	void IncreaseRef() { InterlockedIncrement(&_refCount); }
-	void Release()
-	{
-		if(InterlockedDecrement(&_refCount) == 0)
-		{
-			_pool.Free(this);
-		}
-	}
-
-
-	int getBufferSize() const { return  _bufferSize; }
 	int	GetPacketSize(void) const { return static_cast<int>(_rear - _front); }
-	int	GetFullSize() const { return static_cast<int>(_rear - _buffer); }
-	char* GetFullBuffer() const { return _head; }
+	char* GetFront() const { return _front; }
+	void PacketEnd() { _front = _rear; }
 
-	char* GetBufferPtr(void) const { return _buffer; }
-	void MoveWritePos(int size) { _rear += size; }
-	void MoveReadPos(int size) { _front += size; }
-
-	void writeHeader();
-
+	template <typename T>
+	T& GetContentHeader() 
+	{
+		return (T*)_front;
+	}
 
 	/// <summary>
 	/// Alloc을 받으면 레퍼런스가 1임. 
@@ -91,7 +82,48 @@ public:
 		ret->IncreaseRef();
 		return ret;
 	}
-	long _refCount = 0;
+	void Release()
+	{
+		if (InterlockedDecrement(&_refCount) == 0)
+		{
+			_pool.Free(this);
+		}
+	}
+	void IncreaseRef() { InterlockedIncrement(&_refCount); }
+private:
+	void Clear()
+	{
+		_head = _buffer;
+		_front = _data;
+		_rear = _data;
+	}
+
+
+
+
+
+
+	int getBufferSize() const { return  _bufferSize; }
+
+	int	GetDataSize() const { return static_cast<int>(_rear - _data); }
+	char* GetHead() const { return _head; }
+	int GetFullSize() const { return _rear - _head; }
+
+	char* GetDataPtr(void) const { return _data; }
+
+
+	void MoveWritePos(int size) { _rear += size; }
+	void MoveReadPos(int size) { _front += size; }
+	//makeHeader나 seal 같은 건 컨텐츠에서 할 게 아님. 
+	//컨텐츠는 컨텐츠 헤더를 써야 한다. 
+
+	void writeLanHeader();
+	void writeNetHeader(int code);
+
+
+	void Encode(char staticKey);
+	void Decode(char staticKey);
+	void setEncryptHeader(NetHeader header);
 
 public:
 	CSerializeBuffer& operator <<(unsigned char value);
@@ -137,17 +169,21 @@ public:
 	CSerializeBuffer& operator >>(LPWSTR value);
 	CSerializeBuffer& operator >>(String& value);
 
+
 private:
-	char* _head = nullptr;
 	char* _buffer = nullptr;
+	char* _data = nullptr;
+	char*  _head = nullptr;
 	char* _front = nullptr;
 	char* _rear = nullptr;
 	int _bufferSize = BUFFER_SIZE;
-
+	bool isEncrypt;
 	
 	HeapBreakDebug _heapBreakDebug = {0,};
 
 	static TLSPool<CSerializeBuffer, 0, false> _pool;
+
+	long _refCount = 0;
 };
 
 

@@ -8,6 +8,7 @@
 
 Session::Session(): _owner(nullptr)
 {
+
 }
 
 Session::Session(Socket socket, uint64 sessionId, IOCP& owner) : _socket(socket), _sessionID(sessionId), _owner(&owner)
@@ -35,7 +36,7 @@ bool Session::Release()
 	if (refDecResult == 0)
 	{
 		auto releaseFlagResult = InterlockedOr(&_refCount, releaseFlag);
-	//0이 아니란 소리는 누가 Inc하거나, 누가 release 하고 있단 소리. 
+		//0이 아니란 소리는 누가 Inc하거나, 누가 release 하고 있단 소리. 
 		if (releaseFlagResult != 0) 
 		{
 			return false;
@@ -116,10 +117,25 @@ void Session::trySend()
 		sendPackets++;
 		_sendingQ.Enqueue(buffer);
 
-		sendWsaBuf[i].buf = buffer->GetFullBuffer();
+
+		if (_staticKey) 
+		{
+			buffer->writeNetHeader(_staticKey);
+			buffer->Encode(_staticKey);
+		}
+		else 
+		{
+			buffer->writeLanHeader();
+		}
+
+
+		sendWsaBuf[i].buf = buffer->GetHead();
 		sendWsaBuf[i].len = buffer->GetFullSize();
+
 		ASSERT_CRASH(sendWsaBuf[i].len > 0, "Out of Case");
 	}
+
+
 
 	if (sendPackets == 0)
 	{

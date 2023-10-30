@@ -2,6 +2,7 @@
 #include <synchapi.h>
 #pragma comment(lib,"Synchronization.lib")
 
+class Session;
 class Executable
 {
 	friend class Server;
@@ -110,6 +111,10 @@ class RecvExecutable : public Executable
 public:
 	void Execute(PULONG_PTR key, DWORD transferred, void* iocp) override;
 	~RecvExecutable() override = default;
+
+private:
+	void recvNormal(Session& session, void* iocp);
+	void recvEncrypt(Session& session, void* iocp);
 };
 
 class PostSendExecutable : public Executable

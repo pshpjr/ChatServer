@@ -80,9 +80,6 @@
     <ClCompile Include="ContentJob.cpp">
       <Filter>Content</Filter>
     </ClCompile>
-    <ClCompile Include="PacketEncryptor.cpp">
-      <Filter>Lib\Network\Other</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="NormalSocket.h">
@@ -171,9 +168,6 @@
     </ClInclude>
     <ClInclude Include="ContentJob.h">
       <Filter>Content</Filter>
-    </ClInclude>
-    <ClInclude Include="PacketEncryptor.h">
-      <Filter>Lib\Network\Other</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

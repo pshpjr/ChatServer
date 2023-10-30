@@ -112,8 +112,6 @@ public:
 	 //rear+1 == front일 때 가득 찬 것이므로 1 빼야 함. 
 	uint32 FreeSize() const { return BUFFER_SIZE - Size() - 1; }
 
-	bool EnqueueCBuffer(CSerializeBuffer* buffer);
-	bool DequeueCBuffer( int count);
 private:
 
 	CRITICAL_SECTION _cs;

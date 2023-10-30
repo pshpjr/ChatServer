@@ -9,14 +9,13 @@
 #include <chrono>
 
 
-
 int main()
 {
 	timeBeginPeriod(1);
 
 	Server& server = *new Server;
 
-	server.Init(L"0.0.0.0", 6000,20,2);
+	server.Init(L"0.0.0.0", 6000,20,2,0);
 
 	while (true) 
 	{
@@ -48,9 +47,7 @@ int main()
 				auto& sendBuffer = *CSerializeBuffer::Alloc();
 				*job->_buffer >> data;
 
-				sendBuffer.MakeHeader();
 				sendBuffer << data;
-				sendBuffer.Seal();
 
 				server.SendPacket(job->_id, &sendBuffer);
 				break;
@@ -66,7 +63,6 @@ int main()
 
 		Sleep(20);
 	}
-
 
 }
 

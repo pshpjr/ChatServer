@@ -13,7 +13,7 @@ public:
 	using Port = uint16;
 
 
-	bool Init(String ip, Port port, uint16 backlog, uint16 maxNetThread);
+	bool Init(String ip, Port port, uint16 backlog, uint16 maxNetThread, char staticKey);
 	void Start();
 	void Stop();
 	bool SendPacket(SessionID sessionId, CSerializeBuffer* buffer);

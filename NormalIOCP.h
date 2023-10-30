@@ -48,5 +48,6 @@ protected:
 	const long releaseFlag = 0x0010'0000;
 
 	uint64 g_sessionId = 0;
+	char _staticKey;
 };
 

@@ -31,6 +31,8 @@ public:
 	void SetSessionID(uint64 sessionID) { _sessionID = sessionID; }
 	void SetOwner(IOCP& owner) { _owner = &owner; }
 	void Reset();
+	void SetNetSession(char staticKey) { _staticKey = staticKey; }
+	
 private:
 	const unsigned long long idMask = 0x000'7FFF'FFFF'FFFF;
 	const unsigned long long indexMask = 0x7FFF'8000'0000'0000;
@@ -55,6 +57,9 @@ private:
 	//세션 여기저기 옮기지 못 하게 하나로 고정.
 	IOCP* _owner;
 	const long releaseFlag = 0x0010'0000;
+
+	char _staticKey = false;
+
 	//long DebugIndex = 0;
 	//struct Debug {
 	//	long threadID;

@@ -35,11 +35,7 @@ class CSerializeBuffer
 		char emptySpace[100];
 	};
 
-	//버퍼랑 데이터 위치는 고정. 헤더랑 딴 건 가변
-	CSerializeBuffer() :_buffer(new char[BUFFER_SIZE+sizeof(NetHeader)]),_head(_buffer), _data(_buffer+sizeof(NetHeader)), _front(_data), _rear(_data)
-	{
 
-	}
 
 	CSerializeBuffer(const CSerializeBuffer& other) = delete;
 
@@ -50,7 +46,12 @@ class CSerializeBuffer
 	CSerializeBuffer& operator=(CSerializeBuffer&& other) noexcept = delete;
 
 public:
+	char* GetHead() const { return _head; }
+	//버퍼랑 데이터 위치는 고정. 헤더랑 딴 건 가변
+	CSerializeBuffer() :_buffer(new char[BUFFER_SIZE + sizeof(NetHeader)]), _head(_buffer), _data(_buffer + sizeof(NetHeader)), _front(_data), _rear(_data)
+	{
 
+	}
 	~CSerializeBuffer()
 	{
 		DebugBreak();
@@ -97,7 +98,7 @@ public:
 	void print() 
 	{
 		for (unsigned char* begin = (unsigned char*)_head; begin != (unsigned char*)_rear; begin++) {
-			printf("%c", *begin);
+			printf("%x ", *begin);
 		}
 		printf("\n");
 		printf("\n");
@@ -111,13 +112,12 @@ public:
 
 	bool checksumValid()
 	{
-		unsigned char payloadChecksum = 0;
+
 		NetHeader* header = (NetHeader*)GetHead();
 		char* checkIndex = GetDataPtr();
-		//int checkLen = header->len - sizeof(NetHeader);
-
 		//TODO: 아래 방식이 잘못되면 위로 복구.
 		int checkLen = GetDataSize();
+		unsigned char payloadChecksum = 0;
 		for (int i = 0; i < checkLen; i++)
 		{
 			payloadChecksum += *checkIndex;
@@ -126,6 +126,17 @@ public:
 		return payloadChecksum == header->checkSum;
 
 	}
+
+	int	GetDataSize() const { return static_cast<int>(_rear - _data); }
+	char* GetDataPtr(void) const { return _data; }
+	int getBufferSize() const { return  _bufferSize; }
+
+	int GetFullSize() const { return _rear - _head; }
+
+
+
+	void MoveWritePos(int size) { _rear += size; }
+	void MoveReadPos(int size) { _front += size; }
 private:
 
 	void Clear()
@@ -140,17 +151,7 @@ private:
 
 
 
-	int getBufferSize() const { return  _bufferSize; }
 
-	int	GetDataSize() const { return static_cast<int>(_rear - _data); }
-	char* GetHead() const { return _head; }
-	int GetFullSize() const { return _rear - _head; }
-
-	char* GetDataPtr(void) const { return _data; }
-
-
-	void MoveWritePos(int size) { _rear += size; }
-	void MoveReadPos(int size) { _front += size; }
 	//makeHeader나 seal 같은 건 컨텐츠에서 할 게 아님. 
 	//컨텐츠는 컨텐츠 헤더를 써야 한다. 
 
@@ -203,7 +204,17 @@ public:
 	CSerializeBuffer& operator >>(String& value);
 
 	void GetSTR(LPWSTR arr, int size);
+	void SetSTR(LPWSTR arr, int size)
+	{
+		wcscpy_s((LPWSTR)_rear, size, (wchar_t*)arr);
+		_rear += size * sizeof(WCHAR);
+	}
 
+	void SetCSTR(LPSTR arr, int size)
+	{
+		memcpy_s(_rear, size, arr, size);
+		_rear += size;
+	}
 private:
 	char* _buffer = nullptr;
 	char* _data = nullptr;

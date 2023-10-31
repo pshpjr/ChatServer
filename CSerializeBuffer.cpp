@@ -12,7 +12,7 @@ void CSerializeBuffer::writeLanHeader()
 void CSerializeBuffer::writeNetHeader(int code)
 {
 	NetHeader* head = (NetHeader*)GetHead();
-	head->len = GetFullSize();
+	head->len = GetDataSize();
 	head->checkSum = 0;
 
 	char* checksumIndex = GetDataPtr();

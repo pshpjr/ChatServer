@@ -20,9 +20,9 @@ public:
 	short _curX = 0;
 	short _curY = 0;
 	int64 AccountNo;
-	WCHAR* ID;
-	WCHAR* Nickname;
-	char* SessionKey;
+	WCHAR ID[20];
+	WCHAR Nickname[20];
+	char SessionKey[64];
 
 	SessionID _sessionId;
 

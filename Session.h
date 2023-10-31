@@ -17,6 +17,7 @@ class Session
 	friend class SendExecutable;
 	friend class IOCP;
 public:
+
 	Session();
 	Session(Socket socket, uint64 sessionId, IOCP& owner);
 	void Enqueue(CSerializeBuffer* buffer);
@@ -32,8 +33,8 @@ public:
 	void SetOwner(IOCP& owner) { _owner = &owner; }
 	void Reset();
 	void SetNetSession(char staticKey) { _staticKey = staticKey; }
-	void IncreaseRef(){ InterlockedIncrement(&_refCount); }
-	void OffReleaseFlag() { InterlockedOr(&_refCount,releaseFlag); }
+	long IncreaseRef(){return InterlockedIncrement(&_refCount); }
+	void OffReleaseFlag() { InterlockedBitTestAndReset(&_refCount,releaseFlag); }
 
 private:
 	const unsigned long long idMask = 0x000'7FFF'FFFF'FFFF;

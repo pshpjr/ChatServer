@@ -14,6 +14,8 @@ bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread, char 
 	_isRunning = true;
 	_maxNetThread = maxNetThread;
 	_staticKey = staticKey;
+	
+	
 	if (staticKey) {
 		for (auto& session : sessions) {
 			session.SetNetSession(staticKey);
@@ -38,20 +40,20 @@ bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread, char 
 
 	if (_listenSocket.Bind(ip, port) == false)
 	{
-		_listenSocket.Close();
+		_listenSocket.CancleIO();
 		return false;
 	}
 
 	if (_listenSocket.Listen(backlog)== false)
 	{
-		_listenSocket.Close();
+		_listenSocket.CancleIO();
 		return false;
 	}
 
 	_iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, 0);
 	if (_iocp == INVALID_HANDLE_VALUE)
 	{
-		_listenSocket.Close();
+		_listenSocket.CancleIO();
 		return false;
 	}
 
@@ -60,14 +62,14 @@ bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread, char 
 	_threadArray[0] = (HANDLE)_beginthreadex(nullptr,0,AcceptEntry,_this, 0, nullptr);
 	if (_threadArray[0] == INVALID_HANDLE_VALUE)
 	{
-		_listenSocket.Close();
+		_listenSocket.CancleIO();
 		return false;
 	}
 	printf("AcceptThread %p\n", _threadArray[0]);
 	_threadArray[1] = (HANDLE)_beginthreadex(nullptr, 0, MonitorEntry, _this, 0, nullptr);
 	if (_threadArray[1] == INVALID_HANDLE_VALUE)
 	{
-		_listenSocket.Close();
+		_listenSocket.CancleIO();
 		return false;
 	}
 	printf("MonitorThread %p\n", _threadArray[1]);
@@ -76,7 +78,7 @@ bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread, char 
 		_threadArray[i] = (HANDLE)_beginthreadex(nullptr, 0, WorkerEntry, _this, 0, nullptr);
 		if (_threadArray[i] == INVALID_HANDLE_VALUE)
 		{
-			_listenSocket.Close();
+			_listenSocket.CancleIO();
 			return false;
 		}
 		printf("WorkerThread %p\n", _threadArray[i]);
@@ -95,7 +97,7 @@ void IOCP::Start()
 void IOCP::Stop()
 {
 	_isRunning = false;
-	_listenSocket.Close();
+	_listenSocket.CancleIO();
 	PostQueuedCompletionStatus(_iocp, 0, 0, nullptr);
 	auto result = WaitForMultipleObjects(_maxNetThread, _threadArray, true, INFINITE);
 	if( result==WAIT_FAILED)
@@ -107,10 +109,11 @@ void IOCP::Stop()
 
 bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer)
 {
+	buffer->IncreaseRef();
 	auto sessionIndex = (sessionId >> 47);
 	auto& session = sessions[sessionIndex];
 
-	auto refResult = InterlockedIncrement(&session._refCount);
+	auto refResult = session.IncreaseRef();
 	if (session.GetSessionID() != sessionId) 
 	{
 		InterlockedDecrement(&session._refCount);
@@ -122,10 +125,12 @@ bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer)
 
 	if (refResult > releaseFlag)
 	{
-		InterlockedDecrement(&sessions[sessionIndex]._refCount);
+		//세션 릴리즈 해도 문제 없음. 플레그 서 있을거라 내가 올린 만큼 내려감. 
+		session.Release();
 		buffer->Release();
 		return false;
 	}
+
 
 	int size = buffer->GetDataSize();
 	if (size == 0) 
@@ -217,7 +222,7 @@ void IOCP::AcceptThread(LPVOID arg)
 
 		if (OnAccept(clientSocket.GetSockAddr()) == false)
 		{
-			clientSocket.Close();
+			clientSocket.CancleIO();
 			continue;
 		}
 		_acceptCount++;
@@ -226,7 +231,7 @@ void IOCP::AcceptThread(LPVOID arg)
 		if (freeIndex.Pop(sessionIndex) == false) 
 		{
 			printf("!!!!!serverIsFull!!!!!\n");
-			clientSocket.Close();
+			clientSocket.CancleIO();
 			continue;
 		}
 

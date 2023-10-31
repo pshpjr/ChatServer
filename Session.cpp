@@ -25,7 +25,7 @@ void Session::Close()
 {
 	_disconnect = true;
 
-	_socket.Close();
+	_socket.CancleIO();
 }
 
 bool Session::Release()
@@ -96,10 +96,10 @@ void Session::trySend()
 		break;
 	}
 	
-	auto refIncResult = InterlockedIncrement(&_refCount);
+	auto refIncResult = IncreaseRef();
 	if (refIncResult >= releaseFlag) 
 	{
-		InterlockedDecrement(&_refCount);
+		Release();
 		return;
 	}
 
@@ -122,6 +122,7 @@ void Session::trySend()
 		{
 			buffer->writeNetHeader(dfPACKET_CODE);
 			buffer->Encode(_staticKey);
+			
 		}
 		else 
 		{
@@ -171,10 +172,9 @@ void Session::trySend()
 			printf("Send_ERROR\n");
 			return;
 		}
-
-		Release();
+		Close();
 	}
-
+	Release();
 }
 
 void Session::registerRecv()
@@ -241,5 +241,6 @@ void Session::Reset()
 	{
 		sendBuffer->Release();
 	}
+	_socket.Close();
 }
 

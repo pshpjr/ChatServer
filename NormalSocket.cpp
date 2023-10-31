@@ -11,7 +11,7 @@ Socket::Socket(SOCKET socket, SOCKADDR_IN addr) : NormalSocket(socket, addr)
 {
 }
 
-void Socket::Close()
+void Socket::CancleIO()
 {
 
 	auto result = CancelIoEx((HANDLE)_socket, nullptr);
@@ -30,10 +30,15 @@ void Socket::Close()
 		}
 
 	}
-	_beforeSocket = _socket;
-	_socket = INVALID_SOCKET;
-	closesocket(_beforeSocket);
 
+
+}
+
+void Socket::Close()
+{
+	_beforeSocket = _socket;
+_socket = INVALID_SOCKET;
+closesocket(_beforeSocket);
 }
 
 int Socket::Send(LPWSABUF buf, DWORD bufCount, DWORD flag, LPWSAOVERLAPPED lpOverlapped)

@@ -91,7 +91,7 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 			break;
 		}
 
-		if (session._recvQ.Size() < header.len)
+		if (session._recvQ.Size() < header.len + sizeof(Header))
 		{
 			break;
 		}
@@ -103,10 +103,12 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 		session._recvQ.Peek(buffer.GetDataPtr(), header.len);
 		session._recvQ.Dequeue(header.len);
 
-		buffer.setEncryptHeader(header);
 		buffer.MoveWritePos(header.len);
-
+		
+		buffer.setEncryptHeader(header);
 		buffer.Decode(session._staticKey);
+
+
 
 		if (!buffer.checksumValid()) 
 		{
@@ -121,12 +123,20 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 	}
 }
 
+int compCount;
 void PostSendExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
 {
+
 	Session* session = (Session*)key;
 	auto& sendingQ = session->_sendingQ;
 
 	CSerializeBuffer* buffer = nullptr;
+
+	//compCount++;
+	//if (compCount == 3) {
+	//	DebugBreak();
+	//}
+
 	while (sendingQ.Dequeue(buffer))
 	{
 		buffer->Release();
@@ -150,7 +160,9 @@ void PostSendExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
 	if (session->Release())
 	{
 		((IOCP*)iocp)->onDisconnect(sessionID);
+		printf("Release\n");
 	}
+
 }
 
 void SendExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)

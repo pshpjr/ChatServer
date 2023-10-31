@@ -80,6 +80,12 @@
     <ClCompile Include="ContentJob.cpp">
       <Filter>Content</Filter>
     </ClCompile>
+    <ClCompile Include="CMap.cpp">
+      <Filter>Content</Filter>
+    </ClCompile>
+    <ClCompile Include="Player.cpp">
+      <Filter>Content</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="NormalSocket.h">
@@ -167,6 +173,12 @@
       <Filter>Content</Filter>
     </ClInclude>
     <ClInclude Include="ContentJob.h">
+      <Filter>Content</Filter>
+    </ClInclude>
+    <ClInclude Include="CMap.h">
+      <Filter>Content</Filter>
+    </ClInclude>
+    <ClInclude Include="Player.h">
       <Filter>Content</Filter>
     </ClInclude>
   </ItemGroup>

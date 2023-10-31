@@ -12,12 +12,11 @@ class NormalIOCP
 	friend class SendExecutable;
 	friend class PostSendExecutable;
 public:
-	bool DeleteSession(SessionID id);
+
 protected:
-	void RegisterSession(Session& session);
 
 	Session* FindSession(uint64 id);
-	Session* getLockedSession(SessionID sessionID);
+
 	unsigned short GetSessionIndex(uint64 sessionID) const { return sessionID & indexMask; }
 
 protected:
@@ -49,5 +48,6 @@ protected:
 
 	uint64 g_sessionId = 0;
 	char _staticKey;
+	short _sessionCount = 0;
 };
 

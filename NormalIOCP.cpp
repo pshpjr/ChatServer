@@ -164,6 +164,12 @@ int64 IOCP::GetSendTps()
 	return _sendTps;
 }
 
+void IOCP::onDisconnect(SessionID sessionId)
+{
+	InterlockedDecrement16(&_sessionCount);
+	OnDisconnect(sessionId); 
+}
+
 void IOCP::WorkerThread(LPVOID arg)
 {
 	srand(GetCurrentThreadId());
@@ -187,7 +193,8 @@ void IOCP::WorkerThread(LPVOID arg)
 			auto sessionID =session->GetSessionID();
 			if (session->Release())
 			{
-				OnDisconnect(sessionID);
+
+				onDisconnect(sessionID);
 			}
 		}
 		else
@@ -229,11 +236,12 @@ void IOCP::AcceptThread(LPVOID arg)
 		sessions[sessionIndex].SetOwner(*(IOCP*)(this));
 		sessions[sessionIndex].SetSessionID(sessionID);
 		sessions[sessionIndex].SetSocket(clientSocket);
-
-		auto refResult = InterlockedIncrement(&sessions[sessionIndex]._refCount);
-
-
+		sessions[sessionIndex].IncreaseRef();
+		sessions[sessionIndex].OffReleaseFlag();
+	
 		sessions[sessionIndex].RegisterIOCP(_iocp);
+
+		InterlockedIncrement16(&_sessionCount);
 
 		OnConnect(sessions[sessionIndex].GetSessionID());
 		sessions[sessionIndex]._postRecvNotIncrease();

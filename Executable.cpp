@@ -31,7 +31,7 @@ void RecvExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
 	uint64 sessionID = session._sessionID;
 	if (session.Release())
 	{
-		((IOCP*)iocp)->OnDisconnect(sessionID);
+		((IOCP*)iocp)->onDisconnect(sessionID);
 	}
 }
 
@@ -85,21 +85,35 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 		Header header;
 		session._recvQ.Peek((char*)&header, sizeof(Header));
 
+		if (header.code != dfPACKET_CODE) 
+		{
+			session.Close();
+			break;
+		}
 
 		if (session._recvQ.Size() < header.len)
 		{
 			break;
 		}
 
-
 		session._recvQ.Dequeue(sizeof(Header));
 
 		auto& buffer = *CSerializeBuffer::Alloc();
 
-
 		session._recvQ.Peek(buffer.GetDataPtr(), header.len);
 		session._recvQ.Dequeue(header.len);
+
+		buffer.setEncryptHeader(header);
 		buffer.MoveWritePos(header.len);
+
+		buffer.Decode(session._staticKey);
+
+		if (!buffer.checksumValid()) 
+		{
+			session.Close();
+			break;
+		}
+
 		InterlockedIncrement(&((IOCP*)iocp)->_recvCount);
 
 		((IOCP*)iocp)->OnRecvPacket(session._sessionID, buffer);
@@ -135,7 +149,7 @@ void PostSendExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
 	uint64 sessionID = session->_sessionID;
 	if (session->Release())
 	{
-		((IOCP*)iocp)->OnDisconnect(sessionID);
+		((IOCP*)iocp)->onDisconnect(sessionID);
 	}
 }
 

@@ -115,6 +115,9 @@ public:
 private:
 	void recvNormal(Session& session, void* iocp);
 	void recvEncrypt(Session& session, void* iocp);
+
+
+
 };
 
 class PostSendExecutable : public Executable

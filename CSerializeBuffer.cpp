@@ -11,19 +11,21 @@ void CSerializeBuffer::writeLanHeader()
 
 void CSerializeBuffer::writeNetHeader(int code)
 {
-	NetHeader* head = (NetHeader*)_buffer;
+	NetHeader* head = (NetHeader*)GetHead();
 	head->len = GetFullSize();
 	head->checkSum = 0;
 
 	char* checksumIndex = GetDataPtr();
-	int checkLen = GetDataSize() + 1;
+	int checkLen = GetDataSize();
 	for (int i = 0; i < checkLen; i++)
 	{
 		head->checkSum += *checksumIndex;
 		checksumIndex++;
 	}
 	head->code = code;
-	head->randomKey = rand()%256;
+
+	//head->randomKey = rand()%256;
+	head->randomKey = 0x31;
 }
 
 void CSerializeBuffer::Encode(char staticKey)
@@ -31,20 +33,10 @@ void CSerializeBuffer::Encode(char staticKey)
 	using Header = CSerializeBuffer::NetHeader;
 
 	Header* head = (Header*)GetHead();
-	char* payLoad = (char*)(head + 1);
-	int payLoadLen = head->len - sizeof(Header);
 
-	head->checkSum = 0;
-	char* checksumIndex = payLoad;
-	for (int i = 0; i < payLoadLen; i++)
-	{
-		head->checkSum += *payLoad;
-		checksumIndex++;
-	}
 
-	char* encodeData = payLoad - 1;
-	int encodeLen = payLoadLen + 1;
-
+	char* encodeData = GetDataPtr() - 1;
+	int encodeLen = GetDataSize() + 1;
 
 	char p = 0;
 	char e = 0;
@@ -62,13 +54,11 @@ void CSerializeBuffer::Decode(char staticKey)
 {
 	using Header = CSerializeBuffer::NetHeader;
 
-	Header* head = (Header*)GetHead();
-	char* payLoad = (char*)(head + 1);
-	int payLoadLen = head->len - sizeof(Header);
+ 	Header* head = (Header*)GetHead();
 
 
-	unsigned char* decodeData = &head->checkSum;
-	int decodeLen = payLoadLen + 1;
+	char* decodeData = GetDataPtr() - 1;
+	int decodeLen = GetDataSize() + 1;
 
 	char p = 0;
 	char e = 0;
@@ -81,6 +71,7 @@ void CSerializeBuffer::Decode(char staticKey)
 		oldP = p;
 		decodeData++;
 	}
+	isEncrypt = false;
 }
 
 void CSerializeBuffer::setEncryptHeader(NetHeader header)
@@ -191,11 +182,10 @@ CSerializeBuffer& CSerializeBuffer::operator<<(LPWSTR value)
 {
 	//insert null terminated string to buffer
 	//int strlen = wcslen(value) + 1;
-	int strlen = 15;
+	int strlen = wcslen(value)+1;
 
 	wcscpy_s((wchar_t*)_rear, strlen, value);
 	_rear += strlen * sizeof(WCHAR);
-
 	return *this;
 }
 
@@ -203,10 +193,10 @@ CSerializeBuffer& CSerializeBuffer::operator<<(LPCWSTR value)
 {
 	//insert null terminated string to buffer
 	//int strlen = wcslen(value) + 1;
-	int strlen = 15;
+	int strlen = wcslen(value)+1;
 	wcscpy_s((wchar_t*)_rear, strlen, value);
-	_rear += strlen * sizeof(WCHAR);
 
+	_rear += strlen * sizeof(WCHAR);
 	return *this;
 }
 
@@ -317,6 +307,12 @@ CSerializeBuffer& CSerializeBuffer::operator>>(String& value)
 
 	_front += len * sizeof(WCHAR);
 	return *this;
+}
+
+void CSerializeBuffer::GetSTR(LPWSTR arr, int strLen)
+{
+	wcscpy_s(arr, strLen, (wchar_t*)_front);
+	_front += strLen * sizeof(WCHAR);
 }
 
 CSerializeBuffer& CSerializeBuffer::operator>>(LPWSTR value)

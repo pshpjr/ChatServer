@@ -4,7 +4,8 @@
 
 class IOCP : public IOCP_CLASS
 {
-
+	friend class RecvExecutable;
+	friend class PostSendExecutable;
 
 public:
 	IOCP();
@@ -34,6 +35,7 @@ public:
 
 
 private:
+	void onDisconnect(SessionID sessionId);
 	void WorkerThread(LPVOID arg);
 	void AcceptThread(LPVOID arg);
 	void MonitorThread(LPVOID arg);

@@ -32,7 +32,9 @@ public:
 	void SetOwner(IOCP& owner) { _owner = &owner; }
 	void Reset();
 	void SetNetSession(char staticKey) { _staticKey = staticKey; }
-	
+	void IncreaseRef(){ InterlockedIncrement(&_refCount); }
+	void OffReleaseFlag() { InterlockedOr(&_refCount,releaseFlag); }
+
 private:
 	const unsigned long long idMask = 0x000'7FFF'FFFF'FFFF;
 	const unsigned long long indexMask = 0x7FFF'8000'0000'0000;

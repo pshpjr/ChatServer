@@ -138,6 +138,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="CMap.cpp" />
     <ClCompile Include="ContentJob.cpp" />
     <ClCompile Include="CoreGlobal.cpp" />
     <ClCompile Include="CrashDump.cpp" />
@@ -150,6 +151,7 @@
     <ClCompile Include="NormalIOCP.cpp" />
     <ClCompile Include="NormalSocket.cpp" />
     <ClCompile Include="PacketQueue.cpp" />
+    <ClCompile Include="Player.cpp" />
     <ClCompile Include="RUDPSocket.cpp" />
     <ClCompile Include="Server.cpp" />
     <ClCompile Include="Session.cpp" />
@@ -159,6 +161,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BuildOption.h" />
+    <ClInclude Include="CMap.h" />
     <ClInclude Include="CommonProtocol.h" />
     <ClInclude Include="ContentJob.h" />
     <ClInclude Include="Container.h" />
@@ -177,6 +180,7 @@
     <ClInclude Include="NormalSocket.h" />
     <ClInclude Include="Overlapped.h" />
     <ClInclude Include="PacketQueue.h" />
+    <ClInclude Include="Player.h" />
     <ClInclude Include="Protocol.h" />
     <ClInclude Include="RUDPSocket.h" />
     <ClInclude Include="Server.h" />

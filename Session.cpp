@@ -4,7 +4,7 @@
 #include "Container.h"
 #include "CSerializeBuffer.h"
 #include "IOCP.h"
-
+#include "Protocol.h"
 
 Session::Session(): _owner(nullptr)
 {
@@ -120,7 +120,7 @@ void Session::trySend()
 
 		if (_staticKey) 
 		{
-			buffer->writeNetHeader(_staticKey);
+			buffer->writeNetHeader(dfPACKET_CODE);
 			buffer->Encode(_staticKey);
 		}
 		else 

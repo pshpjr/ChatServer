@@ -15,6 +15,8 @@ class CSerializeBuffer
 	friend class RecvExecutable;
 	enum bufferOption { BUFFER_SIZE = 4096 };
 
+#pragma pack(1)
+
 	struct LANHeader {
 		uint16 len;
 	};
@@ -26,7 +28,7 @@ class CSerializeBuffer
 		char randomKey;
 		unsigned char checkSum;
 	};
-
+#pragma pack()
 
 	struct HeapBreakDebug
 	{
@@ -90,7 +92,42 @@ public:
 		}
 	}
 	void IncreaseRef() { InterlockedIncrement(&_refCount); }
+
+
+	void print() 
+	{
+		for (unsigned char* begin = (unsigned char*)_head; begin != (unsigned char*)_rear; begin++) {
+			printf("%c", *begin);
+		}
+		printf("\n");
+		printf("\n");
+		return;
+	}
+	void writeNetHeader(int code);
+
+
+	void Encode(char staticKey);
+	void Decode(char staticKey);
+
+	bool checksumValid()
+	{
+		unsigned char payloadChecksum = 0;
+		NetHeader* header = (NetHeader*)GetHead();
+		char* checkIndex = GetDataPtr();
+		//int checkLen = header->len - sizeof(NetHeader);
+
+		//TODO: 아래 방식이 잘못되면 위로 복구.
+		int checkLen = GetDataSize();
+		for (int i = 0; i < checkLen; i++)
+		{
+			payloadChecksum += *checkIndex;
+			checkIndex++;
+		}
+		return payloadChecksum == header->checkSum;
+
+	}
 private:
+
 	void Clear()
 	{
 		_head = _buffer;
@@ -118,11 +155,7 @@ private:
 	//컨텐츠는 컨텐츠 헤더를 써야 한다. 
 
 	void writeLanHeader();
-	void writeNetHeader(int code);
 
-
-	void Encode(char staticKey);
-	void Decode(char staticKey);
 	void setEncryptHeader(NetHeader header);
 
 public:
@@ -169,6 +202,7 @@ public:
 	CSerializeBuffer& operator >>(LPWSTR value);
 	CSerializeBuffer& operator >>(String& value);
 
+	void GetSTR(LPWSTR arr, int size);
 
 private:
 	char* _buffer = nullptr;
@@ -177,7 +211,7 @@ private:
 	char* _front = nullptr;
 	char* _rear = nullptr;
 	int _bufferSize = BUFFER_SIZE;
-	bool isEncrypt;
+	bool isEncrypt = true;
 	
 	HeapBreakDebug _heapBreakDebug = {0,};
 

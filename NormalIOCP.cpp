@@ -107,21 +107,22 @@ void IOCP::Stop()
 	OnEnd();
 }
 
+int Sendflag = 0;
 bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer)
 {
-	buffer->IncreaseRef();
 	auto sessionIndex = (sessionId >> 47);
 	auto& session = sessions[sessionIndex];
-
 	auto refResult = session.IncreaseRef();
-	if (session.GetSessionID() != sessionId) 
+	auto sessionID = session.GetSessionID();
+
+	if (session.GetSessionID() != sessionId)
 	{
-		InterlockedDecrement(&session._refCount);
+		session.Release();
 		buffer->Release();
 		return false;
 	}
-	if (refResult == releaseFlag)
-		DebugBreak();
+	buffer->IncreaseRef();
+	
 
 	if (refResult > releaseFlag)
 	{
@@ -131,16 +132,16 @@ bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer)
 		return false;
 	}
 
-
 	int size = buffer->GetDataSize();
 	if (size == 0) 
 	{
 		DebugBreak();
 	}
+
 	session.Enqueue(buffer);
 	session.dataNotSend++;
-	PostQueuedCompletionStatus(_iocp, -1, (ULONG_PTR)&session, &session._sendExecute._overlapped);
 
+	PostQueuedCompletionStatus(_iocp, -1, (ULONG_PTR)&session, &session._sendExecute._overlapped);
 	return true;
 }
 
@@ -222,6 +223,7 @@ void IOCP::AcceptThread(LPVOID arg)
 
 		if (OnAccept(clientSocket.GetSockAddr()) == false)
 		{
+			//TODO: 여기서 cancleIO가 의미 없음. 
 			clientSocket.CancleIO();
 			continue;
 		}
@@ -236,20 +238,23 @@ void IOCP::AcceptThread(LPVOID arg)
 		}
 
 		uint64 sessionID = (uint64)sessionIndex << 47;
-		sessionID |= g_sessionId++;
+		sessionID |= (g_sessionId++);
+
 
 		sessions[sessionIndex].SetOwner(*(IOCP*)(this));
 		sessions[sessionIndex].SetSessionID(sessionID);
 		sessions[sessionIndex].SetSocket(clientSocket);
-		sessions[sessionIndex].IncreaseRef();
-		sessions[sessionIndex].OffReleaseFlag();
-	
 		sessions[sessionIndex].RegisterIOCP(_iocp);
+		auto refResult = sessions[sessionIndex].IncreaseRef();
+
+
+	
+
+		sessions[sessionIndex].OffReleaseFlag();
+		OnConnect(sessions[sessionIndex].GetSessionID());
+		sessions[sessionIndex].RecvNotIncrease();
 
 		InterlockedIncrement16(&_sessionCount);
-
-		OnConnect(sessions[sessionIndex].GetSessionID());
-		sessions[sessionIndex]._postRecvNotIncrease();
 	}
 	printf("AcceptThreadEnd\n");
 }

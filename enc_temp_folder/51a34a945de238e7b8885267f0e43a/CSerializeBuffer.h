@@ -85,7 +85,6 @@ public:
 		ret->IncreaseRef();
 		return ret;
 	}
-
 	void Release()
 	{
 		auto refResult = InterlockedDecrement(&_refCount);

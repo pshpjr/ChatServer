@@ -17,5 +17,12 @@
 		<DisplayString>{{ tID = {threadID}, type = {type}, localSize = {localPoolSize}, localAddr = {localPoolAddr}, gAddr = {globalPoolAddr} }</DisplayString>
 
 	</Type>
+	<Type Name ="Player*">
+		<DisplayString>{}</DisplayString>
+		<Expand>
+			<Item Name="Account">AccountNo</Item>
+			<Item Name="sessionID">_sessionId</Item>
+		</Expand>
+	</Type>
 	
 </AutoVisualizer>

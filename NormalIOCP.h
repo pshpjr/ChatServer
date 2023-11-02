@@ -17,7 +17,7 @@ protected:
 
 	Session* FindSession(uint64 id);
 
-	unsigned short GetSessionIndex(uint64 sessionID) const { return sessionID & indexMask; }
+	unsigned short GetSessionIndex(uint64 sessionID) const { return (unsigned short)(sessionID >> 47); }
 
 protected:
 	virtual ~NormalIOCP();
@@ -45,6 +45,9 @@ protected:
 	const unsigned long long idMask = 0x000'7FFF'FFFF'FFFF;
 	const unsigned long long indexMask = 0x7FFF'8000'0000'0000;
 	const long releaseFlag = 0x0010'0000;
+
+
+
 
 	uint64 g_sessionId = 0;
 	char _staticKey;

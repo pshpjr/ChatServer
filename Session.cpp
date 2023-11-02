@@ -5,7 +5,7 @@
 #include "CSerializeBuffer.h"
 #include "IOCP.h"
 #include "Protocol.h"
-
+#include <cstdio>
 Session::Session(): _owner(nullptr)
 {
 
@@ -24,7 +24,7 @@ void Session::Enqueue(CSerializeBuffer* buffer)
 void Session::Close()
 {
 	_disconnect = true;
-
+	printf("CancleIO session : %d socket : %d\n", _sessionID, _socket._socket);
 	_socket.CancleIO();
 }
 
@@ -35,22 +35,18 @@ bool Session::Release()
 	//각종 정리를 하고 반환한다. 
 	if (refDecResult == 0)
 	{
-		auto releaseFlagResult = InterlockedOr(&_refCount, releaseFlag);
 		//0이 아니란 소리는 누가 Inc하거나, 누가 release 하고 있단 소리. 
-		if (releaseFlagResult != 0) 
+		if (InterlockedCompareExchange(&_refCount, releaseFlag, 0) == 0)
 		{
-			return false;
+			//소켓 닫는 거 말고 또 할 거 있나?
+			//직렬화 버퍼 같은 거. .
+
+			Reset();
+			auto index = _sessionID >>47;
+
+			_owner->freeIndex.Push(index);
+			return true;
 		}
-
-		//소켓 닫는 거 말고 또 할 거 있나?
-		//직렬화 버퍼 같은 거. .
-
-		Reset();
-
-		auto index = _sessionID & indexMask;
-
-		_owner->freeIndex.Push(index);
-		return true;
 	}
 	return false;
 }
@@ -69,9 +65,8 @@ void Session::trySend()
 	while (true)
 	{
 		//이걸로 disconnect시 전송 을 방지할 수 있을까?
-		if(_refCount == 0)
+		if(_refCount & releaseFlag)
 		{
-
 			return;
 		}
 
@@ -117,18 +112,14 @@ void Session::trySend()
 		sendPackets++;
 		_sendingQ.Enqueue(buffer);
 
-
 		if (_staticKey) 
 		{
-			buffer->writeNetHeader(dfPACKET_CODE);
 			buffer->Encode(_staticKey);
-			
 		}
 		else 
 		{
 			buffer->writeLanHeader();
 		}
-
 
 		sendWsaBuf[i].buf = buffer->GetHead();
 		sendWsaBuf[i].len = buffer->GetFullSize();
@@ -181,10 +172,10 @@ void Session::registerRecv()
 {
 	InterlockedIncrement(&_refCount);
 
-	_postRecvNotIncrease();
+	RecvNotIncrease();
 }
 
-void Session::_postRecvNotIncrease()
+void Session::RecvNotIncrease()
 {
 	_recvExecute.Clear();
 	WSABUF recvWsaBuf[2];
@@ -226,10 +217,10 @@ void Session::RegisterIOCP(HANDLE iocpHandle)
 
 void Session::Reset()
 {
+	//debugIndex = 0;
 	_sendExecute.Clear();
 	_recvExecute.Clear();
 	_postSendExecute.Clear();
-	_sessionID = -1;
 
 	CSerializeBuffer* sendBuffer;
 	while (_sendQ.Dequeue(sendBuffer))

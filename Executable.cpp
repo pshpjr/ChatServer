@@ -9,7 +9,6 @@
 
 void RecvExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
 {
-
 	Session& session = *(Session*)key;
 
 	session._recvQ.MoveRear(transferred);
@@ -25,14 +24,8 @@ void RecvExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
 		recvNormal(session,iocp);
 	}
 
-	session.registerRecv();
 
-
-	uint64 sessionID = session._sessionID;
-	if (session.Release())
-	{
-		((IOCP*)iocp)->onDisconnect(sessionID);
-	}
+	session.RecvNotIncrease();
 }
 
 void RecvExecutable::recvNormal(Session& session, void* iocp)
@@ -53,7 +46,6 @@ void RecvExecutable::recvNormal(Session& session, void* iocp)
 
 		if (session._recvQ.Size() < header.len)
 		{
-
 			break;
 		}
 
@@ -73,9 +65,11 @@ void RecvExecutable::recvNormal(Session& session, void* iocp)
 void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 {
 	using Header = CSerializeBuffer::NetHeader;
+	int loopCOunt = 0;
 
 	while (true)
 	{
+		loopCOunt++;
 		if (session._recvQ.Size() < sizeof(Header))
 		{
 
@@ -83,8 +77,10 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 		}
 
 		Header header;
-		session._recvQ.Peek((char*)&header, sizeof(Header));
 
+		char* packetBegin = nullptr;
+		session._recvQ.Peek((char*)&header, sizeof(Header));
+		packetBegin = session._recvQ.GetFront();
 		if (header.code != dfPACKET_CODE) 
 		{
 			session.Close();
@@ -104,19 +100,22 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 		session._recvQ.Dequeue(header.len);
 
 		buffer.MoveWritePos(header.len);
-		
 		buffer.setEncryptHeader(header);
+		buffer.isEncrypt++;
+
 		buffer.Decode(session._staticKey);
-
-
 
 		if (!buffer.checksumValid()) 
 		{
+			printf("checkSumInvalid %d %p\n", buffer._rear- buffer._front, buffer._front);
+
 			session.Close();
 			break;
 		}
 
 		InterlockedIncrement(&((IOCP*)iocp)->_recvCount);
+		//session.debugIndex++;
+		//session.Debug[session.debugIndex] = { packetBegin,session._recvQ.GetFront(),session._recvQ.GetRear() };
 
 		((IOCP*)iocp)->OnRecvPacket(session._sessionID, buffer);
 		buffer.Release();
@@ -132,10 +131,6 @@ void PostSendExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
 
 	CSerializeBuffer* buffer = nullptr;
 
-	//compCount++;
-	//if (compCount == 3) {
-	//	DebugBreak();
-	//}
 
 	while (sendingQ.Dequeue(buffer))
 	{
@@ -160,9 +155,7 @@ void PostSendExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
 	if (session->Release())
 	{
 		((IOCP*)iocp)->onDisconnect(sessionID);
-		printf("Release\n");
 	}
-
 }
 
 void SendExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)

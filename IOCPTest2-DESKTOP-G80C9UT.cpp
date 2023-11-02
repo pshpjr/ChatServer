@@ -22,12 +22,27 @@ HashMap<SessionID,Player*> gplayers;
 void HandlePacket(CSerializeBuffer& buffer,SessionID id, Server& server);
 int main()
 {
+	int code = 0x77;
+
+	auto& testBuffer = *CSerializeBuffer::Alloc();
+	LPCWSTR s = L"aaaaaaaaaabbbbbbbbbbcccccccccc1234567890abcdefghijklmn";
+	testBuffer << s;
+	testBuffer.writeNetHeader(code);
+	testBuffer.print();
+	testBuffer.Encode(code);
+	testBuffer.print();
+	testBuffer.Decode(code);
+	testBuffer.print();
+	auto result = testBuffer.checksumValid();
+
+
+
+
 	timeBeginPeriod(1);
 	srand(GetCurrentThreadId());
 	Server& server = *new Server;
 
-	server.Init(L"0.0.0.0", 12001,20,4, 0x32);
-	GMap.SetOwner(&server);
+	server.Init(L"0.0.0.0", 12001,20,1, 0x32);
 
 	while (true) 
 	{
@@ -37,12 +52,17 @@ int main()
 
 		while (true) 
 		{
+
+
 			job = server._packetQueue.Dequeue();
 			if (job == nullptr)
 				break;
 
 			CSerializeBuffer& buffer = *job->_buffer;
-
+			if (job == nullptr) 
+			{
+				break;
+			}
 
 
 			switch (job->_type)
@@ -51,37 +71,9 @@ int main()
 				loginWait.push_back({ job->_id,chrono::system_clock::now() });
 				break;
 
-				
 			case ContentJob::ePacketType::Disconnect:
-			{
-				bool find = false;
-				for (auto it = loginWait.begin(); it != loginWait.end();++it) {
-					if (it->id == job->_id) 
-					{
-						loginWait.erase(it);
-						find = true;
-						break;
-					}
-				}
-
-				if (find)
-					break;
-
-				auto result = gplayers.find(job->_id);
-				if (result == gplayers.end()) {
-					DebugBreak();
-				}
-					
-				auto& player = *result->second;
-				gplayers.erase(result);
-
-				if(player._curX != -1)
-					GMap.DeletePlayerFromSector(player);
-
-				delete &player;
-				break; 
-			}
-
+				
+				break;
 			case ContentJob::ePacketType::TimeoutCheck:
 				break;
 			case ContentJob::ePacketType::Packet:
@@ -104,22 +96,20 @@ int main()
 
 void HandlePacket(CSerializeBuffer& buffer, SessionID id, Server& server)
 {
-
 	WORD type;
 	buffer >> type;
+
 	switch (type)
 	{
 
 	case en_PACKET_CS_CHAT_REQ_LOGIN: 
 	{
 		int64 AccountNo;
-		WCHAR ID[20] = { 0, };
-		WCHAR Nickname[20] = { 0, };
-		char SessionKey[64] = { 0, };
+		WCHAR ID[20];
+		WCHAR Nickname[20];
+		char SessionKey[64];
 
-		buffer >> AccountNo;
-		buffer.GetSTR(ID, 20);
-		buffer.GetSTR(Nickname, 20);
+		buffer >> AccountNo >> ID >> Nickname;
 
 		for (int i = 0; i < 64; i++) {
 			buffer>>SessionKey[i];
@@ -139,15 +129,12 @@ void HandlePacket(CSerializeBuffer& buffer, SessionID id, Server& server)
 			auto newPlayer = new Player();
 			newPlayer->lastEcho = chrono::system_clock::now();
 			newPlayer->_sessionId = id;
-			auto Inedx = id >> 47;
 			newPlayer->AccountNo = AccountNo;
 			newPlayer->_curX = -1;
 			newPlayer->_curY = -1;
 			wcscpy_s(newPlayer->ID,20, ID);
 			wcscpy_s(newPlayer->Nickname,20, Nickname);
-			memcpy_s(newPlayer->SessionKey, 64, SessionKey, 64);
-
-			gplayers.insert({ newPlayer->_sessionId,newPlayer });
+			strcpy_s(newPlayer->SessionKey,64, SessionKey);
 
 			auto& resBuffer = *CSerializeBuffer::Alloc();
 			resBuffer << en_PACKET_CS_CHAT_RES_LOGIN << (BYTE)find << newPlayer->AccountNo;
@@ -157,41 +144,6 @@ void HandlePacket(CSerializeBuffer& buffer, SessionID id, Server& server)
 
 	}
 		break;
-
-	case en_PACKET_CS_CHAT_REQ_SECTOR_MOVE:
-	{
-		auto player = gplayers.find(id);
-
-		if (player == gplayers.end())
-		{
-			DebugBreak();
-			break;
-		}
-		auto& targetPlayer = *player->second;
-
-		int64 accountNo;
-		WORD sectorX;
-		WORD sectorY;
-
-		buffer >> accountNo >> sectorX >> sectorY;
-
-		if (targetPlayer._curX == -1)
-		{
-			targetPlayer._curX = sectorX;
-			targetPlayer._curY = sectorY;
-			GMap.AddPlayer(targetPlayer);
-		}
-		else
-		{
-			GMap.MovePlayer(targetPlayer, sectorX, sectorY);
-		}
-		auto& resBuffer = *CSerializeBuffer::Alloc();
-
-		resBuffer << en_PACKET_CS_CHAT_RES_SECTOR_MOVE << targetPlayer.AccountNo << targetPlayer._curX << targetPlayer._curY;
-
-		server.SendPacket(id, &resBuffer);
-	}
-	break;
 	case en_PACKET_CS_CHAT_REQ_MESSAGE: 
 	{
 		auto player = gplayers.find(id);
@@ -208,14 +160,41 @@ void HandlePacket(CSerializeBuffer& buffer, SessionID id, Server& server)
 		buffer >> accountNo >> msg;
 
 		auto& resBuffer = *CSerializeBuffer::Alloc();
-		resBuffer << en_PACKET_CS_CHAT_RES_MESSAGE << targetPlayer.AccountNo;
-		resBuffer.SetSTR(targetPlayer.ID, 20);
-		resBuffer.SetSTR(targetPlayer.Nickname,20);
-		resBuffer<< msg;
+		resBuffer << targetPlayer.AccountNo << targetPlayer.ID << targetPlayer.Nickname << msg;
+
+	}
+		break;
+	case en_PACKET_CS_CHAT_REQ_SECTOR_MOVE: 
+	{
+		auto player = gplayers.find(id);
+
+		if (player == gplayers.end()) 
+		{
+			break;
+		}
+		auto& targetPlayer = *player->second;
+
+		int64 accountNo;
+		WORD sectorX;
+		WORD sectorY;
+
+		buffer >> accountNo >> sectorX >> sectorY;
+
+		if (targetPlayer._curX == -1) 
+		{
+			GMap.AddPlayer(targetPlayer);
+		}
+		else 
+		{
+			GMap.MovePlayer(targetPlayer, sectorX, sectorY);
+		}
+		auto& resBuffer = *CSerializeBuffer::Alloc();
+
+		resBuffer << en_PACKET_CS_CHAT_RES_SECTOR_MOVE << targetPlayer.AccountNo<< targetPlayer._curX << targetPlayer._curY;
+
 		GMap.Broadcast(targetPlayer, resBuffer);
 	}
 		break;
-
 	case en_PACKET_CS_CHAT_REQ_HEARTBEAT:
 		break;
 

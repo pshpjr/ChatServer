@@ -1,6 +1,8 @@
 ﻿#include "stdafx.h"
 #include "CSerializeBuffer.h"
 
+#include "Protocol.h"
+
 TLSPool<CSerializeBuffer, 0, false> CSerializeBuffer::_pool;
 
 void CSerializeBuffer::writeLanHeader()
@@ -30,6 +32,23 @@ void CSerializeBuffer::writeNetHeader(int code)
 
 void CSerializeBuffer::Encode(char staticKey)
 {
+	if (!isEncrypt)
+	{
+		AcquireSRWLockExclusive(&_encodeLock);
+		if(!isEncrypt)
+		{
+			writeNetHeader(dfPACKET_CODE);
+
+			encode(staticKey);
+		}
+
+		ReleaseSRWLockExclusive(&_encodeLock);
+	}
+}
+
+void CSerializeBuffer::encode(char staticKey)
+{
+
 	using Header = CSerializeBuffer::NetHeader;
 
 	Header* head = (Header*)GetHead();
@@ -48,6 +67,7 @@ void CSerializeBuffer::Encode(char staticKey)
 		*encodeData = e;
 		encodeData++;
 	}
+	isEncrypt++;
 }
 
 void CSerializeBuffer::Decode(char staticKey)
@@ -71,7 +91,7 @@ void CSerializeBuffer::Decode(char staticKey)
 		oldP = p;
 		decodeData++;
 	}
-	isEncrypt = false;
+	isEncrypt--;
 }
 
 void CSerializeBuffer::setEncryptHeader(NetHeader header)

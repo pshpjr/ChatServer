@@ -25,16 +25,16 @@ public:
 	bool Release();
 	void trySend();
 	void registerRecv();
-	void _postRecvNotIncrease();
+	void RecvNotIncrease();
 	void RegisterIOCP(HANDLE iocpHandle);
-	uint64 GetSessionID() { return _sessionID; } 
+	uint64 GetSessionID() { return _sessionID; }
 	void SetSocket(Socket socket) { _socket = socket; };
 	void SetSessionID(uint64 sessionID) { _sessionID = sessionID; }
 	void SetOwner(IOCP& owner) { _owner = &owner; }
 	void Reset();
 	void SetNetSession(char staticKey) { _staticKey = staticKey; }
-	long IncreaseRef(){return InterlockedIncrement(&_refCount); }
-	void OffReleaseFlag() { InterlockedBitTestAndReset(&_refCount,releaseFlag); }
+	long IncreaseRef() { return InterlockedIncrement(&_refCount); }
+	void OffReleaseFlag() { auto result = InterlockedBitTestAndReset(&_refCount, 20); }
 
 private:
 	const unsigned long long idMask = 0x000'7FFF'FFFF'FFFF;
@@ -44,7 +44,7 @@ private:
 
 	CRingBuffer _recvQ;
 	TLSLockFreeQueue<CSerializeBuffer*> _sendQ;
-	
+
 	RecvExecutable _recvExecute;
 	PostSendExecutable _postSendExecute;
 	SendExecutable _sendExecute;
@@ -63,13 +63,14 @@ private:
 
 	char _staticKey = false;
 
-	//long DebugIndex = 0;
-	//struct Debug {
-	//	long threadID;
-	//	int line;
-	//	int sendingSize;
-	//	int isSending;
-	//};
-	//Debug debug[1000];
 
+	struct dData {
+		char* packetStart;
+		char* _front;
+		char* _rear;
+	};
+
+	//dData Debug[1000];
+	//int debugIndex;
+	
 };

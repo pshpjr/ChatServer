@@ -17,9 +17,12 @@ void CMap::MovePlayer(Player& player, short nextX, short nextY)
 {
 	DeletePlayerFromSector(player);
 
-	_map[nextY][nextX].push_back(&player);
+
 	player._curX = nextX;
 	player._curY = nextY;
+
+	_map[player._curY][player._curX].push_back(&player);
+
 }
 
 void CMap::DeletePlayerFromSector(Player& delPlayer)
@@ -32,13 +35,15 @@ void CMap::DeletePlayerFromSector(Player& delPlayer)
 			break;
 		}
 	}
+
+	int a = 10;
 }
 
 void CMap::Broadcast(Player& player, CSerializeBuffer& buffer)
 {
 	auto sectorX = player._curX;
 	auto sectorY = player._curY;
-
+	int broadCount = 0;
 	for (auto searchOffset : searchTable)
 	{
 		int16 currentSectorX = sectorX + searchOffset[1];
@@ -47,9 +52,12 @@ void CMap::Broadcast(Player& player, CSerializeBuffer& buffer)
 		if (currentSectorX < 0 || currentSectorX >= 50 || currentSectorY < 0 || currentSectorY >= 50)
 			continue;
 
-		for (auto player : _map[currentSectorY][currentSectorX])
+
+		for (auto p : _map[currentSectorY][currentSectorX])
 		{
-			_owner->SendPacket(player->_sessionId, &buffer);
+
+			_owner->SendPacket(p->_sessionId, &buffer);
+			int a = 0;
 		}
 	}
 }

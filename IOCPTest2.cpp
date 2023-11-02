@@ -29,12 +29,18 @@ int main()
 	server.Init(L"0.0.0.0", 12001,20,4, 0x32);
 	GMap.SetOwner(&server);
 
+
+	int count = 0;
 	while (true) 
 	{
 		server._packetQueue.Swap();
 
 		ContentJob* job;
-
+		count++;
+		if (count == 50) {
+			count = 0;
+			printf("Players : %d", gplayers.size());
+		}
 		while (true) 
 		{
 			job = server._packetQueue.Dequeue();
@@ -42,8 +48,6 @@ int main()
 				break;
 
 			CSerializeBuffer& buffer = *job->_buffer;
-
-
 
 			switch (job->_type)
 			{
@@ -153,6 +157,7 @@ void HandlePacket(CSerializeBuffer& buffer, SessionID id, Server& server)
 			resBuffer << en_PACKET_CS_CHAT_RES_LOGIN << (BYTE)find << newPlayer->AccountNo;
 
 			server.SendPacket(id, &resBuffer);
+			resBuffer.Release(L"LoginPacketRelease");
 		}
 
 	}
@@ -190,6 +195,7 @@ void HandlePacket(CSerializeBuffer& buffer, SessionID id, Server& server)
 		resBuffer << en_PACKET_CS_CHAT_RES_SECTOR_MOVE << targetPlayer.AccountNo << targetPlayer._curX << targetPlayer._curY;
 
 		server.SendPacket(id, &resBuffer);
+		resBuffer.Release(L"MovePacketRelease");
 	}
 	break;
 	case en_PACKET_CS_CHAT_REQ_MESSAGE: 
@@ -212,7 +218,10 @@ void HandlePacket(CSerializeBuffer& buffer, SessionID id, Server& server)
 		resBuffer.SetSTR(targetPlayer.ID, 20);
 		resBuffer.SetSTR(targetPlayer.Nickname,20);
 		resBuffer<< msg;
+
+
 		GMap.Broadcast(targetPlayer, resBuffer);
+		resBuffer.Release(L"ChatPacketRelease");
 	}
 		break;
 

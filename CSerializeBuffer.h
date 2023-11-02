@@ -82,22 +82,22 @@ public:
 	{
 		auto ret = _pool.Alloc();
 		ret->Clear();
-		ret->IncreaseRef();
+		ret->IncreaseRef(L"BufferAlloc");
 		return ret;
 	}
 
-	void Release()
+	void Release(String location)
 	{
 		auto refResult = InterlockedDecrement(&_refCount);
-		release_D[InterlockedIncrement(&debugIndex) % debugSize] = { refResult };
+		release_D[InterlockedIncrement(&debugIndex) % debugSize] = { refResult,location };
 		if (refResult == 0)
 		{
 			_pool.Free(this);
 		}
 	}
-	void IncreaseRef() { release_D[InterlockedIncrement(&debugIndex) % debugSize] = { InterlockedIncrement(&_refCount) }; }
+	void IncreaseRef(String location,short content = 0) { release_D[InterlockedIncrement(&debugIndex) % debugSize] = { InterlockedIncrement(&_refCount),location,content }; }
 
-
+	bool inBroadCast = false;
 private:
 
 	void Clear()
@@ -106,6 +106,7 @@ private:
 		_front = _data;
 		_rear = _data;
 		isEncrypt = 0;
+
 	}
 	void writeNetHeader(int code);
 
@@ -231,14 +232,15 @@ private:
 
 	struct RelastinReleaseEncrypt_D {
 		long refCount;
+		String location;
+		short contentType;
 	};
-	static const int debugSize = 100;
+	static const int debugSize =500;
+
 	long debugIndex = 0;
 	RelastinReleaseEncrypt_D release_D[debugSize];
 
 	SRWLOCK _encodeLock;
-
-
 };
 
 

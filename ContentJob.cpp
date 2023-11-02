@@ -7,7 +7,11 @@ void ContentJob::Free()
 {
 	if (_buffer != nullptr) 
 	{
-		_buffer->Release();
+		if (_type != ePacketType::Packet) {
+			printf("wrong release : %p\n", _buffer);
+		}
+
+		_buffer->Release(L"ContentJobFree");
 	}
 
 	
@@ -20,6 +24,6 @@ ContentJob* ContentJob::Alloc(CSerializeBuffer* buffer)
 	auto ret = _pool.Alloc();
 
 	ret->_buffer = buffer;
-	buffer->IncreaseRef();
+	buffer->IncreaseRef(L"JobAlloc");
 	return ret;
 }

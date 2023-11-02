@@ -115,28 +115,28 @@ bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer)
 	auto refResult = session.IncreaseRef();
 	auto sessionID = session.GetSessionID();
 
-	if (session.GetSessionID() != sessionId)
+	if (sessionID != sessionId)
 	{
 		session.Release();
-		buffer->Release();
 		return false;
 	}
-	buffer->IncreaseRef();
-	
-
 	if (refResult > releaseFlag)
 	{
 		//세션 릴리즈 해도 문제 없음. 플레그 서 있을거라 내가 올린 만큼 내려감. 
 		session.Release();
-		buffer->Release();
 		return false;
 	}
+
+
+
+	buffer->IncreaseRef(L"SendPacket", *buffer->GetDataPtr());
 
 	int size = buffer->GetDataSize();
 	if (size == 0) 
 	{
 		DebugBreak();
 	}
+
 
 	session.Enqueue(buffer);
 	session.dataNotSend++;

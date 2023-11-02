@@ -58,7 +58,7 @@ void RecvExecutable::recvNormal(Session& session, void* iocp)
 		InterlockedIncrement(&((IOCP*)iocp)->_recvCount);
 
 		((IOCP*)iocp)->OnRecvPacket(session._sessionID, buffer);
-		buffer.Release();
+		buffer.Release(L"RecvExecutableNormalRelease");
 	}
 }
 
@@ -104,7 +104,6 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 		buffer.isEncrypt++;
 
 		buffer.Decode(session._staticKey);
-
 		if (!buffer.checksumValid()) 
 		{
 			printf("checkSumInvalid %d %p\n", buffer._rear- buffer._front, buffer._front);
@@ -118,7 +117,7 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 		//session.Debug[session.debugIndex] = { packetBegin,session._recvQ.GetFront(),session._recvQ.GetRear() };
 
 		((IOCP*)iocp)->OnRecvPacket(session._sessionID, buffer);
-		buffer.Release();
+		buffer.Release(L"RecvExecutableEncryptRelease");
 	}
 }
 
@@ -134,7 +133,7 @@ void PostSendExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
 
 	while (sendingQ.Dequeue(buffer))
 	{
-		buffer->Release();
+		buffer->Release(L"postSendRelease");
 	}
 
 

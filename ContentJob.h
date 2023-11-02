@@ -22,7 +22,12 @@ public:
 
 	static ContentJob* Alloc() 
 	{
-		return _pool.Alloc();
+		 auto ret = _pool.Alloc();
+
+		 ret->_buffer = nullptr;
+		 ret->_type = ePacketType::None;
+
+		 return ret;
 	}
 	static ContentJob* Alloc(CSerializeBuffer* buffer);
 

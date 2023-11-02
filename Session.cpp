@@ -225,12 +225,12 @@ void Session::Reset()
 	CSerializeBuffer* sendBuffer;
 	while (_sendQ.Dequeue(sendBuffer))
 	{
-		sendBuffer->Release();
+		sendBuffer->Release(L"SessionResetSendQRelease");
 	}
 	_recvQ.Clear();
 	while (_sendingQ.Dequeue(sendBuffer))
 	{
-		sendBuffer->Release();
+		sendBuffer->Release(L"SessionResetSendingQRelease");
 	}
 	_socket.Close();
 }

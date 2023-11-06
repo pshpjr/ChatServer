@@ -24,13 +24,18 @@ void Session::Enqueue(CSerializeBuffer* buffer)
 void Session::Close()
 {
 	_disconnect = true;
+	//실패해서 cancleIO 하긴 하는데 이거 의미 없는 것 같음. 
+	//실패했다면 io가 다 취소될 것. 
 	printf("CancleIO session : %d socket : %d\n", _sessionID, _socket._socket);
 	_socket.CancleIO();
 }
 
-bool Session::Release()
+bool Session::Release(LPCWSTR content, int type)
 {
 	int refDecResult = InterlockedDecrement(&_refCount);
+	
+	auto index = InterlockedIncrement(&debugIndex);
+	release_D[index % debugSize] = { refDecResult,content,_sessionID };
 
 	//각종 정리를 하고 반환한다. 
 	if (refDecResult == 0)
@@ -42,9 +47,11 @@ bool Session::Release()
 			//직렬화 버퍼 같은 거. .
 
 			Reset();
-			auto index = _sessionID >>47;
 
+			_owner->onDisconnect(_sessionID);
+			index = _sessionID >> 47;
 			_owner->freeIndex.Push(index);
+
 			return true;
 		}
 	}
@@ -91,10 +98,10 @@ void Session::trySend()
 		break;
 	}
 	
-	auto refIncResult = IncreaseRef();
+	auto refIncResult = IncreaseRef(L"realSendInc");
 	if (refIncResult >= releaseFlag) 
 	{
-		Release();
+		Release(L"realSendSessionisRelease");
 		return;
 	}
 
@@ -120,6 +127,7 @@ void Session::trySend()
 		{
 			buffer->writeLanHeader();
 		}
+		
 
 		sendWsaBuf[i].buf = buffer->GetHead();
 		sendWsaBuf[i].len = buffer->GetFullSize();
@@ -132,7 +140,7 @@ void Session::trySend()
 	if (sendPackets == 0)
 	{
 		InterlockedExchange(&_isSending, false);
-		Release();
+		Release(L"realSendPacket0Release");
 		return;
 	}
 
@@ -160,12 +168,10 @@ void Session::trySend()
 		int error = WSAGetLastError();
 		if (error != WSA_IO_PENDING)
 		{
-			printf("Send_ERROR\n");
-			return;
+			Close();
+			Release(L"SendErrorRelease");
 		}
-		Close();
 	}
-	Release();
 }
 
 void Session::registerRecv()
@@ -204,7 +210,7 @@ void Session::RecvNotIncrease()
 		int error = WSAGetLastError();
 		if (error != WSA_IO_PENDING)
 		{
-			Release();
+			Release(L"RecvErrorRelease");
 		}
 	}
 }
@@ -221,16 +227,16 @@ void Session::Reset()
 	_sendExecute.Clear();
 	_recvExecute.Clear();
 	_postSendExecute.Clear();
-
+	_isSending = false;
 	CSerializeBuffer* sendBuffer;
 	while (_sendQ.Dequeue(sendBuffer))
 	{
-		sendBuffer->Release(L"SessionResetSendQRelease");
+		sendBuffer->Release();
 	}
 	_recvQ.Clear();
 	while (_sendingQ.Dequeue(sendBuffer))
 	{
-		sendBuffer->Release(L"SessionResetSendingQRelease");
+		sendBuffer->Release();
 	}
 	_socket.Close();
 }

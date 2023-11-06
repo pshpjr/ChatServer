@@ -31,11 +31,16 @@ protected:
 
 	//MONITOR
 	uint64 _acceptCount = 0;
+	uint64 _oldAccepCount = 0;
 	uint64 _recvCount = 0;
 	uint64 _sendCount = 0;
 	uint64 _acceptTps = 0;
 	uint64 _recvTps = 0;
 	uint64 _sendTps = 0;
+	uint16 _sessions = 0;
+	uint64 _packetPoolSize = 0;
+	uint32 _packetPoolEmpty = 0;
+
 
 // SESSION_MANAGER
 	int g_id = 0;
@@ -52,5 +57,7 @@ protected:
 	uint64 g_sessionId = 0;
 	char _staticKey;
 	short _sessionCount = 0;
+	bool gracefulEnd = false;
+
 };
 

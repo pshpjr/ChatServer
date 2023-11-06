@@ -36,7 +36,7 @@ public:
 		_queue[_dequeueIndex].pop();
 		return ret;
 	}
-
+	size_t Size() { return _queue[_dequeueIndex].size(); }
 private:
 	int _enqueueIndex = 0;
 	int _dequeueIndex = 1;

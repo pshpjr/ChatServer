@@ -43,16 +43,14 @@ closesocket(_beforeSocket);
 
 int Socket::Send(LPWSABUF buf, DWORD bufCount, DWORD flag, LPWSAOVERLAPPED lpOverlapped)
 {
-	DWORD recvBytes = 0;
-	 WSASend(_socket, buf, bufCount, nullptr, flag, lpOverlapped, nullptr);
-	 return recvBytes;
+	return WSASend(_socket, buf, bufCount, nullptr, flag, lpOverlapped, nullptr);
 }
 
 int Socket::Recv(LPWSABUF buf, DWORD bufCount, LPDWORD flag, LPWSAOVERLAPPED lpOverlapped)
 {
-	DWORD recvBytes = 0;
-	WSARecv(_socket, buf, bufCount, &recvBytes, flag, lpOverlapped, nullptr);
-	return recvBytes;
+
+	return WSARecv(_socket, buf, bufCount, nullptr, flag, lpOverlapped, nullptr);
+
 }
 
 

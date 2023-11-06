@@ -8,6 +8,7 @@
 #include "Session.h"
 #include "CSerializeBuffer.h"
 #include "LockGuard.h"
+#include "CMap.h"
 
 bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread, char staticKey)
 {
@@ -84,7 +85,7 @@ bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread, char 
 		printf("WorkerThread %p\n", _threadArray[i]);
 	}
 	OnInit();
-
+	GMap.SetOwner(this);
 	return true;
 }
 
@@ -104,6 +105,8 @@ void IOCP::Stop()
 	{
 		printf("WaitForMultipleObjects failed %d\n", GetLastError());
 	}
+	gracefulEnd = true;
+
 	OnEnd();
 }
 
@@ -112,24 +115,24 @@ bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer)
 {
 	auto sessionIndex = (sessionId >> 47);
 	auto& session = sessions[sessionIndex];
-	auto refResult = session.IncreaseRef();
+	auto refResult = session.IncreaseRef(L"SendPacketInc");
 	auto sessionID = session.GetSessionID();
 
 	if (sessionID != sessionId)
 	{
-		session.Release();
+		session.Release(L"SendPacketSessionChange");
 		return false;
 	}
 	if (refResult > releaseFlag)
 	{
 		//세션 릴리즈 해도 문제 없음. 플레그 서 있을거라 내가 올린 만큼 내려감. 
-		session.Release();
+		session.Release(L"SendPacketSessionRelease");
 		return false;
 	}
 
 
 
-	buffer->IncreaseRef(L"SendPacket", *buffer->GetDataPtr());
+	buffer->IncreaseRef();
 
 	int size = buffer->GetDataSize();
 	if (size == 0) 
@@ -142,6 +145,7 @@ bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer)
 	session.dataNotSend++;
 
 	PostQueuedCompletionStatus(_iocp, -1, (ULONG_PTR)&session, &session._sendExecute._overlapped);
+	session.Release(L"SendPacketRelease");
 	return true;
 }
 
@@ -154,20 +158,45 @@ bool IOCP::DisconnectSession(SessionID sessionId)
 	return true;  
 }
 
+bool IOCP::isEnd()
+{
+	return gracefulEnd;
+}
 
-int64 IOCP::GetAcceptTps()
+
+uint64 IOCP::GetAcceptCount()
+{
+	return _acceptCount;
+}
+
+uint64 IOCP::GetAcceptTps()
 {
 	return _acceptTps;
 }
 
-int64 IOCP::GetRecvTps()
+uint64 IOCP::GetRecvTps()
 {
 	return _recvTps;
 }
 
-int64 IOCP::GetSendTps()
+uint64 IOCP::GetSendTps()
 {
 	return _sendTps;
+}
+
+uint16 IOCP::GetSessions()
+{
+	return _sessions;
+}
+
+uint64 IOCP::GetPacketPoolSize()
+{
+	return _packetPoolSize;
+}
+
+uint32 IOCP::GetPacketPoolEmptyCount()
+{
+	return _packetPoolEmpty;
 }
 
 void IOCP::onDisconnect(SessionID sessionId)
@@ -197,15 +226,13 @@ void IOCP::WorkerThread(LPVOID arg)
 		if(transferred == 0 && session != nullptr)
 		{
 			auto sessionID =session->GetSessionID();
-			if (session->Release())
-			{
+		
+			session->Release(L"GQCSerrorRelease", overlapped->_type);
 
-				onDisconnect(sessionID);
-			}
 		}
 		else
 		{
-			overlapped = (Executable*)((char*)overlapped - sizeof(LPVOID));
+			overlapped = (Executable*)((char*)overlapped - offsetof(Executable, _overlapped));
 			overlapped->Execute((PULONG_PTR)session, transferred, this);
 		}
 
@@ -245,12 +272,9 @@ void IOCP::AcceptThread(LPVOID arg)
 		sessions[sessionIndex].SetSessionID(sessionID);
 		sessions[sessionIndex].SetSocket(clientSocket);
 		sessions[sessionIndex].RegisterIOCP(_iocp);
-		auto refResult = sessions[sessionIndex].IncreaseRef();
-
-
-	
-
+		auto refResult = sessions[sessionIndex].IncreaseRef(L"AcceptInc");
 		sessions[sessionIndex].OffReleaseFlag();
+
 		OnConnect(sessions[sessionIndex].GetSessionID());
 		sessions[sessionIndex].RecvNotIncrease();
 
@@ -261,18 +285,26 @@ void IOCP::AcceptThread(LPVOID arg)
 
 void IOCP::MonitorThread(LPVOID arg)
 {
+
+	auto start = chrono::system_clock::now();
+	auto next = chrono::time_point_cast<chrono::milliseconds>(start) + chrono::milliseconds(1000);
 	while (_isRunning)
 	{
-		_acceptTps = _acceptCount;
+		_acceptTps = _acceptCount - _oldAccepCount;
+		_oldAccepCount = _acceptCount;
 		_recvTps = _recvCount;
 		_sendTps = _sendCount;
+		_sessions = _sessionCount;
+		_packetPoolSize = CSerializeBuffer::_pool.GetGPoolSize();
+		_packetPoolEmpty = CSerializeBuffer::_pool.GetGPoolEmptyCount();
 
-		InterlockedExchange(&_acceptCount, 0);
 		InterlockedExchange(&_recvCount, 0);
 		InterlockedExchange(&_sendCount, 0);
 
-
-		Sleep(1000);
+		auto sleepTime = chrono::duration_cast<chrono::milliseconds> (next - chrono::system_clock::now());
+		next += chrono::milliseconds(1000);
+		if (sleepTime.count() > 0)
+			Sleep(sleepTime.count());
 	}
 	printf("MonitorThread End\n");
 

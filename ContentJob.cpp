@@ -11,7 +11,7 @@ void ContentJob::Free()
 			printf("wrong release : %p\n", _buffer);
 		}
 
-		_buffer->Release(L"ContentJobFree");
+		_buffer->Release();
 	}
 
 	
@@ -24,6 +24,6 @@ ContentJob* ContentJob::Alloc(CSerializeBuffer* buffer)
 	auto ret = _pool.Alloc();
 
 	ret->_buffer = buffer;
-	buffer->IncreaseRef(L"JobAlloc");
+	buffer->IncreaseRef();
 	return ret;
 }

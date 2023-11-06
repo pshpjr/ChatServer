@@ -6,7 +6,7 @@ class IOCP : public IOCP_CLASS
 {
 	friend class RecvExecutable;
 	friend class PostSendExecutable;
-
+	friend class Session;
 public:
 	IOCP();
 
@@ -19,6 +19,7 @@ public:
 	void Stop();
 	bool SendPacket(SessionID sessionId, CSerializeBuffer* buffer);
 	bool DisconnectSession(SessionID sessionId);
+	bool isEnd();
 	virtual void OnWorkerThreadBegin() {}; 
 	virtual void OnWorkerThreadEnd() {};
 	virtual bool OnAccept(SockAddr_in) { return true; };
@@ -29,9 +30,16 @@ public:
 	virtual void OnStart() {};
 	virtual void OnEnd() {};
 
-	int64 GetAcceptTps();
-	int64 GetRecvTps();
-	int64 GetSendTps();
+	//MONITOR
+
+
+	uint64 GetAcceptCount();
+	uint64 GetAcceptTps();
+	uint64 GetRecvTps();
+	uint64 GetSendTps();
+	uint16 GetSessions();
+	uint64 GetPacketPoolSize();
+	uint32 GetPacketPoolEmptyCount();
 
 
 private:

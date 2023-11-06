@@ -10,42 +10,50 @@
 #include "CommonProtocol.h"
 #include "Player.h"
 #include "CMap.h"
-struct connection {
-	SessionID id;
-	chrono::system_clock::time_point echo;
+
+
+
+void printLog(Server& server);
+void HandlePacket(CSerializeBuffer& buffer,SessionID id, Server& server);
+
+void LogFunc(Server& server) {
+	while (!server.isEnd()) {
+		printLog(server);
+		Sleep(1000);
+	}
+}
+const int debugSize = 1000;
+struct debugJob {
+	char input[debugSize];
+	int debugIndex = 0;
 };
 
-list<connection> loginWait;
 
-HashMap<SessionID,Player*> gplayers;
 
-void HandlePacket(CSerializeBuffer& buffer,SessionID id, Server& server);
+
+
 int main()
 {
 	timeBeginPeriod(1);
 	srand(GetCurrentThreadId());
 	Server& server = *new Server;
 
-	server.Init(L"0.0.0.0", 12001,20,4, 0x32);
-	GMap.SetOwner(&server);
+	server.Init(L"0.0.0.0", 11777,20,4, 0x32);
 
+	auto logThread = thread(LogFunc, ref(server));
 
-	int count = 0;
-	while (true) 
+	while (!server.isEnd())
 	{
 		server._packetQueue.Swap();
 
-		ContentJob* job;
-		count++;
-		if (count == 50) {
-			count = 0;
-			printf("Players : %d", gplayers.size());
-		}
+		ContentJob* job = nullptr;
+
 		while (true) 
 		{
 			job = server._packetQueue.Dequeue();
 			if (job == nullptr)
 				break;
+
 
 			CSerializeBuffer& buffer = *job->_buffer;
 
@@ -77,6 +85,7 @@ int main()
 				}
 					
 				auto& player = *result->second;
+				player.getDisconnect = true;
 				gplayers.erase(result);
 
 				if(player._curX != -1)
@@ -100,11 +109,12 @@ int main()
 
 
 		}
-
-		Sleep(20);
 	}
+	if (logThread.joinable())
+		logThread.join();
 
 }
+
 
 void HandlePacket(CSerializeBuffer& buffer, SessionID id, Server& server)
 {
@@ -157,9 +167,11 @@ void HandlePacket(CSerializeBuffer& buffer, SessionID id, Server& server)
 			resBuffer << en_PACKET_CS_CHAT_RES_LOGIN << (BYTE)find << newPlayer->AccountNo;
 
 			server.SendPacket(id, &resBuffer);
-			resBuffer.Release(L"LoginPacketRelease");
+			resBuffer.Release();
 		}
-
+		else {
+			server.DisconnectSession(id);
+		}
 	}
 		break;
 
@@ -195,7 +207,7 @@ void HandlePacket(CSerializeBuffer& buffer, SessionID id, Server& server)
 		resBuffer << en_PACKET_CS_CHAT_RES_SECTOR_MOVE << targetPlayer.AccountNo << targetPlayer._curX << targetPlayer._curY;
 
 		server.SendPacket(id, &resBuffer);
-		resBuffer.Release(L"MovePacketRelease");
+		resBuffer.Release();
 	}
 	break;
 	case en_PACKET_CS_CHAT_REQ_MESSAGE: 
@@ -204,7 +216,8 @@ void HandlePacket(CSerializeBuffer& buffer, SessionID id, Server& server)
 
 		if (player == gplayers.end())
 		{
-			break;
+			server.DisconnectSession(id);
+			DebugBreak();
 		}
 		auto& targetPlayer = *player->second;
 
@@ -221,7 +234,7 @@ void HandlePacket(CSerializeBuffer& buffer, SessionID id, Server& server)
 
 
 		GMap.Broadcast(targetPlayer, resBuffer);
-		resBuffer.Release(L"ChatPacketRelease");
+		resBuffer.Release();
 	}
 		break;
 
@@ -231,4 +244,54 @@ void HandlePacket(CSerializeBuffer& buffer, SessionID id, Server& server)
 	default:
 		break;
 	}
+}
+
+void userInput(Server& server) {
+	static bool keyWait = false;
+	printf("keyWait : %s, toggle : i, stop : s\n", keyWait ? "True" : "False");
+	if (keyWait) 
+	{
+		if (GetAsyncKeyState('I')) {
+			keyWait = false;
+		}
+		if (GetAsyncKeyState('S')) {
+			server.Stop();
+		}
+		if (GetAsyncKeyState('D')) {
+			DebugBreak();
+		}
+	}
+	else
+	{
+		if (GetAsyncKeyState('I')) {
+			keyWait = true;
+		}
+	}
+
+}
+
+
+void printLog(Server& server) {
+	userInput(server);
+	printf("==================================\n");
+	printf("+              LIBS              +\n");
+	printf("==================================\n");
+	printf("   Sessions : %u                \n", server.GetSessions());
+	printf(" PacketPool : %lld, PoolEmpty : %u\n", server.GetPacketPoolSize(), server.GetPacketPoolEmptyCount());
+	printf("  AcceptTot : %lld, AcceptTps : %lld\n", server.GetAcceptCount(), server.GetAcceptTps());
+	printf("  RecvTPS   : %lld, SendTPS   : %lld\n", server.GetRecvTps(), server.GetSendTps());
+
+
+	auto loginSize = loginWait.size();
+	auto players = gplayers.size();
+
+	printf("==================================\n");
+	printf("+            Contents            +\n");
+	printf("==================================\n");
+	printf("   login    : %lld, Players : %lld\n", loginSize, players);
+	printf(" connect    :%lld,QueueSize : %lld\n", loginSize + players,server._packetQueue.Size());
+	printf("    Queue   : %lld\n", server._packetQueue.Size());
+
+
+	printf("==================================\n");
 }

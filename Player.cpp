@@ -5,5 +5,5 @@
 #include "CMap.h"
 #include "CSerializeBuffer.h"
 
-HashSet<Player*> GPlayerList;
-list<Player*> GDeletePlayerList;
+HashMap<SessionID, Player*> gplayers;
+list<connection> loginWait;

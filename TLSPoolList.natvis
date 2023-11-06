@@ -13,16 +13,11 @@
 		</Expand>
 	</Type>
 
-	<Type Name ="TLSPool&lt;*,*,*&gt;::Debug">
-		<DisplayString>{{ tID = {threadID}, type = {type}, localSize = {localPoolSize}, localAddr = {localPoolAddr}, gAddr = {globalPoolAddr} }</DisplayString>
-
-	</Type>
-	<Type Name ="Player*">
-		<DisplayString>{}</DisplayString>
+	<Type Name ="Session">
+		<DisplayString>{ID = {_sessionID}, ref = {_refCount}}</DisplayString>
 		<Expand>
-			<Item Name="Account">AccountNo</Item>
-			<Item Name="sessionID">_sessionId</Item>
+			<Item Name="debug">_relase_D</Item>
 		</Expand>
 	</Type>
-	
+
 </AutoVisualizer>

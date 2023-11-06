@@ -7,9 +7,9 @@ class Executable
 {
 	friend class Server;
 public:
-	enum class ioType
+	enum ioType
 	{
-		BASE,
+		BASE = 1,
 		SEND,
 		RECV,
 		POSTRECV,
@@ -28,7 +28,7 @@ public:
 	//Executable(Executable&& other) noexcept = delete;
 	//Executable& operator=(const Executable& other) = delete;
 	//Executable& operator=(Executable&& other) noexcept = delete;
-
+	ioType _type;
 	OVERLAPPED _overlapped;
 };
 
@@ -109,6 +109,10 @@ private:
 class RecvExecutable : public Executable
 {
 public:
+	RecvExecutable()
+	{
+		_type = ioType::RECV;
+	}
 	void Execute(PULONG_PTR key, DWORD transferred, void* iocp) override;
 	~RecvExecutable() override = default;
 
@@ -123,6 +127,10 @@ private:
 class PostSendExecutable : public Executable
 {
 public:
+	PostSendExecutable()
+	{
+		_type = ioType::POSTRECV;
+	}
 	void Execute(PULONG_PTR key, DWORD transferred, void* iocp) override;
 	~PostSendExecutable() override = default;
 
@@ -132,6 +140,10 @@ public:
 class SendExecutable : public Executable
 {
 public:
+	SendExecutable()
+	{
+		_type = ioType::SEND;
+	}
 	void Execute(PULONG_PTR key, DWORD transferred, void* iocp) override;
 	~SendExecutable() override = default;
 

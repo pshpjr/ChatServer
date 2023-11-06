@@ -23,10 +23,17 @@ public:
 	WCHAR ID[20];
 	WCHAR Nickname[20];
 	char SessionKey[64];
-
+	bool getDisconnect = false;
 	SessionID _sessionId;
 
 	chrono::time_point<chrono::system_clock> lastEcho;
 };
 
+struct connection {
+	SessionID id;
+	chrono::system_clock::time_point echo;
+};
 
+extern list<connection> loginWait;
+
+extern HashMap<SessionID, Player*> gplayers;

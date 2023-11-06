@@ -22,7 +22,7 @@ public:
 	Session(Socket socket, uint64 sessionId, IOCP& owner);
 	void Enqueue(CSerializeBuffer* buffer);
 	void Close();
-	bool Release();
+	bool Release(LPCWSTR content,int type = 0);
 	void trySend();
 	void registerRecv();
 	void RecvNotIncrease();
@@ -33,7 +33,12 @@ public:
 	void SetOwner(IOCP& owner) { _owner = &owner; }
 	void Reset();
 	void SetNetSession(char staticKey) { _staticKey = staticKey; }
-	long IncreaseRef() { return InterlockedIncrement(&_refCount); }
+	long IncreaseRef(LPCWSTR content) {
+		auto result =  InterlockedIncrement(&_refCount);
+		auto index = InterlockedIncrement(&debugIndex);
+		release_D[index%debugSize] = { result,content,_sessionID };
+		return result;
+	}
 	void OffReleaseFlag() { auto result = InterlockedBitTestAndReset(&_refCount, 20); }
 
 private:
@@ -63,12 +68,16 @@ private:
 
 	char _staticKey = false;
 
-
-	struct dData {
-		char* packetStart;
-		char* _front;
-		char* _rear;
+	struct RelastinReleaseEncrypt_D {
+		long refCount;
+		LPCWSTR location;
+		unsigned long long contentType;
 	};
+	static const int debugSize = 2000;
+
+	long debugIndex = 0;
+	RelastinReleaseEncrypt_D release_D[debugSize];
+
 
 	//dData Debug[1000];
 	//int debugIndex;

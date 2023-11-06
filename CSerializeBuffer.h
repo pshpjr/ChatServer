@@ -82,20 +82,19 @@ public:
 	{
 		auto ret = _pool.Alloc();
 		ret->Clear();
-		ret->IncreaseRef(L"BufferAlloc");
+		ret->IncreaseRef();
 		return ret;
 	}
 
-	void Release(String location)
+	void Release()
 	{
 		auto refResult = InterlockedDecrement(&_refCount);
-		release_D[InterlockedIncrement(&debugIndex) % debugSize] = { refResult,location };
 		if (refResult == 0)
 		{
 			_pool.Free(this);
 		}
 	}
-	void IncreaseRef(String location,short content = 0) { release_D[InterlockedIncrement(&debugIndex) % debugSize] = { InterlockedIncrement(&_refCount),location,content }; }
+	void IncreaseRef() { InterlockedIncrement(&_refCount); }
 
 	bool inBroadCast = false;
 private:
@@ -230,15 +229,7 @@ private:
 
 	long _refCount = 0;
 
-	struct RelastinReleaseEncrypt_D {
-		long refCount;
-		String location;
-		short contentType;
-	};
-	static const int debugSize =500;
 
-	long debugIndex = 0;
-	RelastinReleaseEncrypt_D release_D[debugSize];
 
 	SRWLOCK _encodeLock;
 };

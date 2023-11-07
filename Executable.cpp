@@ -43,7 +43,6 @@ void RecvExecutable::recvNormal(Session& session, void* iocp)
 		Header header;
 		session._recvQ.Peek((char*)&header, sizeof(Header));
 
-
 		if (session._recvQ.Size() < header.len)
 		{
 			break;
@@ -124,7 +123,6 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 int compCount;
 void PostSendExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
 {
-
 	Session* session = (Session*)key;
 	auto& sendingQ = session->_sendingQ;
 
@@ -161,4 +159,15 @@ void SendExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
 
 
 	session->trySend();
+}
+
+void ReleaseExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
+{
+	Session* session = (Session*)key;
+
+	session->Reset();
+
+	session->_owner->onDisconnect(session->_sessionID);
+	auto index = session->_sessionID >> 47;
+	session->_owner->freeIndex.Push(index);
 }

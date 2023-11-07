@@ -15,6 +15,7 @@ class Session
 	friend class RecvExecutable;
 	friend class PostSendExecutable;
 	friend class SendExecutable;
+	friend class ReleaseExecutable;
 	friend class IOCP;
 public:
 
@@ -53,6 +54,7 @@ private:
 	RecvExecutable _recvExecute;
 	PostSendExecutable _postSendExecute;
 	SendExecutable _sendExecute;
+	ReleaseExecutable _releaseExecutable;
 
 	TLSLockFreeQueue<CSerializeBuffer*> _sendingQ;
 

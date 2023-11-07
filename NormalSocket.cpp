@@ -21,7 +21,7 @@ void Socket::CancleIO()
 
 		if(error == ERROR_NOT_FOUND)
 		{
-			printf("error : %d %d\n", error,_socket);
+			//printf("error : %d %d\n", error,_socket);
 		}
 		else
 		{

@@ -26,7 +26,6 @@ void Session::Close()
 	_disconnect = true;
 	//실패해서 cancleIO 하긴 하는데 이거 의미 없는 것 같음. 
 	//실패했다면 io가 다 취소될 것. 
-	printf("CancleIO session : %d socket : %d\n", _sessionID, _socket._socket);
 	_socket.CancleIO();
 }
 
@@ -43,14 +42,7 @@ bool Session::Release(LPCWSTR content, int type)
 		//0이 아니란 소리는 누가 Inc하거나, 누가 release 하고 있단 소리. 
 		if (InterlockedCompareExchange(&_refCount, releaseFlag, 0) == 0)
 		{
-			//소켓 닫는 거 말고 또 할 거 있나?
-			//직렬화 버퍼 같은 거. .
-
-			Reset();
-
-			_owner->onDisconnect(_sessionID);
-			index = _sessionID >> 47;
-			_owner->freeIndex.Push(index);
+			PostQueuedCompletionStatus(_owner->_iocp, -1, (ULONG_PTR)this, &_releaseExecutable._overlapped);
 
 			return true;
 		}
@@ -164,7 +156,6 @@ void Session::trySend()
 	int sendResult = _socket.Send(sendWsaBuf, sendPackets, flags ,&_postSendExecute._overlapped);
 	if (sendResult == SOCKET_ERROR)
 	{
-		printf("SocketError\n");
 		int error = WSAGetLastError();
 		if (error != WSA_IO_PENDING)
 		{

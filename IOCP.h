@@ -6,6 +6,7 @@ class IOCP : public IOCP_CLASS
 {
 	friend class RecvExecutable;
 	friend class PostSendExecutable;
+	friend class ReleaseExecutable;
 	friend class Session;
 public:
 	IOCP();

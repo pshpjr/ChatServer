@@ -13,6 +13,7 @@ public:
 		SEND,
 		RECV,
 		POSTRECV,
+		RELEASE,
 		CUSTOM
 	};
 
@@ -146,5 +147,17 @@ public:
 	}
 	void Execute(PULONG_PTR key, DWORD transferred, void* iocp) override;
 	~SendExecutable() override = default;
+
+};
+
+class ReleaseExecutable : public Executable
+{
+public:
+	ReleaseExecutable() 
+	{
+		_type = ioType::RELEASE;
+	}
+	void Execute(PULONG_PTR key, DWORD transferred, void* iocp) override;
+	~ReleaseExecutable() override = default;
 
 };

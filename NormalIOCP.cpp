@@ -15,7 +15,7 @@ bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread, char 
 	_isRunning = true;
 	_maxNetThread = maxNetThread;
 	_staticKey = staticKey;
-	
+
 	
 	if (staticKey) {
 		for (auto& session : sessions) {
@@ -26,11 +26,7 @@ bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread, char 
 	_threadArray = new HANDLE[_maxNetThread+2];
 
 
-	WSADATA wsaData;
-	if(WSAStartup(MAKEWORD(2, 2), &wsaData)!=0)
-	{
-		return false;
-	}
+
 
 
 	_listenSocket.Init();
@@ -333,6 +329,12 @@ unsigned __stdcall IOCP::AcceptEntry(LPVOID arg)
 
 IOCP::IOCP() 
 {
+	WSADATA wsaData;
+	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
+	{
+		_isRunning = false;
+	}
+
 	for (int i = MAX_SESSIONS-1; i >=0 ; i--)
 	{
 		freeIndex.Push(i);

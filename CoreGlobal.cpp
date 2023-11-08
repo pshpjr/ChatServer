@@ -1,8 +1,8 @@
 ﻿#include "stdafx.h"
 #include "CoreGlobal.h"
 
-//#include "CLogger.h"
-//#include "SettingParser.h"
+#include "CLogger.h"
+#include "SettingParser.h"
 //#include "Profiler.h"
 
 CLogger* GLogger = nullptr;
@@ -14,8 +14,8 @@ class CoreGlobal
 public:
 	CoreGlobal()
 	{
-		//GLogger = new CLogger();
-		//GSettingParser = new SettingParser();
+		GLogger = new CLogger();
+		GSettingParser = new SettingParser();
 		//GProfiler = new Profiler();
 
 	}
@@ -24,8 +24,8 @@ public:
 
 
 		//delete GProfiler;
-		//delete GSettingParser;
-		//delete GLogger;
+		delete GSettingParser;
+		delete GLogger;
 
 	}
 } GCoreGlobal;

@@ -1,0 +1,9 @@
+basic:
+{
+ip: "0.0.0.0"
+port:11777
+backlog:20
+workerThreads:4
+staticKey:50
+}
+

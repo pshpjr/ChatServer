@@ -22,6 +22,10 @@ public:
 	bool Connect(String ip, uint16 port);
 	void CancleIO();
 	void Close();
+	/// <summary>
+	/// 
+	/// </summary>
+	/// <returns>이상 없으면 0, 아니면 에러코드</returns>
 	bool isValid() const;
 	int Send(LPWSABUF buf, DWORD bufCount, DWORD flag,  LPWSAOVERLAPPED lpOverlapped);
 	int Recv(LPWSABUF buf, DWORD bufCount, LPDWORD flag, LPWSAOVERLAPPED lpOverlapped);

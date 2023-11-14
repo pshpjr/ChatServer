@@ -12,7 +12,7 @@ class NormalIOCP
 	friend class SendExecutable;
 	friend class PostSendExecutable;
 public:
-	void SetDebug() { checkDebug = true; }
+
 protected:
 
 	Session* FindSession(uint64 id);
@@ -61,8 +61,7 @@ protected:
 
 	bool gracefulEnd = false;
 
-	//Debug
-	bool checkDebug = false;
+
 
 };
 

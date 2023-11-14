@@ -19,8 +19,8 @@ SettingParser::ErrType SettingParser::init(LPCWSTR location)
 
 	if (loadResult != ErrType::Succ)
 		return loadResult;
-	
-	return parse();
+	return ErrType::Succ;
+	//return parse();
 }
 
 bool SettingParser::getValue(LPCTSTR name, OUT String& value)
@@ -131,10 +131,8 @@ SettingParser::ErrType SettingParser::loadSetting(LPCWSTR location)
 	long fileSize = rawText.tellg();
 
 	rawText.seekg(0);
-	_buffer = (LPWCH)malloc(fileSize+2);
-	bufferSize = fileSize + 2;
-
-	memset(_buffer, 0, fileSize);
+	_buffer = (LPWCH)malloc(fileSize*2+2);
+	bufferSize = fileSize + 1;
 
 	rawText.read(_buffer, fileSize);
 	auto count = rawText.gcount();

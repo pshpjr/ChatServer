@@ -43,7 +43,7 @@ bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread, uint1
 		return false;
 	}
 
-	_iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, 0);
+	_iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, maxNetThread);
 	if (_iocp == INVALID_HANDLE_VALUE)
 	{
 		_listenSocket.Close();
@@ -51,7 +51,7 @@ bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread, uint1
 	}
 
 	void* _this = this;
-	for (int i = 2; i < maxNetThread + 2; ++i)
+	for (int i = 0; i < workerThread; ++i)
 	{
 		_threadArray[i] = (HANDLE)_beginthreadex(nullptr, 0, WorkerEntry, _this, 0, nullptr);
 		if (_threadArray[i] == INVALID_HANDLE_VALUE)
@@ -331,6 +331,12 @@ void IOCP::AcceptThread(LPVOID arg)
 	while (_isRunning)
 	{
 		Socket clientSocket = _listenSocket.Accept();
+		if (!clientSocket.isValid()) {
+			printf("AcceptError %d", WSAGetLastError());
+			DebugBreak();
+			int a = 10;
+		}
+
 
 		if (OnAccept(clientSocket.GetSockAddr()) == false)
 		{
@@ -356,16 +362,9 @@ void IOCP::AcceptThread(LPVOID arg)
 		sessions[sessionIndex].SetSocket(clientSocket);
 		sessions[sessionIndex].RegisterIOCP(_iocp);
 		auto refResult = sessions[sessionIndex].IncreaseRef(L"AcceptInc");
-		if ((refResult ^ sessions[sessionIndex].releaseFlag) != 1) {
-			DebugBreak();
-		}
 
 		sessions[sessionIndex].OffReleaseFlag();
 		sessions[sessionIndex]._connect = true;
-
-		if (checkDebug) {
-			DebugBreak();
-		}
 
 		OnConnect(sessions[sessionIndex].GetSessionID());
 		sessions[sessionIndex].RecvNotIncrease();

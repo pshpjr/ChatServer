@@ -143,7 +143,7 @@ private:
 
 public:
 	template<typename T>
-	CSerializeBuffer& operator << (T& value);
+	CSerializeBuffer& operator << (const T& value);
 
 	//CSerializeBuffer& operator <<(unsigned char value);
 	//CSerializeBuffer& operator <<(char value);
@@ -213,13 +213,11 @@ private:
 
 	long _refCount = 0;
 
-
-
 	SRWLOCK _encodeLock;
 };
 
 template<typename T>
-inline CSerializeBuffer& CSerializeBuffer::operator<<(T& value)
+inline CSerializeBuffer& CSerializeBuffer::operator<<(const T& value)
 {
 	static_assert(is_scalar_v<T>);
 	canPush(sizeof(T));

@@ -41,7 +41,7 @@ public:
 
 	void CheckTimeout(chrono::system_clock::time_point now) {
 		IncreaseRef(L"timeoutInc");
-		if (!_connect) {
+		if (_refCount >= releaseFlag) {
 			Release(L"TimeoutRelease");
 			return;
 		}

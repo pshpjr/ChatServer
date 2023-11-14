@@ -242,6 +242,8 @@ void Session::Reset()
 	needCheckSendTimeout = false;
 	_timeout = 5000;
 
+
+
 	CSerializeBuffer* sendBuffer;
 	while (_sendQ.Dequeue(sendBuffer))
 	{

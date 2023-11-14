@@ -1,2 +1,1 @@
-﻿#include "stdafx.h"
-#include "SingleThreadObjectPool.h"
+﻿#include "SingleThreadObjectPool.h"

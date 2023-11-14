@@ -1,2 +1,1 @@
-﻿#include "stdafx.h"
-#include "TLSPool.h"
+﻿#include "TLSPool.h"

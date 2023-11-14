@@ -14,16 +14,6 @@ public:
 	using poolType = SingleThreadObjectPool<T, dataId, usePlacement>;
 	using Node = typename poolType::Node;
 
-	int checkNode(Node* top) {
-		auto count = 0;
-		auto start = top;
-
-		while (start != nullptr) {
-			start = start->_tail;
-			count++;
-		}
-		return count;
-	}
 
 	TLSPool():poolID(InterlockedIncrement(&GPoolID))
 	{
@@ -31,9 +21,9 @@ public:
 		InitializeCriticalSection(&_cs);
 		localPoolTlsIndex = TlsAlloc();
 
-		_GPoolSize = GLOBAL_POOL_INITIAL_SIZE;
+		_pooledNodeCount = GLOBAL_POOL_INITIAL_SIZE;
 
-		for (int i = 0; i < _GPoolSize; ++i)
+		for (int i = 0; i < _pooledNodeCount; ++i)
 		{
 			Node* newNode = createNode();
 
@@ -46,7 +36,6 @@ public:
 	Node* createNode()
 	{
 		Node* newNode = (Node*)malloc(sizeof(Node));
-		newNode->_head = nullptr;
 		newNode->_tail = nullptr; 
 
 
@@ -68,8 +57,14 @@ public:
 		Node* newTop = _top;
 		Node* ret = nullptr;
 
+		//if(_pooledNodeCount == 0)
+		//{
+		//	DebugBreak();
+		//}
 
-		if(_GPoolSize < size)
+
+
+		if(_pooledNodeCount < size)
 		{
 			for (int i = 0; i < size; ++i)
 			{
@@ -87,8 +82,7 @@ public:
 				newNode->_tail = ret;
 				ret = newNode;
 			}
-			_gPoolEmptyCount++;
-			_GPoolSize += size;
+			_pooledNodeCount += size;
 		}
 		else
 		{
@@ -101,10 +95,8 @@ public:
 			_top = newTop->_tail;
 			newTop->_tail = nullptr;
 
-			_GPoolSize -= size;
+			_pooledNodeCount -= size;
 		}
-
-
 		LeaveCriticalSection(&_cs);
 
 		return ret;
@@ -118,17 +110,13 @@ public:
 		tail->_tail = _top;
 		_top = Head;
 
-		_GPoolSize += size;
-
-
-
+		_pooledNodeCount += size;
 		LeaveCriticalSection(&_cs);
 	}
 
 
 	T* Alloc()
 	{
-		InterlockedIncrement64(&allocCount);
 		poolType* pool = (poolType*)TlsGetValue(localPoolTlsIndex);
 
 		if (pool == nullptr)
@@ -142,7 +130,6 @@ public:
 			pool->_top = AcquireNode(TLS_POOL_INITIAL_SIZE);
 			pool->_objectCount = TLS_POOL_INITIAL_SIZE;
 
-
 		}
 
 		return pool->Alloc();
@@ -150,7 +137,6 @@ public:
 
 	void Free(T* data)
 	{
-		InterlockedIncrement64(&freeCount);
 		poolType* pool = (poolType*)TlsGetValue(localPoolTlsIndex);
 
 		if (pool == nullptr)
@@ -163,6 +149,7 @@ public:
 
 		if (pool->GetObjectCount() > TLS_POOL_INITIAL_SIZE*2)
 		{
+
 			Node* releaseHead = pool->_top;
 
 			Node* releaseTail = pool->_top;
@@ -182,21 +169,17 @@ public:
 		}
 	}
 
-	int GetGPoolSize() const { return _GPoolSize; }
-	int GetGPoolEmptyCount() const { return _gPoolEmptyCount; }
+
 private:
 	CRITICAL_SECTION _cs;
 
 	inline static DWORD localPoolTlsIndex = 0;
 	Node* _top = nullptr;
-	int _GPoolSize = 0;
+	int _pooledNodeCount = 0;
 	inline static long GPoolID;
 	long poolID = 0;
-	const int _initLocalPoolSize = TLS_POOL_INITIAL_SIZE;
-	const int _initGPoolSize = GLOBAL_POOL_INITIAL_SIZE;
-	long long freeCount = 0;
-	long long allocCount = 0;
-	int _gPoolEmptyCount = 0;
+	const int _localPoolSize = TLS_POOL_INITIAL_SIZE;
+	const int _globalPoolSize = GLOBAL_POOL_INITIAL_SIZE;
 
 
 	struct Debug

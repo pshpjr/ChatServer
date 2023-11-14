@@ -1,6 +1,13 @@
 ﻿#pragma once
 #include <cstdlib>
 #include <Windows.h>
+#include "Profiler.h"
+
+namespace _multiPool {
+	namespace detail {
+		const unsigned long long pointerMask = 0x000'7FFF'FFFF'FFFF;
+	}
+}
 
 template <typename T,bool usePlacement = false>
 class MultiThreadObjectPool
@@ -16,6 +23,8 @@ class MultiThreadObjectPool
 
 public:
 
+
+
 	MultiThreadObjectPool(int baseAllocSize):_count(baseAllocSize)
 	{
 		for (int i = 0; i < baseAllocSize; ++i)
@@ -29,8 +38,7 @@ public:
 	{
 		for (Node* p = _top; p != nullptr;)
 		{
-
-			p = (Node*)(pointerMask & (long long)p);
+			p = (Node*)(_multiPool::detail::pointerMask & (long long)p);
 			Node* next = p->next;
 			if constexpr (!usePlacement)
 			{
@@ -45,8 +53,10 @@ public:
 
 	T* Alloc()
 	{
-		Node* retNode = nullptr;
-		while (true)
+		Node* next;
+		Node* retNode;
+
+		for(;;)
 		{
 			Node* top = _top;
 
@@ -55,48 +65,37 @@ public:
 				break;
 			}
 
-			Node* topNode = (Node*)((unsigned long long)top & pointerMask);
-			Node* next = topNode->next;
-
-			if (InterlockedCompareExchange64((__int64*)&_top, (__int64)next, (__int64)top) == (__int64)top)
+			if (InterlockedCompareExchange64((__int64*)&_top, (__int64)((Node*)((unsigned long long)top & _multiPool::detail::pointerMask))->next, (__int64)top) == (__int64)top)
 			{
-				retNode = topNode;
-				break;
+				retNode = (Node*)((unsigned long long)top & _multiPool::detail::pointerMask);
+
+				if constexpr (usePlacement)
+				{
+					new(&retNode->data) T();
+				}
+				InterlockedDecrement(&_count);
+				return &retNode->data;
 			}
 		}
 
-		if(retNode == nullptr)
-		{
-			retNode = createNode();
-		}
-		else
-		{
-			InterlockedDecrement(&_count);
-		}
-
-		if constexpr (usePlacement)
-		{
-			new(&retNode->data) T();
-		}
-
+		retNode = createNode();
 		return &retNode->data;
 	}
 
 	void Free(T* data)
 	{
+		
 		if(usePlacement)
 		{
 			data->~T();
 		}
-
-		auto _topCount = InterlockedIncrement16(&topCount);
-
 		Node* node = (Node*)((unsigned long long)data - offsetof(Node, data));
-		Node* newTop = (Node*)((unsigned long long)(node) | ((unsigned long long)_topCount << 47));
 
-		while (true)
+		Node* newTop = (Node*)((unsigned long long)(node) | ((unsigned long long)(InterlockedIncrement16(&topCount)) << 47));
+
+		for (;;)
 		{
-			Node* top = _top;
+			auto top = _top;
 			node->next = top;
 			if (InterlockedCompareExchange64((__int64*)&_top, (__int64)newTop, (__int64)top) == (__int64)top)
 			{
@@ -104,10 +103,12 @@ public:
 				break;
 			}
 		}
+
+
 	}
 
 private:
-	Node* createNode()
+	inline Node* createNode()
 	{
 		Node* node = (Node*)malloc(sizeof(Node));
 		node->next = nullptr;
@@ -122,8 +123,6 @@ private:
 	Node* _top;
 
 	short topCount = 0;
-	const unsigned long long pointerMask = 0x000'7FFF'FFFF'FFFF;
-
-	long _count;
+	long _count = 0;
 };
 

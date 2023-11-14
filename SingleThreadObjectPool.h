@@ -3,11 +3,44 @@
 #pragma once
 #include <new.h>
 #include <memory>
+#include <type_traits>
+#include <variant>
 class Node;
 
 template <typename data, int dataId, bool usePlacement>
 class TLSPool;
 
+
+
+template<int size>
+ int getBucketSize()
+{
+	int bucketSize = 8;
+	int blockSize = 256;
+
+	int index = 0;
+
+	for (int i = 0; i < 7; i++)
+	{
+		if (blockSize <= size)
+		{
+			bucketSize *= 2;
+			blockSize *= 2;
+			continue;
+		}
+		break;
+	}
+	return bucketSize;
+}
+
+template <typename data>
+ int getBlockSize() {
+	 int size = sizeof(data) + 8;
+
+	 int bucketoffSet = getBucketSize<sizeof(data) + 8>();
+
+	return (size + bucketoffSet-1)/bucketoffSet * bucketoffSet +16;
+}
 
 /**
  * \brief
@@ -18,14 +51,26 @@ class TLSPool;
 template <typename data, int dataId, bool usePlacement = false>
 class SingleThreadObjectPool
 {
+	
 	friend class TLSPool<data, dataId, usePlacement>;
 
+	template <bool Condition>
+	struct Padding {
+		char pad[64] = { 0 };
+	};
+
+	template <>
+	struct Padding<false> {};
+
 public:
+
+	 int bucket() { return getBlockSize<data>(); }
+
 	struct Node
 	{
-		Node* _head = nullptr;
 		data _data;
 		Node* _tail = nullptr;
+		//Padding<(getBucketSize<3>() % 128) == 0)> dummy;
 	};
 
 	SingleThreadObjectPool(int iBlockNum);
@@ -52,6 +97,8 @@ public:
 		}
 	}
 
+
+
 private:
 	Node* _top = nullptr;
 	int _objectCount = 0;
@@ -68,6 +115,7 @@ int SingleThreadObjectPool<data, dataId, usePlacement>::_instanceCount = 0;
 template <typename data, int dataId, bool usePlacement>
 SingleThreadObjectPool<data, dataId, usePlacement>::SingleThreadObjectPool(int iBlockNum)
 {
+	auto nodeSize = sizeof(Node);
 	for (int i = 0; i < iBlockNum; ++i)
 	{
 		Node* newNode = (Node*)malloc(sizeof(Node));
@@ -110,9 +158,10 @@ SingleThreadObjectPool<data, dataId, usePlacement>::~SingleThreadObjectPool()
 template <typename data, int dataId, bool usePlacement>
 data* SingleThreadObjectPool<data, dataId, usePlacement>::Alloc()
 {
-	Node* retNode = _top;
-	if (retNode != nullptr)
+
+	if (_top != nullptr)
 	{
+		Node* retNode = _top;
 		_top = _top->_tail;
 		_objectCount--;
 
@@ -120,20 +169,19 @@ data* SingleThreadObjectPool<data, dataId, usePlacement>::Alloc()
 		{
 			retNode = (Node*)new(&retNode->_data)data();
 		}
+		return &retNode->_data;
 	}
-	else
-	{
-		_allocCount++;
-		retNode = new Node;
-	}
+
+	_allocCount++;
+	return &(new Node)->_data;
+	
 #ifdef MYDEBUG
 	retNode->_tail = (Node*)0x3412;
 	retNode->_head = (Node*)0x3412;
 #endif
-	//SizeCheck();
 
 
-	return (data*)(&(retNode->_data));
+
 }
 
 template <typename data, int dataId, bool usePlacement>

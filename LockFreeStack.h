@@ -4,15 +4,15 @@
 #include <Windows.h>
 #include <thread>
 #include "MultiThreadObjectPool.h"
-#include "TLSPool.h"
+
 
 template <typename T>
 class LockFreeStack
 {
 	struct Node
 	{
-		Node* next = nullptr;
 		T data;
+		Node* next = nullptr;
 		Node() = default;
 		Node(const T& data) : data(data), next(nullptr) {}
 	};

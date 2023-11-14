@@ -12,13 +12,12 @@ class NormalIOCP
 	friend class SendExecutable;
 	friend class PostSendExecutable;
 public:
-	bool DeleteSession(SessionID id);
+	void SetDebug() { checkDebug = true; }
 protected:
-	void RegisterSession(Session& session);
 
 	Session* FindSession(uint64 id);
-	Session* getLockedSession(SessionID sessionID);
-	unsigned short GetSessionIndex(uint64 sessionID) const { return sessionID & indexMask; }
+
+	unsigned short GetSessionIndex(uint64 sessionID) const { return (unsigned short)(sessionID >> 47); }
 
 protected:
 	virtual ~NormalIOCP();
@@ -27,16 +26,23 @@ protected:
 	HANDLE _iocp = INVALID_HANDLE_VALUE;
 	Socket _listenSocket;
 	bool _isRunning = false;
-	HANDLE* _threadArray = nullptr;
+	vector<HANDLE> _threadArray;
 	uint16 _maxNetThread = 0;
-
+	String _ip;
+	uint16 _port;
+	
 	//MONITOR
 	uint64 _acceptCount = 0;
+	uint64 _oldAccepCount = 0;
 	uint64 _recvCount = 0;
 	uint64 _sendCount = 0;
 	uint64 _acceptTps = 0;
 	uint64 _recvTps = 0;
 	uint64 _sendTps = 0;
+	short _sessionCount = 0;
+	uint64 _packetPoolSize = 0;
+	uint32 _packetPoolEmpty = 0;
+
 
 // SESSION_MANAGER
 	int g_id = 0;
@@ -47,6 +53,16 @@ protected:
 	const unsigned long long indexMask = 0x7FFF'8000'0000'0000;
 	const long releaseFlag = 0x0010'0000;
 
+
+
+
 	uint64 g_sessionId = 0;
+	char _staticKey;
+
+	bool gracefulEnd = false;
+
+	//Debug
+	bool checkDebug = false;
+
 };
 

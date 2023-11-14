@@ -1,7 +1,9 @@
 #include "stdafx.h"
 #include "Server.h"
 #include "ContentJob.h"
+#include "Player.h"
 #include <thread>
+
 bool Server::OnAccept(SockAddr_in socket)
 {
 	return true;
@@ -42,8 +44,10 @@ void Server::OnStart()
 }
 void Server::OnEnd()
 {
-	timeoutThread.join();
+	if (timeoutThread.joinable())
+		timeoutThread.join();
 }
+
 void Server::TimeoutCheck()
 {
 	auto nextWakeup = std::chrono::system_clock::now();
@@ -59,3 +63,5 @@ void Server::TimeoutCheck()
 		Sleep(sleepTime);
 	}
 }
+
+

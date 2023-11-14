@@ -111,4 +111,4 @@ public:
 	}
 
 	static long _dumpCount;
-}GCrashDump;
+};

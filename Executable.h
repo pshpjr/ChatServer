@@ -2,16 +2,18 @@
 #include <synchapi.h>
 #pragma comment(lib,"Synchronization.lib")
 
+class Session;
 class Executable
 {
 	friend class Server;
 public:
-	enum class ioType
+	enum ioType
 	{
-		BASE,
+		BASE = 1,
 		SEND,
 		RECV,
 		POSTRECV,
+		RELEASE,
 		CUSTOM
 	};
 
@@ -27,7 +29,7 @@ public:
 	//Executable(Executable&& other) noexcept = delete;
 	//Executable& operator=(const Executable& other) = delete;
 	//Executable& operator=(Executable&& other) noexcept = delete;
-
+	ioType _type;
 	OVERLAPPED _overlapped;
 };
 
@@ -108,23 +110,54 @@ private:
 class RecvExecutable : public Executable
 {
 public:
+	RecvExecutable()
+	{
+		_type = ioType::RECV;
+	}
 	void Execute(PULONG_PTR key, DWORD transferred, void* iocp) override;
 	~RecvExecutable() override = default;
+
+private:
+	void recvNormal(Session& session, void* iocp);
+	void recvEncrypt(Session& session, void* iocp);
+
+
+
 };
 
 class PostSendExecutable : public Executable
 {
 public:
+	PostSendExecutable()
+	{
+		_type = ioType::POSTRECV;
+	}
 	void Execute(PULONG_PTR key, DWORD transferred, void* iocp) override;
 	~PostSendExecutable() override = default;
 
-	bool isSend = false;
+	chrono::system_clock::time_point lastSend;
 };
 
 class SendExecutable : public Executable
 {
 public:
+	SendExecutable()
+	{
+		_type = ioType::SEND;
+	}
 	void Execute(PULONG_PTR key, DWORD transferred, void* iocp) override;
 	~SendExecutable() override = default;
+
+};
+
+class ReleaseExecutable : public Executable
+{
+public:
+	ReleaseExecutable() 
+	{
+		_type = ioType::RELEASE;
+	}
+	void Execute(PULONG_PTR key, DWORD transferred, void* iocp) override;
+	~ReleaseExecutable() override = default;
 
 };

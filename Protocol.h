@@ -1,6 +1,2 @@
 ﻿#pragma once
-
-struct Header
-{
-	uint16 len;
-};
+#define dfPACKET_CODE		0x77

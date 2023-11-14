@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <string>
+#include <WinSock2.h>
 
 
 using BYTE = unsigned char;

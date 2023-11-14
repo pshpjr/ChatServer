@@ -20,6 +20,7 @@ public:
 	bool Listen(int backlog);
 	Socket Accept();
 	bool Connect(String ip, uint16 port);
+	void CancleIO();
 	void Close();
 	bool isValid() const;
 	int Send(LPWSABUF buf, DWORD bufCount, DWORD flag,  LPWSAOVERLAPPED lpOverlapped);

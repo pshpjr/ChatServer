@@ -11,7 +11,7 @@ Socket::Socket(SOCKET socket, SOCKADDR_IN addr) : NormalSocket(socket, addr)
 {
 }
 
-void Socket::Close()
+void Socket::CancleIO()
 {
 
 	auto result = CancelIoEx((HANDLE)_socket, nullptr);
@@ -21,7 +21,7 @@ void Socket::Close()
 
 		if(error == ERROR_NOT_FOUND)
 		{
-			printf("error : %d\n", error);
+			//printf("error : %d %d\n", error,_socket);
 		}
 		else
 		{
@@ -30,24 +30,27 @@ void Socket::Close()
 		}
 
 	}
-	_beforeSocket = _socket;
-	_socket = INVALID_SOCKET;
-	closesocket(_beforeSocket);
 
+
+}
+
+void Socket::Close()
+{
+	_beforeSocket = _socket;
+_socket = INVALID_SOCKET;
+closesocket(_beforeSocket);
 }
 
 int Socket::Send(LPWSABUF buf, DWORD bufCount, DWORD flag, LPWSAOVERLAPPED lpOverlapped)
 {
-	DWORD recvBytes = 0;
-	 WSASend(_socket, buf, bufCount, nullptr, flag, lpOverlapped, nullptr);
-	 return recvBytes;
+	return WSASend(_socket, buf, bufCount, nullptr, flag, lpOverlapped, nullptr);
 }
 
 int Socket::Recv(LPWSABUF buf, DWORD bufCount, LPDWORD flag, LPWSAOVERLAPPED lpOverlapped)
 {
-	DWORD recvBytes = 0;
-	WSARecv(_socket, buf, bufCount, &recvBytes, flag, lpOverlapped, nullptr);
-	return recvBytes;
+
+	return WSARecv(_socket, buf, bufCount, nullptr, flag, lpOverlapped, nullptr);
+
 }
 
 

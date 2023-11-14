@@ -154,51 +154,6 @@ int CRingBuffer::Enqueue(char* data, int dataSize)
 }
 
 
-bool CRingBuffer::DequeueCBuffer(int count)
-{
-	int iter = _front;
-	_front = (_front + (count*sizeof(void*))) % BUFFER_SIZE;
-
-	for (int i = 0; i < count; ++i)
-	{
-		auto ptr = *(CSerializeBuffer**)(_buffer + iter);
-		ptr->Clear();
-		iter = (iter + sizeof(void*)) % BUFFER_SIZE;
-	}
-	return true;
-}
-
-bool CRingBuffer::EnqueueCBuffer(CSerializeBuffer* buffer)
-{
-	//버퍼 꽉 참.
-	if ((_rear + 1) % BUFFER_SIZE == _front)
-		return 0;
-	
-
-	int dataSize = sizeof(buffer);
-	int insertSize = dataSize;
-
-	int freeRet = FreeSize();
-	if (freeRet < dataSize)
-	{
-		DebugBreak();
-		insertSize = FreeSize();
-	}
-
-	//rear 나만 건드림
-	*(CSerializeBuffer**)(_buffer+_rear) =buffer;
-
-
-	//rear는 항상 나만 건드림
-	_rear = (_rear + insertSize) % BUFFER_SIZE;
-
-
-
-	return insertSize;
-
-}
-
-
 int CRingBuffer::Dequeue(int deqSize)
 {
 	if (_front == _rear)

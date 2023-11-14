@@ -1,25 +1,26 @@
-﻿#include "SettingParser.h"
-#include "CLogger.h"
+﻿#include "stdafx.h"
+#include "SettingParser.h"
+
 #include <Windows.h>
 #include <string.h>
 
-#include "CoreGlobal.h"
 #include <iostream>
 #include <fstream>
 
 #define WORD_START _buffer[_bufferIndex]
 #define WORD_END _buffer[wordEnd]
 
-bool SettingParser::init(LPCWSTR location)
+
+
+
+SettingParser::ErrType SettingParser::init(LPCWSTR location)
 {
-	const bool isSettingLoaded = loadSetting(location);
+	const auto loadResult = loadSetting(location);
 
-	if (isSettingLoaded == false)
-		return false;
-
-	parse();
-
-	return true;
+	if (loadResult != ErrType::Succ)
+		return loadResult;
+	
+	return parse();
 }
 
 bool SettingParser::getValue(LPCTSTR name, OUT String& value)
@@ -119,19 +120,19 @@ bool SettingParser::getValue(LPCWSTR name, LPTSTR value)
 	return false;
 }
 
-bool SettingParser::loadSetting(LPCWSTR location)
+SettingParser::ErrType SettingParser::loadSetting(LPCWSTR location)
 {
 	std::wifstream rawText{ location,std::ios::binary | std::ios::ate };
 
 	if (!rawText.is_open())
 	{
-		GLogger->write(L"Parser",LogLevel::Error, L" SettingParser::loadSetting, fopen ");
-		return false;
+		return ErrType::FileOpenErr;
 	}
 	long fileSize = rawText.tellg();
 
 	rawText.seekg(0);
 	_buffer = (LPWCH)malloc(fileSize+2);
+	bufferSize = fileSize + 2;
 
 	memset(_buffer, 0, fileSize);
 
@@ -140,17 +141,16 @@ bool SettingParser::loadSetting(LPCWSTR location)
 	//파일 읽고 문자열 끝에 null 추가
 	if(count != fileSize)
 	{
-		GLogger->write(L"Parser", LogLevel::Error, L"SettingParser::loadSetting, fread ");
-		return false;
+		return ErrType::FileReadErr;
 	}
 
 	_buffer[fileSize] = L'\0';
 
-	return true;
+	return ErrType::Succ;
 }
 
 //텍스트 파일은 키 : 값 쌍으로 이루어짐
-bool SettingParser::parse()
+SettingParser::ErrType SettingParser::parse()
 {
 	WCHAR key[WORD_SIZE];
 	WCHAR value[WORD_SIZE];
@@ -174,8 +174,7 @@ bool SettingParser::parse()
 		// ':' 위치에 다른 거 있으면 에러
 		if(op[0] != ':')
 		{
-			GLogger->write(L"Parser", LogLevel::Error, L"parseError: Invalid Operand. Incorrect file syntax may occur this problem.");
-			return false;
+			return ErrType::OpErr;
 		}
 
 		if (getTok(value) == false)
@@ -191,13 +190,13 @@ bool SettingParser::parse()
 		_settingsContainer[_groupIndex].insert({key,value});
 	}
 
-	return true;
+	return ErrType::Succ;
 }
 
 bool SettingParser::getTok(LPWCH word)
 {
 	//의미 있는 문자까지 이동. 널문자를 만나도 탈출
-	while (true)
+	while (_bufferIndex < bufferSize)
 	{
 		if (WORD_START == L'﻿' || WORD_START == L'\n' || WORD_START == L' '  || WORD_START == 0x09 || WORD_START == 0x0a || WORD_START == 0x0d)
 		{
@@ -208,7 +207,7 @@ bool SettingParser::getTok(LPWCH word)
 	}
 
 	//널문자 만났는지 확인
-	if (WORD_START == L'\0')
+	if (WORD_START == L'\0' || _bufferIndex == bufferSize)
 		return false;
 
 	size_t wordEnd = _bufferIndex+1;
@@ -216,7 +215,7 @@ bool SettingParser::getTok(LPWCH word)
 	//의미 있는 문자가 한 줄 주석이면 다음 줄 시작까지 이동
 	if (WORD_START == L'/' && WORD_END == L'/')
 	{
-		while (true)
+		while (wordEnd < bufferSize)
 		{
 			if (WORD_END == '\n')
 			{
@@ -233,7 +232,7 @@ bool SettingParser::getTok(LPWCH word)
 	//여러 줄 주석이면 */ 만날 때 까지 이동
 	if (WORD_START == L'/' && WORD_END == L'*')
 	{
-		while (true)
+		while (wordEnd < bufferSize)
 		{
 			if (WORD_END == L'*' && _buffer[wordEnd+1] == L'/')
 			{
@@ -251,7 +250,7 @@ bool SettingParser::getTok(LPWCH word)
 	{
 		//시작하는 " 문자열에 안 들어가게 하기 위한 처리
 		_bufferIndex++;
-		while (true)
+		while (wordEnd < bufferSize)
 		{
 			if (WORD_END == L'"')
 			{
@@ -260,6 +259,10 @@ bool SettingParser::getTok(LPWCH word)
 			}
 			else
 				wordEnd++;
+		}
+
+		if (_bufferIndex == bufferSize) {
+			return false;
 		}
 
 		//끝나는 " 문자열에 안 들어가게 
@@ -285,7 +288,7 @@ bool SettingParser::getTok(LPWCH word)
 
 
 	//긴 토큰 받는 곳
-	while (true)
+	while (wordEnd < bufferSize)
 	{
 		if (WORD_END == L'\n' || WORD_END == L' ' || WORD_END == 0x09 ||
 			WORD_END == 0x0a || WORD_END == 0x0d || WORD_END == TEXT ('\0') ||
@@ -299,7 +302,9 @@ bool SettingParser::getTok(LPWCH word)
 		}
 
 	}
-
+	if (_bufferIndex == bufferSize) {
+		return false;
+	}
 
 	size_t wordSize = wordEnd - _bufferIndex;
 	wcsncpy_s(word,WORD_SIZE, &WORD_START, wordSize);

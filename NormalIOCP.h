@@ -12,7 +12,7 @@ class NormalIOCP
 	friend class SendExecutable;
 	friend class PostSendExecutable;
 public:
-
+	void SetDebug() { checkDebug = true; }
 protected:
 
 	Session* FindSession(uint64 id);
@@ -26,9 +26,11 @@ protected:
 	HANDLE _iocp = INVALID_HANDLE_VALUE;
 	Socket _listenSocket;
 	bool _isRunning = false;
-	HANDLE* _threadArray = nullptr;
+	vector<HANDLE> _threadArray;
 	uint16 _maxNetThread = 0;
-
+	String _ip;
+	uint16 _port;
+	
 	//MONITOR
 	uint64 _acceptCount = 0;
 	uint64 _oldAccepCount = 0;
@@ -37,7 +39,7 @@ protected:
 	uint64 _acceptTps = 0;
 	uint64 _recvTps = 0;
 	uint64 _sendTps = 0;
-	uint16 _sessions = 0;
+	short _sessionCount = 0;
 	uint64 _packetPoolSize = 0;
 	uint32 _packetPoolEmpty = 0;
 
@@ -56,8 +58,11 @@ protected:
 
 	uint64 g_sessionId = 0;
 	char _staticKey;
-	short _sessionCount = 0;
+
 	bool gracefulEnd = false;
+
+	//Debug
+	bool checkDebug = false;
 
 };
 

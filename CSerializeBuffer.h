@@ -2,6 +2,7 @@
 #include "Types.h"
 #include "TLSPool.h"
 #include "Protocol.h"
+#include <stdexcept>
 class Player;
 
 
@@ -47,32 +48,6 @@ class CSerializeBuffer
 	CSerializeBuffer& operator=(CSerializeBuffer&& other) noexcept = delete;
 
 public:
-	char* GetHead() const { return _head; }
-	//버퍼랑 데이터 위치는 고정. 헤더랑 딴 건 가변
-	CSerializeBuffer() :_buffer(new char[BUFFER_SIZE + sizeof(NetHeader)]), _head(_buffer), _data(_buffer + sizeof(NetHeader)), _front(_data), _rear(_data)
-	{
-		InitializeSRWLock(&_encodeLock);
-
-	}
-	~CSerializeBuffer()
-	{
-		DebugBreak();
-		for(int  i = 0; i < 100; ++i)
-		{
-			if(_heapBreakDebug.emptySpace[i] != 0)
-				DebugBreak();
-		}
-
-		delete[] _buffer;
-	}
-
-
-
-	template <typename T>
-	T& GetContentHeader() 
-	{
-		return (T*)_front;
-	}
 
 	/// <summary>
 	/// Alloc을 받으면 레퍼런스가 1임. 
@@ -86,6 +61,8 @@ public:
 		return ret;
 	}
 
+	void IncreaseRef() { InterlockedIncrement(&_refCount); }
+
 	void Release()
 	{
 		auto refResult = InterlockedDecrement(&_refCount);
@@ -94,10 +71,25 @@ public:
 			_pool.Free(this);
 		}
 	}
-	void IncreaseRef() { InterlockedIncrement(&_refCount); }
-
-	bool inBroadCast = false;
 private:
+	//버퍼랑 데이터 위치는 고정. 헤더랑 딴 건 가변
+	CSerializeBuffer() :_buffer(new char[BUFFER_SIZE + sizeof(NetHeader)]), _head(_buffer), _data(_buffer + sizeof(NetHeader)), _front(_data), _rear(_data)
+	{
+		InitializeSRWLock(&_encodeLock);
+
+	}
+
+	~CSerializeBuffer()
+	{
+		DebugBreak();
+		for (int i = 0; i < 100; ++i)
+		{
+			if (_heapBreakDebug.emptySpace[i] != 0)
+				DebugBreak();
+		}
+
+		delete[] _buffer;
+	}
 
 	void Clear()
 	{
@@ -105,7 +97,6 @@ private:
 		_front = _data;
 		_rear = _data;
 		isEncrypt = 0;
-
 	}
 	void writeNetHeader(int code);
 
@@ -114,24 +105,8 @@ private:
 	void encode(char staticKey);
 	void Decode(char staticKey);
 
-	bool checksumValid()
-	{
+	bool checksumValid();
 
-		NetHeader* header = (NetHeader*)GetHead();
-		char* checkIndex = GetDataPtr();
-		//TODO: 아래 방식이 잘못되면 위로 복구.
-		int checkLen = GetDataSize();
-		unsigned char payloadChecksum = 0;
-		for (int i = 0; i < checkLen; i++)
-		{
-			payloadChecksum += *checkIndex;
-			checkIndex++;
-		}
-		if (payloadChecksum != header->checkSum)
-			return false;
-		return true;
-
-	}
 
 	int	GetDataSize() const { return static_cast<int>(_rear - _data); }
 	char* GetDataPtr(void) const { return _data; }
@@ -149,71 +124,80 @@ private:
 	char* GetFront() const { return _front; }
 	void PacketEnd() { _front = _rear; }
 
-
-
-	//makeHeader나 seal 같은 건 컨텐츠에서 할 게 아님. 
-	//컨텐츠는 컨텐츠 헤더를 써야 한다. 
+	char* GetHead() const { return _head; }
 
 	void writeLanHeader();
 
 	void setEncryptHeader(NetHeader header);
 
+	void canPush(int size) 
+	{
+		if ((BUFFER_SIZE - (_rear - _front)) < size)
+			throw std::invalid_argument{ "size is bigger than free space in buffer" };
+	}
+	void canPop(int size) 
+	{ 
+		if (_rear - _front < size)
+			throw std::invalid_argument{ "size is bigger than data in buffer" };
+	}
+
 public:
-	CSerializeBuffer& operator <<(unsigned char value);
-	CSerializeBuffer& operator <<(char value);
+	template<typename T>
+	CSerializeBuffer& operator << (T value);
 
-	CSerializeBuffer& operator <<(unsigned short value);
-	CSerializeBuffer& operator <<(short value);
+	//CSerializeBuffer& operator <<(unsigned char value);
+	//CSerializeBuffer& operator <<(char value);
 
-	CSerializeBuffer& operator <<(unsigned int value);
-	CSerializeBuffer& operator <<(int value);
+	//CSerializeBuffer& operator <<(unsigned short value);
+	//CSerializeBuffer& operator <<(short value);
 
-	CSerializeBuffer& operator <<(unsigned long value);
-	CSerializeBuffer& operator <<(long value);
+	//CSerializeBuffer& operator <<(unsigned int value);
+	//CSerializeBuffer& operator <<(int value);
 
-	CSerializeBuffer& operator <<(unsigned long long value);
-	CSerializeBuffer& operator <<(long long value);
+	//CSerializeBuffer& operator <<(unsigned long value);
+	//CSerializeBuffer& operator <<(long value);
 
-	CSerializeBuffer& operator <<(float value);
-	CSerializeBuffer& operator <<(double value);
+	//CSerializeBuffer& operator <<(unsigned long long value);
+	//CSerializeBuffer& operator <<(long long value);
+
+	//CSerializeBuffer& operator <<(float value);
+	//CSerializeBuffer& operator <<(double value);
 
 	CSerializeBuffer& operator <<(LPWSTR value);
 	CSerializeBuffer& operator <<(LPCWSTR value);
 	CSerializeBuffer& operator <<(String& value);
 
-	CSerializeBuffer& operator >>(unsigned char& value);
-	CSerializeBuffer& operator >>(char& value);
+	template<typename T>
+	CSerializeBuffer& operator >> (T value);
 
-	CSerializeBuffer& operator >>(unsigned short& value);
-	CSerializeBuffer& operator >>(short& value);
+	//CSerializeBuffer& operator >>(unsigned char& value);
+	//CSerializeBuffer& operator >>(char& value);
 
-	CSerializeBuffer& operator >>(unsigned int& value);
-	CSerializeBuffer& operator >>(int& value);
+	//CSerializeBuffer& operator >>(unsigned short& value);
+	//CSerializeBuffer& operator >>(short& value);
 
-	CSerializeBuffer& operator >>(unsigned long& value);
-	CSerializeBuffer& operator >>(long& value);
+	//CSerializeBuffer& operator >>(unsigned int& value);
+	//CSerializeBuffer& operator >>(int& value);
 
-	CSerializeBuffer& operator >>(unsigned long long& value);
-	CSerializeBuffer& operator >>(long long& value);
+	//CSerializeBuffer& operator >>(unsigned long& value);
+	//CSerializeBuffer& operator >>(long& value);
 
-	CSerializeBuffer& operator >>(float& value);
-	CSerializeBuffer& operator >>(double& value);
+	//CSerializeBuffer& operator >>(unsigned long long& value);
+	//CSerializeBuffer& operator >>(long long& value);
+
+	//CSerializeBuffer& operator >>(float& value);
+	//CSerializeBuffer& operator >>(double& value);
 
 	CSerializeBuffer& operator >>(LPWSTR value);
 	CSerializeBuffer& operator >>(String& value);
 
-	void GetSTR(LPWSTR arr, int size);
-	void SetSTR(LPWSTR arr, int size)
-	{
-		wcscpy_s((LPWSTR)_rear, size, (wchar_t*)arr);
-		_rear += size * sizeof(WCHAR);
-	}
+	void GetWSTR(LPWSTR arr, int size);
+	void GetCSTR(LPSTR arr, int size);
 
-	void SetCSTR(LPSTR arr, int size)
-	{
-		memcpy_s(_rear, size, arr, size);
-		_rear += size;
-	}
+	void SetWSTR(LPCWSTR arr, int size);
+
+	void SetCSTR(LPCSTR arr, int size);
+
 private:
 	char* _buffer = nullptr;
 	char* _data = nullptr;
@@ -234,4 +218,27 @@ private:
 	SRWLOCK _encodeLock;
 };
 
+template<typename T>
+inline CSerializeBuffer& CSerializeBuffer::operator<<(T value)
+{
+	static_assert(is_scalar_v<T>);
+	canPush(sizeof(T));
 
+	*(T*)(_rear) = value;
+	_rear += sizeof(T);
+
+	return *this;
+}
+
+template<typename T>
+inline CSerializeBuffer& CSerializeBuffer::operator>>(T value)
+{
+	static_assert(is_scalar_v<T>);
+	canPop(sizeof(T));
+
+	value = *(T*)(_front);
+	_front += sizeof(T);
+
+	return *this;
+	// TODO: 여기에 return 문을 삽입합니다.
+}

@@ -135,7 +135,7 @@ public:
 	void Execute(PULONG_PTR key, DWORD transferred, void* iocp) override;
 	~PostSendExecutable() override = default;
 
-	bool isSend = false;
+	chrono::system_clock::time_point lastSend;
 };
 
 class SendExecutable : public Executable

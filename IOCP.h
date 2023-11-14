@@ -14,10 +14,10 @@ public:
 	using SessionID = uint64;
 	using Port = uint16;
 
-
-	bool Init(String ip, Port port, uint16 backlog, uint16 maxNetThread, char staticKey);
+	bool Init(String ip, Port port, uint16 backlog, uint16 maxRunningThread,uint16 workerThread, char staticKey);
 	void Start();
 	void Stop();
+	bool SendPacket(SessionID sessionId, CSerializeBuffer* buffer, int type);
 	bool SendPacket(SessionID sessionId, CSerializeBuffer* buffer);
 	bool DisconnectSession(SessionID sessionId);
 	bool isEnd();
@@ -30,6 +30,9 @@ public:
 	virtual void OnInit() {};
 	virtual void OnStart() {};
 	virtual void OnEnd() {};
+	//DEBUG
+	void SetRecvDebug(SessionID id, unsigned int type);
+
 
 	//MONITOR
 
@@ -48,10 +51,12 @@ private:
 	void WorkerThread(LPVOID arg);
 	void AcceptThread(LPVOID arg);
 	void MonitorThread(LPVOID arg);
+	void TimeoutThread(LPVOID arg);
 
 	static unsigned __stdcall WorkerEntry(LPVOID arg);
 	static unsigned __stdcall AcceptEntry(LPVOID arg);
 	static unsigned __stdcall MonitorEntry(LPVOID arg);
+	static unsigned __stdcall TimeoutEntry(LPVOID arg);
 
 
 };

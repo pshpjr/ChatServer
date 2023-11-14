@@ -17,7 +17,15 @@ class SettingParser
 {
 public:
 
-	bool init(LPCWSTR location = L"serverSetting.txt");
+	enum class ErrType
+	{
+		Succ,
+		FileOpenErr,
+		FileReadErr,
+		OpErr,
+	};
+
+	ErrType init(LPCWSTR location = L"serverSetting.txt");
 
 	bool getValue(LPCTSTR name, OUT int32& value);
 	bool getValue(LPCTSTR name, OUT LPTSTR value);
@@ -30,14 +38,14 @@ public:
 
 
 private:
-	bool loadSetting(LPCTSTR location);
-	bool parse();
+	ErrType loadSetting(LPCTSTR location);
+	ErrType parse();
 	bool getTok(OUT LPTSTR word);
 
 public:
 	enum 
 	{
-		 WORD_SIZE = 40,
+		 WORD_SIZE = 100,
 		 MAXERRLEN = 100,
 		 MAXGROUPSIZE = 10,
 	};
@@ -48,6 +56,7 @@ private:
 	LPWSTR _buffer = nullptr;
 
 	size_t _bufferIndex = 0;
+	size_t bufferSize = 0;
 
 	int32 _groupIndex = -1;
 	WCHAR _groupsName[MAXGROUPSIZE][WORD_SIZE] = { {0}, };

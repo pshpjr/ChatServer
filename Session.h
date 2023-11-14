@@ -34,6 +34,32 @@ public:
 	void SetOwner(IOCP& owner) { _owner = &owner; }
 	void Reset();
 	void SetNetSession(char staticKey) { _staticKey = staticKey; }
+
+	void SetTimeout(int timoutMillisecond) {
+		_timeout = timoutMillisecond;
+	}
+
+	void CheckTimeout(chrono::system_clock::time_point now) {
+		IncreaseRef(L"timeoutInc");
+		if (!_connect) {
+			Release(L"TimeoutRelease");
+			return;
+		}
+		
+
+		auto recvWait = chrono::duration_cast<chrono::milliseconds>(now - lastRecv);
+		auto sendWait = chrono::duration_cast<chrono::milliseconds>(now - _postSendExecute.lastSend);
+
+		if (needCheckSendTimeout && sendWait.count() > _timeout) {
+			Close();
+		}
+
+		if (recvWait.count() > _timeout) {
+			Close();
+		}
+		Release(L"TimeoutRelease");
+	}
+
 	long IncreaseRef(LPCWSTR content) {
 		auto result =  InterlockedIncrement(&_refCount);
 		auto index = InterlockedIncrement(&debugIndex);
@@ -51,6 +77,7 @@ private:
 	CRingBuffer _recvQ;
 	TLSLockFreeQueue<CSerializeBuffer*> _sendQ;
 
+	//Executable
 	RecvExecutable _recvExecute;
 	PostSendExecutable _postSendExecute;
 	SendExecutable _sendExecute;
@@ -59,16 +86,26 @@ private:
 	TLSLockFreeQueue<CSerializeBuffer*> _sendingQ;
 
 	long dataNotSend = 0;
+
 	uint64 _sessionID = 0;
-	long _refCount = 0;
-	long _isSending = false;
-	CRITICAL_SECTION _lock;
-	bool _disconnect = false;
-	//세션 여기저기 옮기지 못 하게 하나로 고정.
-	IOCP* _owner;
 	const long releaseFlag = 0x0010'0000;
 
+	long _refCount = releaseFlag;
+	long _isSending = false;
+
+	
+	bool needCheckSendTimeout = false;
+	bool _connect = false;
+
+
+	IOCP* _owner;
+
+
+	int _timeout = 5000;
 	char _staticKey = false;
+
+
+	//DEBUG
 
 	struct RelastinReleaseEncrypt_D {
 		long refCount;
@@ -79,6 +116,12 @@ private:
 
 	long debugIndex = 0;
 	RelastinReleaseEncrypt_D release_D[debugSize];
+	
+	void writeContentLog(unsigned int type) {
+		release_D[InterlockedIncrement(&debugIndex)%debugSize] = { _refCount,L"SendContent",type};
+	}
+
+	chrono::system_clock::time_point lastRecv;
 
 
 	//dData Debug[1000];

@@ -56,8 +56,16 @@ void RecvExecutable::recvNormal(Session& session, void* iocp)
 		buffer.MoveWritePos(header.len);
 		InterlockedIncrement(&((IOCP*)iocp)->_recvCount);
 
-		((IOCP*)iocp)->OnRecvPacket(session._sessionID, buffer);
+		try
+		{
+			((IOCP*)iocp)->OnRecvPacket(session._sessionID, buffer);
+		}
+		catch (const std::invalid_argument& err)
+		{
+			printf("ERR");
+		}
 		buffer.Release();
+
 	}
 }
 
@@ -115,7 +123,16 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 		//session.debugIndex++;
 		//session.Debug[session.debugIndex] = { packetBegin,session._recvQ.GetFront(),session._recvQ.GetRear() };
 
-		((IOCP*)iocp)->OnRecvPacket(session._sessionID, buffer);
+		try
+		{
+			((IOCP*)iocp)->OnRecvPacket(session._sessionID, buffer);
+		}
+		catch (const std::invalid_argument& err)
+		{
+			session.Close();
+		}
+
+
 		buffer.Release();
 	}
 }
@@ -136,8 +153,8 @@ void PostSendExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
 
 
 	session->dataNotSend = 0;
-	isSend = false;
 
+	session->needCheckSendTimeout = false;
 	
 	int oldSending = InterlockedExchange(&session->_isSending, 0);
 	if (oldSending != 1) {

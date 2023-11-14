@@ -7,27 +7,23 @@
 #include "IOCP.h"
 #include "Session.h"
 #include "CSerializeBuffer.h"
-#include "LockGuard.h"
-#include "CMap.h"
 
-bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread, char staticKey)
+bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread, uint16 workerThread, char staticKey)
 {
 	_isRunning = true;
 	_maxNetThread = maxNetThread;
 	_staticKey = staticKey;
-
+	_ip = ip;
+	_port = port;
 	
 	if (staticKey) {
 		for (auto& session : sessions) {
 			session.SetNetSession(staticKey);
+			session.SetOwner(*this);
 		}
 	}
 
-	_threadArray = new HANDLE[_maxNetThread+2];
-
-
-
-
+	_threadArray.resize(workerThread);
 
 	_listenSocket.Init();
 	if (_listenSocket.isValid() == false)
@@ -37,51 +33,66 @@ bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread, char 
 
 	if (_listenSocket.Bind(ip, port) == false)
 	{
-		_listenSocket.CancleIO();
+		_listenSocket.Close();
 		return false;
 	}
 
 	if (_listenSocket.Listen(backlog)== false)
 	{
-		_listenSocket.CancleIO();
+		_listenSocket.Close();
 		return false;
 	}
 
 	_iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, 0);
 	if (_iocp == INVALID_HANDLE_VALUE)
 	{
-		_listenSocket.CancleIO();
+		_listenSocket.Close();
 		return false;
 	}
 
 	void* _this = this;
-
-	_threadArray[0] = (HANDLE)_beginthreadex(nullptr,0,AcceptEntry,_this, 0, nullptr);
-	if (_threadArray[0] == INVALID_HANDLE_VALUE)
-	{
-		_listenSocket.CancleIO();
-		return false;
-	}
-	printf("AcceptThread %p\n", _threadArray[0]);
-	_threadArray[1] = (HANDLE)_beginthreadex(nullptr, 0, MonitorEntry, _this, 0, nullptr);
-	if (_threadArray[1] == INVALID_HANDLE_VALUE)
-	{
-		_listenSocket.CancleIO();
-		return false;
-	}
-	printf("MonitorThread %p\n", _threadArray[1]);
-	for (int i = 2; i < maxNetThread+2; ++i)
+	for (int i = 2; i < maxNetThread + 2; ++i)
 	{
 		_threadArray[i] = (HANDLE)_beginthreadex(nullptr, 0, WorkerEntry, _this, 0, nullptr);
 		if (_threadArray[i] == INVALID_HANDLE_VALUE)
 		{
-			_listenSocket.CancleIO();
+			_listenSocket.Close();
 			return false;
 		}
 		printf("WorkerThread %p\n", _threadArray[i]);
 	}
+
+
+	auto acceptT = (HANDLE)_beginthreadex(nullptr,0,AcceptEntry,_this, 0, nullptr);
+	if (acceptT == INVALID_HANDLE_VALUE)
+	{
+		_listenSocket.Close();
+		return false;
+	}
+	_threadArray.push_back(acceptT);
+	printf("AcceptThread %p\n", acceptT);
+
+
+	auto monitorT = (HANDLE)_beginthreadex(nullptr, 0, MonitorEntry, _this, 0, nullptr);
+	if (monitorT == INVALID_HANDLE_VALUE)
+	{
+		_listenSocket.Close();
+		return false;
+	}
+	_threadArray.push_back(monitorT);
+	printf("MonitorThread %p\n", monitorT);
+
+	auto timeoutT = (HANDLE)_beginthreadex(nullptr, 0, TimeoutEntry, _this, 0, nullptr);
+	if (timeoutT == INVALID_HANDLE_VALUE)
+	{
+		_listenSocket.Close();
+		return false;
+	}
+
+	_threadArray.push_back(timeoutT);
+	printf("TimeoutThread %p\n", timeoutT);
+
 	OnInit();
-	GMap.SetOwner(this);
 	return true;
 }
 
@@ -96,14 +107,58 @@ void IOCP::Stop()
 	_isRunning = false;
 	_listenSocket.CancleIO();
 	PostQueuedCompletionStatus(_iocp, 0, 0, nullptr);
-	auto result = WaitForMultipleObjects(_maxNetThread, _threadArray, true, INFINITE);
-	if( result==WAIT_FAILED)
-	{
-		printf("WaitForMultipleObjects failed %d\n", GetLastError());
+
+	for (auto h : _threadArray) {
+		auto result = WaitForSingleObject(h, INFINITE);
+		if (result != WAIT_OBJECT_0)
+		{
+			printf("WaitForMultipleObjects failed %d %d\n",result, GetLastError());
+		}
 	}
+
 	gracefulEnd = true;
 
 	OnEnd();
+}
+
+
+
+bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer, int type)
+{
+	auto sessionIndex = (sessionId >> 47);
+	auto& session = sessions[sessionIndex];
+	auto refResult = session.IncreaseRef(L"SendPacketInc");
+	auto sessionID = session.GetSessionID();
+
+	if (sessionID != sessionId)
+	{
+		session.Release(L"SendPacketSessionChange");
+		return false;
+	}
+	if (refResult > releaseFlag)
+	{
+		//세션 릴리즈 해도 문제 없음. 플레그 서 있을거라 내가 올린 만큼 내려감. 
+		session.Release(L"SendPacketSessionRelease");
+		return false;
+	}
+
+	session.writeContentLog(type);
+
+	buffer->IncreaseRef();
+
+	int size = buffer->GetDataSize();
+	if (size == 0)
+	{
+		DebugBreak();
+	}
+
+
+	session.Enqueue(buffer);
+	session.dataNotSend++;
+
+	PostQueuedCompletionStatus(_iocp, -1, (ULONG_PTR)&session, &session._sendExecute._overlapped);
+	session.Release(L"SendPacketRelease");
+	return true;
 }
 
 int Sendflag = 0;
@@ -112,6 +167,8 @@ bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer)
 	auto sessionIndex = (sessionId >> 47);
 	auto& session = sessions[sessionIndex];
 	auto refResult = session.IncreaseRef(L"SendPacketInc");
+
+
 	auto sessionID = session.GetSessionID();
 
 	if (sessionID != sessionId)
@@ -160,6 +217,15 @@ bool IOCP::isEnd()
 }
 
 
+void IOCP::SetRecvDebug(SessionID id, unsigned int type)
+{
+	auto sessionIndex = (id >> 47);
+	auto& session = sessions[sessionIndex];
+
+	
+	session.release_D[InterlockedIncrement(&session.debugIndex)%session.debugSize] = { session._refCount,L"RecvPacket",type };
+}
+
 uint64 IOCP::GetAcceptCount()
 {
 	return _acceptCount;
@@ -182,7 +248,7 @@ uint64 IOCP::GetSendTps()
 
 uint16 IOCP::GetSessions()
 {
-	return _sessions;
+	return _sessionCount;
 }
 
 uint64 IOCP::GetPacketPoolSize()
@@ -212,7 +278,7 @@ void IOCP::WorkerThread(LPVOID arg)
 		Session* session = nullptr;
 
 		auto ret = GetQueuedCompletionStatus(_iocp, &transferred, (PULONG_PTR) &session, (LPOVERLAPPED*)&overlapped, INFINITE);
-
+		overlapped = (Executable*)((char*)overlapped - offsetof(Executable, _overlapped));
 		if(transferred==0&&session== nullptr&&overlapped==nullptr)
 		{
 			PostQueuedCompletionStatus(_iocp, 0, 0, nullptr);
@@ -221,14 +287,36 @@ void IOCP::WorkerThread(LPVOID arg)
 
 		if(transferred == 0 && session != nullptr)
 		{
+			auto errNo = WSAGetLastError();
+
+			switch (errNo) {
+			//ERROR_NETNAME_DELETED
+			case 64:
+				__fallthrough;
+			//ERROR_SEM_TIMEOUT. 장치에서 끊은 경우 (5회 재전송 실패 등..)
+			case 121:
+				__fallthrough;
+			//WSA_OPERATION_ABORTED cancleIO로 인한 것. 
+			case 995:
+				__fallthrough;
+				break;
+			default:
+				{
+					auto now = chrono::system_clock::now();
+					auto recvWait = chrono::duration_cast<chrono::milliseconds>(now - session->lastRecv);
+					auto sendWait = chrono::duration_cast<chrono::milliseconds>(now - session->_postSendExecute.lastSend);
+					DebugBreak();
+					int i = 0;
+				}
+			}
+
 			auto sessionID =session->GetSessionID();
 		
-			session->Release(L"GQCSerrorRelease", overlapped->_type);
-
+			session->Release(L"GQCSerrorRelease", errNo);
 		}
 		else
 		{
-			overlapped = (Executable*)((char*)overlapped - offsetof(Executable, _overlapped));
+
 			overlapped->Execute((PULONG_PTR)session, transferred, this);
 		}
 
@@ -264,12 +352,20 @@ void IOCP::AcceptThread(LPVOID arg)
 		sessionID |= (g_sessionId++);
 
 
-		sessions[sessionIndex].SetOwner(*(IOCP*)(this));
 		sessions[sessionIndex].SetSessionID(sessionID);
 		sessions[sessionIndex].SetSocket(clientSocket);
 		sessions[sessionIndex].RegisterIOCP(_iocp);
 		auto refResult = sessions[sessionIndex].IncreaseRef(L"AcceptInc");
+		if ((refResult ^ sessions[sessionIndex].releaseFlag) != 1) {
+			DebugBreak();
+		}
+
 		sessions[sessionIndex].OffReleaseFlag();
+		sessions[sessionIndex]._connect = true;
+
+		if (checkDebug) {
+			DebugBreak();
+		}
 
 		OnConnect(sessions[sessionIndex].GetSessionID());
 		sessions[sessionIndex].RecvNotIncrease();
@@ -281,7 +377,6 @@ void IOCP::AcceptThread(LPVOID arg)
 
 void IOCP::MonitorThread(LPVOID arg)
 {
-
 	auto start = chrono::system_clock::now();
 	auto next = chrono::time_point_cast<chrono::milliseconds>(start) + chrono::milliseconds(1000);
 	while (_isRunning)
@@ -290,7 +385,6 @@ void IOCP::MonitorThread(LPVOID arg)
 		_oldAccepCount = _acceptCount;
 		_recvTps = _recvCount;
 		_sendTps = _sendCount;
-		_sessions = _sessionCount;
 		_packetPoolSize = CSerializeBuffer::_pool.GetGPoolSize();
 		_packetPoolEmpty = CSerializeBuffer::_pool.GetGPoolEmptyCount();
 
@@ -306,10 +400,36 @@ void IOCP::MonitorThread(LPVOID arg)
 
 }
 
+void IOCP::TimeoutThread(LPVOID arg)
+{
+	auto start = chrono::system_clock::now();
+	auto next = chrono::time_point_cast<chrono::milliseconds>(start) + chrono::milliseconds(1000);
+	while (_isRunning) 
+	{
+		auto now = chrono::system_clock::now();
+		for (auto& session : sessions) {
+			session.CheckTimeout(now);
+		}
+		auto sleepTime = chrono::duration_cast<chrono::milliseconds> (next - chrono::system_clock::now());
+		next += chrono::milliseconds(1000);
+		if (sleepTime.count() > 0)
+			Sleep(sleepTime.count());
+	}
+	printf("TimeoutThread End\n");
+
+}
+
 unsigned __stdcall IOCP::MonitorEntry(LPVOID arg)
 {
 	IOCP* iocp = (IOCP*)arg;
 	iocp->MonitorThread(nullptr);
+	return 0;
+}
+
+unsigned __stdcall IOCP::TimeoutEntry(LPVOID arg)
+{
+	IOCP* iocp = (IOCP*)arg;
+	iocp->TimeoutThread(nullptr);
 	return 0;
 }
 
@@ -343,16 +463,13 @@ IOCP::IOCP()
  
 NormalIOCP::~NormalIOCP()
 {
-
 	CloseHandle(_iocp);
-	for (int i = 0; i < _maxNetThread+2; ++i)
+	for (auto h : _threadArray)
 	{
-		printf("CloseHandle %p\n", _threadArray[i]);
+		printf("CloseHandle %p\n", h);
 
-		CloseHandle(_threadArray[i]);
+		CloseHandle(h);
 	}
-
-	delete[] _threadArray;
 }
 
 

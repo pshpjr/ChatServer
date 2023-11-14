@@ -1,1 +1,2 @@
-﻿#include "MultiThreadObjectPool.h"
+﻿#include "stdafx.h"
+#include "MultiThreadObjectPool.h"

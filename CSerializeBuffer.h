@@ -143,7 +143,7 @@ private:
 
 public:
 	template<typename T>
-	CSerializeBuffer& operator << (T value);
+	CSerializeBuffer& operator << (T& value);
 
 	//CSerializeBuffer& operator <<(unsigned char value);
 	//CSerializeBuffer& operator <<(char value);
@@ -168,7 +168,7 @@ public:
 	CSerializeBuffer& operator <<(String& value);
 
 	template<typename T>
-	CSerializeBuffer& operator >> (T value);
+	CSerializeBuffer& operator >> (T& value);
 
 	//CSerializeBuffer& operator >>(unsigned char& value);
 	//CSerializeBuffer& operator >>(char& value);
@@ -219,7 +219,7 @@ private:
 };
 
 template<typename T>
-inline CSerializeBuffer& CSerializeBuffer::operator<<(T value)
+inline CSerializeBuffer& CSerializeBuffer::operator<<(T& value)
 {
 	static_assert(is_scalar_v<T>);
 	canPush(sizeof(T));
@@ -231,7 +231,7 @@ inline CSerializeBuffer& CSerializeBuffer::operator<<(T value)
 }
 
 template<typename T>
-inline CSerializeBuffer& CSerializeBuffer::operator>>(T value)
+inline CSerializeBuffer& CSerializeBuffer::operator>>(T& value)
 {
 	static_assert(is_scalar_v<T>);
 	canPop(sizeof(T));

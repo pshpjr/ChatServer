@@ -338,7 +338,7 @@ CSerializeBuffer& CSerializeBuffer::operator<<(String& value)
 
 CSerializeBuffer& CSerializeBuffer::operator>>(String& value)
 {
-	WORD len;
+	WORD len = 0;
 	operator >> (len);
 
 	len /= sizeof(WCHAR);

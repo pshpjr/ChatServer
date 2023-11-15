@@ -33,7 +33,7 @@ bool Session::Release(LPCWSTR content, int type)
 	int refDecResult = InterlockedDecrement(&_refCount);
 	
 	auto index = InterlockedIncrement(&debugIndex);
-	release_D[index % debugSize] = { refDecResult,content,_sessionID };
+	release_D[index % debugSize] = { refDecResult,content,type };
 
 	if (refDecResult == 0)
 	{
@@ -153,6 +153,9 @@ void Session::trySend()
 		}
 
 		switch (error) {
+		//ConnectionAborted
+		case 10053:
+			__fallthrough;
 		//WSAECONNRESET
 		case 10054:
 			__fallthrough;
@@ -212,15 +215,18 @@ void Session::RecvNotIncrease()
 		}
 
 		switch (error) {
-			//WSACONNRESET
-			case 10054:
-				__fallthrough;
-				break;
-			default:
-			{
-				DebugBreak();
-				int i = 0;
-			}
+		//ConnectionAborted
+		case 10053:
+			__fallthrough;
+		//WSACONNRESET
+		case 10054:
+			__fallthrough;
+			break;
+		default:
+		{
+			DebugBreak();
+			int i = 0;
+		}
 		}
 		Release(L"RecvErrorRelease");
 	}

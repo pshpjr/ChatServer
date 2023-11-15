@@ -19,8 +19,8 @@ SettingParser::ErrType SettingParser::init(LPCWSTR location)
 
 	if (loadResult != ErrType::Succ)
 		return loadResult;
-	return ErrType::Succ;
-	//return parse();
+	//return ErrType::Succ;
+	return parse();
 }
 
 bool SettingParser::getValue(LPCTSTR name, OUT String& value)

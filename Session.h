@@ -110,7 +110,7 @@ private:
 	struct RelastinReleaseEncrypt_D {
 		long refCount;
 		LPCWSTR location;
-		unsigned long long contentType;
+		long long contentType;
 	};
 	static const int debugSize = 2000;
 

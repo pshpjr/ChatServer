@@ -63,7 +63,7 @@ public:
 	long IncreaseRef(LPCWSTR content) {
 		auto result =  InterlockedIncrement(&_refCount);
 		auto index = InterlockedIncrement(&debugIndex);
-		release_D[index%debugSize] = { result,content,_sessionID };
+		release_D[index%debugSize] = { result,content,0 };
 		return result;
 	}
 	void OffReleaseFlag() { auto result = InterlockedBitTestAndReset(&_refCount, 20); }

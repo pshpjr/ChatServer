@@ -21,9 +21,9 @@ public:
 		InitializeCriticalSection(&_cs);
 		localPoolTlsIndex = TlsAlloc();
 
-		_pooledNodeCount = GLOBAL_POOL_INITIAL_SIZE;
-
-		for (int i = 0; i < _pooledNodeCount; ++i)
+		_pooledNodeSize = GLOBAL_POOL_INITIAL_SIZE;
+		
+		for (int i = 0; i < _pooledNodeSize; ++i)
 		{
 			Node* newNode = createNode();
 
@@ -32,7 +32,8 @@ public:
 		}
 	}
 
-
+	int GetGPoolSize() const { return _pooledNodeSize; }
+	int GetGPoolEmptyCount() const { return _poolEmptyCount; }
 	Node* createNode()
 	{
 		Node* newNode = (Node*)malloc(sizeof(Node));
@@ -64,7 +65,7 @@ public:
 
 
 
-		if(_pooledNodeCount < size)
+		if(_pooledNodeSize < size)
 		{
 			for (int i = 0; i < size; ++i)
 			{
@@ -82,7 +83,8 @@ public:
 				newNode->_tail = ret;
 				ret = newNode;
 			}
-			_pooledNodeCount += size;
+			_pooledNodeSize += size;
+			_poolEmptyCount++;
 		}
 		else
 		{
@@ -95,7 +97,7 @@ public:
 			_top = newTop->_tail;
 			newTop->_tail = nullptr;
 
-			_pooledNodeCount -= size;
+			_pooledNodeSize -= size;
 		}
 		LeaveCriticalSection(&_cs);
 
@@ -110,7 +112,7 @@ public:
 		tail->_tail = _top;
 		_top = Head;
 
-		_pooledNodeCount += size;
+		_pooledNodeSize += size;
 		LeaveCriticalSection(&_cs);
 	}
 
@@ -175,12 +177,13 @@ private:
 
 	inline static DWORD localPoolTlsIndex = 0;
 	Node* _top = nullptr;
-	int _pooledNodeCount = 0;
+	int _pooledNodeSize = 0;
 	inline static long GPoolID;
 	long poolID = 0;
 	const int _localPoolSize = TLS_POOL_INITIAL_SIZE;
 	const int _globalPoolSize = GLOBAL_POOL_INITIAL_SIZE;
 
+	int _poolEmptyCount = 0;
 
 	struct Debug
 	{

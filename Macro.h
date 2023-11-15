@@ -29,19 +29,7 @@ do{																	\
 }while(false)
 
 
-/*--------------------
-		Profiler
----------------------*/
-#ifdef USEPROFILE
-#define PRO_BEGIN(TagName) do { \
-	ProfileItem t__COUNTER__(L#TagName); \
-} while (false)
-#else
 
-#define PRO_BEGIN(TagName)
-#define PRO_END(TagName)
-#endif
-#include <stdio.h>
 
 
 /*--------------------

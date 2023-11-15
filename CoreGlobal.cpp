@@ -9,7 +9,6 @@
 CrashDump* GCrashDump = nullptr;
 CLogger* GLogger = nullptr;
 SettingParser* GSettingParser = nullptr;
-Profiler* GProfiler = nullptr;
 
 class CoreGlobal
 {

@@ -1,1 +1,2 @@
-﻿#include "LockFreeStack.h"
+﻿#include "stdafx.h"
+#include "LockFreeStack.h"

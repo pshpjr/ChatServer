@@ -1,1 +1,2 @@
-﻿#include "TLSLockFreeQueue.h"
+﻿#include "stdafx.h"
+#include "TLSLockFreeQueue.h"

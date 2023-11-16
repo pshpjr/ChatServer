@@ -290,6 +290,11 @@ uint32 IOCP::GetPacketPoolEmptyCount()
 	return _packetPoolEmpty;
 }
 
+uint64 IOCP::GetTimeoutDisconnectSession()
+{
+	return _timeoutSessions;
+}
+
 void IOCP::onDisconnect(SessionID sessionId)
 {
 	InterlockedDecrement16(&_sessionCount);
@@ -436,7 +441,8 @@ void IOCP::TimeoutThread(LPVOID arg)
 	{
 		auto now = chrono::system_clock::now();
 		for (auto& session : sessions) {
-			session.CheckTimeout(now);
+			if (session.CheckTimeout(now))
+				_timeoutSessions++;
 		}
 		auto sleepTime = chrono::duration_cast<chrono::milliseconds> (next - chrono::system_clock::now());
 		next += chrono::milliseconds(1000);
@@ -501,7 +507,7 @@ NormalIOCP::~NormalIOCP()
 }
 
 
-Session* NormalIOCP::FindSession(uint64 id)
+Session& NormalIOCP::FindSession(uint64 id)
 {
 	auto sessionIndex = id & idMask;
 

@@ -19,9 +19,9 @@ void Socket::CancleIO()
 	{
 		auto error = GetLastError();
 
+		//소켓 닫혀서 gqcs에러 받은 상황에서 send 실패하면 io 자체가 없음. 에러 아님. 
 		if(error == ERROR_NOT_FOUND)
 		{
-			//printf("error : %d %d\n", error,_socket);
 		}
 		else
 		{

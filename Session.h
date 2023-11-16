@@ -39,25 +39,30 @@ public:
 		_timeout = timoutMillisecond;
 	}
 
-	void CheckTimeout(chrono::system_clock::time_point now) {
+	bool CheckTimeout(chrono::system_clock::time_point now) {
 		IncreaseRef(L"timeoutInc");
 		if (_refCount >= releaseFlag) {
 			Release(L"TimeoutRelease");
-			return;
+			return false;
 		}
 		
 
 		auto recvWait = chrono::duration_cast<chrono::milliseconds>(now - lastRecv);
 		auto sendWait = chrono::duration_cast<chrono::milliseconds>(now - _postSendExecute.lastSend);
 
+		bool isTimeouted = false;
+
 		if (needCheckSendTimeout && sendWait.count() > _timeout) {
+			isTimeouted = true;
 			Close();
 		}
 
 		if (recvWait.count() > _timeout) {
+			isTimeouted = true;
 			Close();
 		}
 		Release(L"TimeoutRelease");
+		return isTimeouted;
 	}
 
 	long IncreaseRef(LPCWSTR content) {

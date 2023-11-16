@@ -15,7 +15,7 @@ public:
 
 protected:
 
-	Session* FindSession(uint64 id);
+	Session& FindSession(uint64 id,String& content);
 
 	unsigned short GetSessionIndex(uint64 sessionID) const { return (unsigned short)(sessionID >> 47); }
 
@@ -42,7 +42,7 @@ protected:
 	short _sessionCount = 0;
 	uint64 _packetPoolSize = 0;
 	uint32 _packetPoolEmpty = 0;
-
+	uint64 _timeoutSessions = 0;
 
 // SESSION_MANAGER
 	int g_id = 0;

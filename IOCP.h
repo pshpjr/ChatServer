@@ -47,7 +47,7 @@ public:
 	uint16 GetSessions();
 	uint64 GetPacketPoolSize();
 	uint32 GetPacketPoolEmptyCount();
-
+	uint64 GetTimeoutDisconnectSession();
 
 private:
 	void onDisconnect(SessionID sessionId);

@@ -161,7 +161,6 @@ bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer, int type)
 	return true;
 }
 
-int Sendflag = 0;
 bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer)
 {
 	auto sessionIndex = (sessionId >> 47);
@@ -206,14 +205,44 @@ bool IOCP::DisconnectSession(SessionID sessionId)
 {
 	auto sessionIndex = (sessionId >> 47);
 
-	sessions[sessionIndex].Close();
+	auto result = sessions[sessionIndex].IncreaseRef(L"DisconnectInc");
 
+	if (result < Session::releaseFlag && sessions[sessionIndex].GetSessionID() == sessionId) 
+	{
+		sessions[sessionIndex].Close();
+	}
+
+
+	sessions[sessionIndex].Release(L"DisconnectRel");
 	return true;  
 }
 
 bool IOCP::isEnd()
 {
 	return gracefulEnd;
+}
+
+void IOCP::SetMaxPacketSize(int size)
+{
+	for (auto& session : sessions) {
+		session.SetMaxPacketLen(size);
+	}
+}
+
+void IOCP::SetTimeout(SessionID sessionId, int timeoutMillisecond)
+{
+	auto sessionIndex = ( sessionId >> 47 );
+
+	auto result = sessions[sessionIndex].IncreaseRef(L"setTimeoutInc");
+
+	if ( result < Session::releaseFlag && sessions[sessionIndex].GetSessionID() == sessionId )
+	{
+		sessions[sessionIndex].SetTimeout(30000);
+	}
+
+	sessions[sessionIndex].Release(L"setTimeoutRel");
+	return;
+
 }
 
 

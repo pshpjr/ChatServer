@@ -26,7 +26,7 @@ class CSerializeBuffer
 
 	struct NetHeader {
 		char code;
-		short len;
+		unsigned short len;
 		char randomKey;
 		unsigned char checkSum;
 	};

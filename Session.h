@@ -68,14 +68,20 @@ public:
 	}
 	void OffReleaseFlag() { auto result = InterlockedBitTestAndReset(&_refCount, 20); }
 
+	void SetMaxPacketLen(int size) { _maxPacketLen = size; }
+
 private:
 	const unsigned long long idMask = 0x000'7FFF'FFFF'FFFF;
 	const unsigned long long indexMask = 0x7FFF'8000'0000'0000;
 
+	//Network
+	uint64 _sessionID = 0;
 	Socket _socket;
-
 	CRingBuffer _recvQ;
 	TLSLockFreeQueue<CSerializeBuffer*> _sendQ;
+	TLSLockFreeQueue<CSerializeBuffer*> _sendingQ;
+	IOCP* _owner;
+	long dataNotSend = 0;
 
 	//Executable
 	RecvExecutable _recvExecute;
@@ -83,30 +89,25 @@ private:
 	SendExecutable _sendExecute;
 	ReleaseExecutable _releaseExecutable;
 
-	TLSLockFreeQueue<CSerializeBuffer*> _sendingQ;
 
-	long dataNotSend = 0;
 
-	uint64 _sessionID = 0;
-	const long releaseFlag = 0x0010'0000;
 
+	//Reference
+	static const long releaseFlag = 0x0010'0000;
 	long _refCount = releaseFlag;
 	long _isSending = false;
 
-	
+	//Timeout
 	bool needCheckSendTimeout = false;
 	bool _connect = false;
-
-
-	IOCP* _owner;
-
-
 	int _timeout = 5000;
-	char _staticKey = false;
+	chrono::system_clock::time_point lastRecv;
 
+	//Encrypt
+	char _staticKey = false;
+	unsigned int _maxPacketLen = 20000;
 
 	//DEBUG
-
 	struct RelastinReleaseEncrypt_D {
 		long refCount;
 		LPCWSTR location;
@@ -121,7 +122,6 @@ private:
 		release_D[InterlockedIncrement(&debugIndex)%debugSize] = { _refCount,L"SendContent",type};
 	}
 
-	chrono::system_clock::time_point lastRecv;
 
 
 	//dData Debug[1000];

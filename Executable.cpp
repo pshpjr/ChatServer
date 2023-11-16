@@ -43,6 +43,8 @@ void RecvExecutable::recvNormal(Session& session, void* iocp)
 		Header header;
 		session._recvQ.Peek((char*)&header, sizeof(Header));
 
+
+
 		if (session._recvQ.Size() < header.len)
 		{
 			break;
@@ -88,6 +90,14 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 		char* packetBegin = nullptr;
 		session._recvQ.Peek((char*)&header, sizeof(Header));
 		packetBegin = session._recvQ.GetFront();
+
+		if (header.len > session._maxPacketLen)
+		{
+			session.Close();
+			break;
+		}
+
+
 		if (header.code != dfPACKET_CODE) 
 		{
 			session.Close();
@@ -113,7 +123,7 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 		buffer.Decode(session._staticKey);
 		if (!buffer.checksumValid()) 
 		{
-			printf("checkSumInvalid %d %p\n", buffer._rear- buffer._front, buffer._front);
+			//printf("checkSumInvalid %d %p\n", buffer._rear- buffer._front, buffer._front);
 
 			session.Close();
 			break;

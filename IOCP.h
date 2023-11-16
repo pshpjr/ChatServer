@@ -21,6 +21,9 @@ public:
 	bool SendPacket(SessionID sessionId, CSerializeBuffer* buffer);
 	bool DisconnectSession(SessionID sessionId);
 	bool isEnd();
+	void SetMaxPacketSize(int size);
+	void SetTimeout(SessionID sessionId, int timeoutMillisecond);
+
 	virtual void OnWorkerThreadBegin() {}; 
 	virtual void OnWorkerThreadEnd() {};
 	virtual bool OnAccept(SockAddr_in) { return true; };

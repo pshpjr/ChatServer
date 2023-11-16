@@ -358,8 +358,7 @@ void IOCP::AcceptThread(LPVOID arg)
 		uint64 sessionID = (uint64)sessionIndex << 47;
 		sessionID |= (g_sessionId++);
 
-		long refCount = 0;
-		auto result = FindSession(sessionID, refCount, L"AcceptInc");
+		auto result = FindSession(sessionID, L"AcceptInc");
 		if (result == nullptr)
 			DebugBreak();
 

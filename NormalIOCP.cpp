@@ -125,22 +125,11 @@ void IOCP::Stop()
 
 bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer, int type)
 {
-	auto sessionIndex = (sessionId >> 47);
-	auto& session = sessions[sessionIndex];
-	auto refResult = session.IncreaseRef(L"SendPacketInc");
-	auto sessionID = session.GetSessionID();
 
-	if (sessionID != sessionId)
-	{
-		session.Release(L"SendPacketSessionChange");
+	auto result = FindSession(sessionId, L"SendPacketInc");
+	if (result == nullptr)
 		return false;
-	}
-	if (refResult > releaseFlag)
-	{
-		//세션 릴리즈 해도 문제 없음. 플레그 서 있을거라 내가 올린 만큼 내려감. 
-		session.Release(L"SendPacketSessionRelease");
-		return false;
-	}
+	auto& session = *result;
 
 	session.writeContentLog(type);
 
@@ -157,32 +146,17 @@ bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer, int type)
 	session.dataNotSend++;
 
 	PostQueuedCompletionStatus(_iocp, -1, (ULONG_PTR)&session, &session._sendExecute._overlapped);
+
 	session.Release(L"SendPacketRelease");
 	return true;
 }
 
 bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer)
 {
-	auto sessionIndex = (sessionId >> 47);
-	auto& session = sessions[sessionIndex];
-	auto refResult = session.IncreaseRef(L"SendPacketInc");
-
-
-	auto sessionID = session.GetSessionID();
-
-	if (sessionID != sessionId)
-	{
-		session.Release(L"SendPacketSessionChange");
+	auto result = FindSession(sessionId, L"SendPacketInc");
+	if (result == nullptr)
 		return false;
-	}
-	if (refResult > releaseFlag)
-	{
-		//세션 릴리즈 해도 문제 없음. 플레그 서 있을거라 내가 올린 만큼 내려감. 
-		session.Release(L"SendPacketSessionRelease");
-		return false;
-	}
-
-
+	auto& session = *result;
 
 	buffer->IncreaseRef();
 
@@ -203,17 +177,15 @@ bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer)
 
 bool IOCP::DisconnectSession(SessionID sessionId)
 {
-	auto sessionIndex = (sessionId >> 47);
+	auto result = FindSession(sessionId, L"DisconnectInc");
+	if (result == nullptr)
+		return false;
+	auto& session = *result;
 
-	auto result = sessions[sessionIndex].IncreaseRef(L"DisconnectInc");
+	session.Close();
 
-	if (result < Session::releaseFlag && sessions[sessionIndex].GetSessionID() == sessionId) 
-	{
-		sessions[sessionIndex].Close();
-	}
+	session.Release(L"DisconnectRel");
 
-
-	sessions[sessionIndex].Release(L"DisconnectRel");
 	return true;  
 }
 
@@ -231,18 +203,14 @@ void IOCP::SetMaxPacketSize(int size)
 
 void IOCP::SetTimeout(SessionID sessionId, int timeoutMillisecond)
 {
-	auto sessionIndex = ( sessionId >> 47 );
+	auto result = FindSession(sessionId, L"TimeoutInc");
+	if (result == nullptr)
+		return;
+	auto& session = *result;
 
-	auto result = sessions[sessionIndex].IncreaseRef(L"setTimeoutInc");
+	session.SetTimeout(timeoutMillisecond);
 
-	if ( result < Session::releaseFlag && sessions[sessionIndex].GetSessionID() == sessionId )
-	{
-		sessions[sessionIndex].SetTimeout(30000);
-	}
-
-	sessions[sessionIndex].Release(L"setTimeoutRel");
-	return;
-
+	session.Release(L"setTimeoutRel");
 }
 
 
@@ -251,7 +219,6 @@ void IOCP::SetRecvDebug(SessionID id, unsigned int type)
 	auto sessionIndex = (id >> 47);
 	auto& session = sessions[sessionIndex];
 
-	
 	session.release_D[InterlockedIncrement(&session.debugIndex)%session.debugSize] = { session._refCount,L"RecvPacket",type };
 }
 
@@ -391,17 +358,23 @@ void IOCP::AcceptThread(LPVOID arg)
 		uint64 sessionID = (uint64)sessionIndex << 47;
 		sessionID |= (g_sessionId++);
 
+		long refCount = 0;
+		auto result = FindSession(sessionID, refCount, L"AcceptInc");
+		if (result == nullptr)
+			DebugBreak();
 
-		sessions[sessionIndex].SetSessionID(sessionID);
-		sessions[sessionIndex].SetSocket(clientSocket);
-		sessions[sessionIndex].RegisterIOCP(_iocp);
-		auto refResult = sessions[sessionIndex].IncreaseRef(L"AcceptInc");
+		auto& session = *result;
 
-		sessions[sessionIndex].OffReleaseFlag();
-		sessions[sessionIndex]._connect = true;
 
-		OnConnect(sessions[sessionIndex].GetSessionID());
-		sessions[sessionIndex].RecvNotIncrease();
+		session.SetSessionID(sessionID);
+		session.SetSocket(clientSocket);
+		session.RegisterIOCP(_iocp);
+
+		session.OffReleaseFlag();
+		session._connect = true;
+
+		OnConnect(session.GetSessionID());
+		session.RecvNotIncrease();
 
 		InterlockedIncrement16(&_sessionCount);
 	}
@@ -507,11 +480,21 @@ NormalIOCP::~NormalIOCP()
 }
 
 
-Session& NormalIOCP::FindSession(uint64 id)
+Session* NormalIOCP::FindSession(uint64 id, LPCWSTR content)
 {
 	auto sessionIndex = id & idMask;
+	auto& session = sessions[sessionIndex];
+	auto result = session.IncreaseRef(content);
 
-	return &sessions[sessionIndex];
+	//릴리즈 중이거나 세션 변경되었으면 
+	if (result > releaseFlag || session.GetSessionID() != id)
+	{
+		//세션 릴리즈 해도 문제 없음. 플레그 서 있을거라 내가 올린 만큼 내려감. 
+		session.Release(L"sessionChangedRelease");
+		return nullptr;
+	}
+
+	return &session;
 }
 
 

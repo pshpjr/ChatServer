@@ -17,6 +17,7 @@ public:
 	bool Init(String ip, Port port, uint16 backlog, uint16 maxRunningThread,uint16 workerThread, char staticKey);
 	void Start();
 	void Stop();
+	void do_work(SessionID sessionId, Session& session);
 	bool SendPacket(SessionID sessionId, CSerializeBuffer* buffer, int type);
 	bool SendPacket(SessionID sessionId, CSerializeBuffer* buffer);
 	bool DisconnectSession(SessionID sessionId);

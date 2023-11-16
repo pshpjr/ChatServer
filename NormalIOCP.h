@@ -15,7 +15,7 @@ public:
 
 protected:
 
-	Session& FindSession(uint64 id,String& content);
+	Session* FindSession(uint64 id,  LPCWSTR content);
 
 	unsigned short GetSessionIndex(uint64 sessionID) const { return (unsigned short)(sessionID >> 47); }
 

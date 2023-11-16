@@ -257,7 +257,7 @@ uint32 IOCP::GetPacketPoolEmptyCount()
 	return _packetPoolEmpty;
 }
 
-uint64 IOCP::GetTimeoutDisconnectSession()
+uint64 IOCP::GetTimeoutCount()
 {
 	return _timeoutSessions;
 }
@@ -358,12 +358,8 @@ void IOCP::AcceptThread(LPVOID arg)
 		uint64 sessionID = (uint64)sessionIndex << 47;
 		sessionID |= (g_sessionId++);
 
-		auto result = FindSession(sessionID, L"AcceptInc");
-		if (result == nullptr)
-			DebugBreak();
-
-		auto& session = *result;
-
+		auto& session = sessions[sessionIndex];
+		auto result = session.IncreaseRef(L"AcceptInc");
 
 		session.SetSessionID(sessionID);
 		session.SetSocket(clientSocket);
@@ -481,7 +477,7 @@ NormalIOCP::~NormalIOCP()
 
 Session* NormalIOCP::FindSession(uint64 id, LPCWSTR content)
 {
-	auto sessionIndex = id & idMask;
+	auto sessionIndex = id >> 47;
 	auto& session = sessions[sessionIndex];
 	auto result = session.IncreaseRef(content);
 

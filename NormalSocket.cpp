@@ -76,6 +76,21 @@ SOCKADDR_IN Socket::GetSockAddr() const
 	return _sockAddr;
 }
 
+String Socket::GetIP() const
+{
+	WCHAR str[47];
+	InetNtopW(AF_INET, &_sockAddr.sin_addr, str, 47);
+
+	return String(str);
+}
+
+uint16 Socket::GetPort() const
+{
+	uint16 result;
+	WSANtohs(_socket, _sockAddr.sin_port, &result);
+	return result;
+}
+
 bool Socket::Init()
 {
 	_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -97,7 +112,7 @@ bool Socket::Bind(String ip, uint16 port)
 	_sockAddr.sin_family = AF_INET;
 	_sockAddr.sin_addr = ip2Address(ip.c_str());
 	_sockAddr.sin_port = htons(port);
-
+	
 	return SOCKET_ERROR != bind(_socket, (SOCKADDR*)&_sockAddr, sizeof(_sockAddr));
 }
 

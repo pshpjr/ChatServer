@@ -246,7 +246,7 @@ void Session::Reset()
 	_postSendExecute.Clear();
 	_isSending = false;
 	needCheckSendTimeout = false;
-	_timeout = 5000;
+	_timeout = _defaultTimeout;
 
 
 

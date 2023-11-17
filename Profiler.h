@@ -37,6 +37,7 @@ public:
 			new (&Profile_Samples[i]) PROFILE_SAMPLE;
 		}
 	}
+
 private:
 	Profiler() {  };
 
@@ -117,7 +118,12 @@ extern ProfileManager GProfiler;
 #define PROFILE
 
 #ifdef PROFILE
-#define PRO_BEGIN(TagName) ProfileItem t__COUNTER__(L#TagName);
+
+#define PROFILE_CONCATENATE_DETAIL(x, y) x##y
+#define PROFILE_CONCATENATE(x, y) PROFILE_CONCATENATE_DETAIL(x, y)
+#define PROFILE_MAKE_UNIQUE(x) PROFILE_CONCATENATE(x, __COUNTER__)
+
+#define PRO_BEGIN(TagName) ProfileItem PROFILE_MAKE_UNIQUE(t_)(L#TagName);
 #else
 
 #define PRO_BEGIN(TagName)

@@ -35,6 +35,9 @@ public:
 	void setNoDelay(bool on);
 
 	SOCKADDR_IN GetSockAddr() const;
+	String GetIP() const;
+	uint16 GetPort() const;
+
 	int _beforeSocket=-1;
 private:
 	static IN_ADDR ip2Address(const WCHAR* ip);

@@ -30,6 +30,8 @@ bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread, uint1
 	{
 		return false;
 	}
+	_listenSocket.setLinger(true);
+	_listenSocket.setNoDelay(true);
 
 	if (_listenSocket.Bind(ip, port) == false)
 	{
@@ -213,6 +215,20 @@ void IOCP::SetTimeout(SessionID sessionId, int timeoutMillisecond)
 	session.Release(L"setTimeoutRel");
 }
 
+void IOCP::SetDefaultTimeout(int timeoutMillisecond)
+{
+	for ( auto& s : sessions ) {
+		s.SetDefaultTimeout(timeoutMillisecond);
+		s.SetTimeout(timeoutMillisecond);
+	}
+
+}
+
+void IOCP::SetTimeout(bool isCheck)
+{
+	_checkTiemout = isCheck;
+}
+
 
 void IOCP::SetRecvDebug(SessionID id, unsigned int type)
 {
@@ -280,7 +296,7 @@ void IOCP::WorkerThread(LPVOID arg)
 
 		auto ret = GetQueuedCompletionStatus(_iocp, &transferred, (PULONG_PTR) &session, (LPOVERLAPPED*)&overlapped, INFINITE);
 		overlapped = (Executable*)((char*)overlapped - offsetof(Executable, _overlapped));
-		if(transferred==0&&session== nullptr&&overlapped==nullptr)
+		if(transferred==0&&session== nullptr)
 		{
 			PostQueuedCompletionStatus(_iocp, 0, 0, nullptr);
 			break;
@@ -333,6 +349,10 @@ void IOCP::AcceptThread(LPVOID arg)
 	{
 		Socket clientSocket = _listenSocket.Accept();
 		if (!clientSocket.isValid()) {
+			auto err = WSAGetLastError();
+			if ( err == WSAEINTR )
+				break;
+
 			printf("AcceptError %d", WSAGetLastError());
 			DebugBreak();
 			int a = 10;
@@ -346,6 +366,10 @@ void IOCP::AcceptThread(LPVOID arg)
 			continue;
 		}
 		_acceptCount++;
+
+		clientSocket.setLinger(true);
+		clientSocket.setNoDelay(true);
+
 
 		short sessionIndex;
 		if (freeIndex.Pop(sessionIndex) == false) 
@@ -408,10 +432,16 @@ void IOCP::TimeoutThread(LPVOID arg)
 	while (_isRunning) 
 	{
 		auto now = chrono::system_clock::now();
-		for (auto& session : sessions) {
-			if (session.CheckTimeout(now))
-				_timeoutSessions++;
+		if ( _checkTiemout ) 
+		{
+			for ( auto& session : sessions ) {
+				if ( session.CheckTimeout(now) )
+					_timeoutSessions++;
+				if ( _timeoutSessions > 10 )
+					DebugBreak();
+			}
 		}
+
 		auto sleepTime = chrono::duration_cast<chrono::milliseconds> (next - chrono::system_clock::now());
 		next += chrono::milliseconds(1000);
 		if (sleepTime.count() > 0)

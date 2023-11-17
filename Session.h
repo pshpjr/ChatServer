@@ -4,6 +4,8 @@
 #include "LockFreeQueue.h"
 #include "Socket.h"
 #include "TLSLockFreeQueue.h"
+#include <CoreGlobal.h>
+#include "CLogger.h"
 
 class IOCP;
 class SessionManager;
@@ -18,7 +20,6 @@ class Session
 	friend class ReleaseExecutable;
 	friend class IOCP;
 public:
-
 	Session();
 	Session(Socket socket, uint64 sessionId, IOCP& owner);
 	void Enqueue(CSerializeBuffer* buffer);
@@ -35,6 +36,9 @@ public:
 	void Reset();
 	void SetNetSession(char staticKey) { _staticKey = staticKey; }
 
+	void SetDefaultTimeout(int timoutMillisecond) {
+		_defaultTimeout = timoutMillisecond;
+	}
 	void SetTimeout(int timoutMillisecond) {
 		_timeout = timoutMillisecond;
 	}
@@ -61,6 +65,12 @@ public:
 			isTimeouted = true;
 			Close();
 		}
+
+
+		if ( isTimeouted ) 
+			GLogger->write(L"Timeout", LogLevel::Debug, L"Timeouted %s %d",_socket.GetIP().c_str(), _socket.GetPort());
+
+
 		Release(L"TimeoutRelease");
 		return isTimeouted;
 	}
@@ -105,6 +115,7 @@ private:
 	//Timeout
 	bool needCheckSendTimeout = false;
 	bool _connect = false;
+	int _defaultTimeout = 5000;
 	int _timeout = 5000;
 	chrono::system_clock::time_point lastRecv;
 

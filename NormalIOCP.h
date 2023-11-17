@@ -30,6 +30,7 @@ protected:
 	uint16 _maxNetThread = 0;
 	String _ip;
 	uint16 _port;
+	bool _checkTiemout = true;
 	
 	//MONITOR
 	uint64 _acceptCount = 0;

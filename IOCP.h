@@ -17,13 +17,14 @@ public:
 	bool Init(String ip, Port port, uint16 backlog, uint16 maxRunningThread,uint16 workerThread, char staticKey);
 	void Start();
 	void Stop();
-	void do_work(SessionID sessionId, Session& session);
 	bool SendPacket(SessionID sessionId, CSerializeBuffer* buffer, int type);
 	bool SendPacket(SessionID sessionId, CSerializeBuffer* buffer);
 	bool DisconnectSession(SessionID sessionId);
 	bool isEnd();
 	void SetMaxPacketSize(int size);
 	void SetTimeout(SessionID sessionId, int timeoutMillisecond);
+	void SetDefaultTimeout(int timeoutMillisecond);
+	void SetTimeout(bool isCheck);
 
 	virtual void OnWorkerThreadBegin() {}; 
 	virtual void OnWorkerThreadEnd() {};

@@ -1,6 +1,5 @@
-﻿
+﻿#include "stdafx.h"
 #include "Profiler.h"
-
 #include <algorithm>
 #include <chrono>
 #include <Windows.h>
@@ -121,6 +120,15 @@ bool cmp(PROFILE_SAMPLE& lhs, PROFILE_SAMPLE& rhs)
 }
 
 
+std::wstring pad_string(const std::wstring& str, size_t length) {
+	if ( str.length() >= length ) {
+		return str;
+	}
+	else {
+		return str + std::wstring(length - str.length(), L' ');
+	}
+}
+
 void ProfileManager::ProfileDataOutText(LPWSTR szFileName)
 {
 	AcquireSRWLockShared(&_profileListLock);
@@ -130,6 +138,9 @@ void ProfileManager::ProfileDataOutText(LPWSTR szFileName)
 	{
 		for (int i = 0; i < profiler->_size; i++)
 		{
+			if ( profiler->Profile_Samples[i].lFlag == false )
+				continue;
+
 			samples.push_back(profiler->Profile_Samples[i]);
 		}
 	}
@@ -151,13 +162,12 @@ void ProfileManager::ProfileDataOutText(LPWSTR szFileName)
 		swprintf_s(errBuffer, TEXT("errNo : %d | SettingParser::loadSetting, fopen %s"), openRet, buffer);
 		return;
 	}
-	//if(!optionalText.empty())
-	//{
-	//	fwprintf_s(fout, L"%s\n",optionalText.c_str());
-	//}
+	if(!optionalText.empty())
+	{
+		fwprintf_s(fout, L"%s\n",optionalText.c_str());
+	}
 
-	//fwprintf_s(fout, L"\t\tName\t\t|\t\t\tAvg\t\t\t|\t\tCall\t\t|\t\tMin\t\t|\t\tMax\t\t|\t\n");
-
+	fwprintf_s(fout, L"%35s\t|\tAvg\t|\tCall\t|\tMin\t|\tMax\t|\n",  L"Name");
 
 	std::sort(samples.begin(), samples.end(), cmp);
 	samples.emplace_back();
@@ -172,11 +182,9 @@ void ProfileManager::ProfileDataOutText(LPWSTR szFileName)
 	{
 		if(wcscmp(name,sample.szName) !=0)
 		{
-
 			auto avg = tot / ((double)cnt);
-
-			//fwprintf_s(fout, L"\t%14s\t\t%12.6fus\t\t\t%12lld\t\t%12lld\t\t%12lld\t\n", name, avg.count(), cnt, min.count(), max.count());
-			fwprintf_s(fout, L"%s %.6fus\n", name, avg.count());
+			fwprintf_s(fout, L"%35s\t%20.6fus\t%20d\t%20d\t%20lld\n", name, avg.count(), cnt, min.count(), max.count());
+//			fwprintf_s(fout, L"%s %.6fus\n", name, avg.count());
 
 			name = sample.szName;
 			cnt = 0;

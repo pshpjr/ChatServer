@@ -4,7 +4,7 @@
 #include "LockFreeQueue.h"
 #include "Socket.h"
 #include "TLSLockFreeQueue.h"
-#include <CoreGlobal.h>
+#include "CoreGlobal.h"
 #include "CLogger.h"
 
 class IOCP;
@@ -19,6 +19,7 @@ class Session
 	friend class SendExecutable;
 	friend class ReleaseExecutable;
 	friend class IOCP;
+	friend class NormalIOCP;
 public:
 	Session();
 	Session(Socket socket, uint64 sessionId, IOCP& owner);
@@ -35,6 +36,9 @@ public:
 	void SetOwner(IOCP& owner) { _owner = &owner; }
 	void Reset();
 	void SetNetSession(char staticKey) { _staticKey = staticKey; }
+	String GetIP() { return _socket.GetIP(); }
+	uint16 GetPort() { return _socket.GetPort(); }
+
 
 	void SetDefaultTimeout(int timoutMillisecond) {
 		_defaultTimeout = timoutMillisecond;
@@ -50,7 +54,6 @@ public:
 			return false;
 		}
 		
-
 		auto recvWait = chrono::duration_cast<chrono::milliseconds>(now - lastRecv);
 		auto sendWait = chrono::duration_cast<chrono::milliseconds>(now - _postSendExecute.lastSend);
 
@@ -58,17 +61,14 @@ public:
 
 		if (needCheckSendTimeout && sendWait.count() > _timeout) {
 			isTimeouted = true;
-			Close();
 		}
 
 		if (recvWait.count() > _timeout) {
 			isTimeouted = true;
-			Close();
 		}
 
-
-		if ( isTimeouted ) 
-			GLogger->write(L"Timeout", LogLevel::Debug, L"Timeouted %s %d",_socket.GetIP().c_str(), _socket.GetPort());
+		/*if ( isTimeouted ) 
+			GLogger->write(L"Timeout", LogLevel::Debug, L"Timeouted %s %d",_socket.GetIP().c_str(), _socket.GetPort());*/
 
 
 		Release(L"TimeoutRelease");
@@ -77,8 +77,11 @@ public:
 
 	long IncreaseRef(LPCWSTR content) {
 		auto result =  InterlockedIncrement(&_refCount);
+
+#ifdef SESSION_DEBUG
 		auto index = InterlockedIncrement(&debugIndex);
 		release_D[index%debugSize] = { result,content,0 };
+#endif
 		return result;
 	}
 	void OffReleaseFlag() { auto result = InterlockedBitTestAndReset(&_refCount, 20); }
@@ -114,7 +117,7 @@ private:
 
 	//Timeout
 	bool needCheckSendTimeout = false;
-	bool _connect = false;
+	char _connect = false;
 	int _defaultTimeout = 5000;
 	int _timeout = 5000;
 	chrono::system_clock::time_point lastRecv;
@@ -135,7 +138,10 @@ private:
 	RelastinReleaseEncrypt_D release_D[debugSize];
 	
 	void writeContentLog(unsigned int type) {
+#ifdef DEBUG
+
 		release_D[InterlockedIncrement(&debugIndex)%debugSize] = { _refCount,L"SendContent",type};
+#endif
 	}
 
 

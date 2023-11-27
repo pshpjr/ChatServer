@@ -38,7 +38,7 @@ public:
 	String GetIP() const;
 	uint16 GetPort() const;
 
-	int _beforeSocket=-1;
+	SOCKET _beforeSocket=-1;
 private:
 	static IN_ADDR ip2Address(const WCHAR* ip);
 };

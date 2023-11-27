@@ -10,19 +10,17 @@ class TLSLockFreeQueue
 	struct Node
 	{
 		Node* next = nullptr;
-		T data;
-		int queueID;
+		T data {};
 		Node() = default;
 		Node(const T& data) : data(data), next(nullptr) {}
 	};
 
 public:
-	TLSLockFreeQueue() : queueID(InterlockedIncrement(&GID))
+	TLSLockFreeQueue() : queueID((Node*)InterlockedIncrement64(&GID))
 	{
 		Node* dummy = _pool.Alloc();
 
-		dummy->next = (Node*)queueID;
-		dummy->queueID = queueID;
+		dummy->next = queueID;
 		_head = dummy;
 		_tail = dummy;
 	}
@@ -32,8 +30,7 @@ public:
 		Node* allocNode = _pool.Alloc();
 		Node* newNode = allocNode;
 		newNode->data = data;
-		newNode->next = (Node*)queueID;
-		newNode->queueID = queueID;
+		newNode->next = queueID;
 
 		auto headCount = InterlockedIncrement16(&tailCount);
 		Node* newTail = (Node*)((unsigned long long)newNode | ((unsigned long long)(headCount)) << 47);
@@ -43,9 +40,9 @@ public:
 			Node* tail = _tail;
 			Node* tailNode = (Node*)((unsigned long long)tail & pointerMask);
 			
-			if (tailNode->next == (Node*)queueID)
+			if (tailNode->next == queueID)
 			{
-				if (InterlockedCompareExchangePointer((PVOID*)&tailNode->next, newTail, (Node*)queueID) == (Node*)queueID)
+				if (InterlockedCompareExchangePointer((PVOID*)&tailNode->next, newTail, (PVOID*)queueID) == queueID)
 				{
 	
 					if(InterlockedCompareExchangePointer((PVOID*)&_tail, newTail, tail)==tail)
@@ -149,8 +146,8 @@ private:
 
 
 	short tailCount = 0;
-	const int queueID;
-	static long GID;
+	Node* queueID;
+	static int64 GID;
 
 
 	static const int debugSize =1000;
@@ -162,4 +159,4 @@ private:
 
 };
 template <typename T>
-long TLSLockFreeQueue<T>::GID = 0;
+int64 TLSLockFreeQueue<T>::GID = 0;

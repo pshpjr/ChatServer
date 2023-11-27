@@ -206,6 +206,9 @@ bool SingleThreadObjectPool<data, dataId, usePlacement>::Free(data* pdata)
 		pdata->~data();
 	}
 
+	if ( _top == dataNode )
+		DebugBreak();
+
 	dataNode->_tail = _top;
 	_top = dataNode;
 

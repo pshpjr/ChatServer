@@ -183,7 +183,7 @@ void ProfileManager::ProfileDataOutText(LPWSTR szFileName)
 		if(wcscmp(name,sample.szName) !=0)
 		{
 			auto avg = tot / ((double)cnt);
-			fwprintf_s(fout, L"%35s\t%20.6fus\t%20d\t%20d\t%20lld\n", name, avg.count(), cnt, min.count(), max.count());
+			fwprintf_s(fout, L"%35s\t%20.6fus\t%20lld\t%20lld\t%20lld\n", name, avg.count(), cnt, min.count(), max.count());
 //			fwprintf_s(fout, L"%s %.6fus\n", name, avg.count());
 
 			name = sample.szName;

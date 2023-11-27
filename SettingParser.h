@@ -1,6 +1,7 @@
-#pragma once
+﻿#pragma once
 #include "Types.h"
 #include "Container.h"
+#include "SettingParserException.h"
 /*
 	파일 형식은
 
@@ -25,11 +26,12 @@ public:
 		OpErr,
 	};
 
-	ErrType init(LPCWSTR location = L"serverSetting.txt");
+	void Init(LPCWSTR location = L"serverSetting.txt");
 
-	bool getValue(LPCTSTR name, OUT int32& value);
-	bool getValue(LPCTSTR name, OUT LPTSTR value);
-	bool getValue(LPCTSTR name, OUT String& value);
+	bool GetValue(LPCWSTR name, OUT int32& value);
+	bool GetValue(LPCWSTR name, OUT LPWSTR value);
+	bool GetValue(LPCWSTR name, OUT String& value);
+	bool GetValue(LPCWSTR name, OUT std::string& value);
 
 	~SettingParser()
 	{
@@ -38,14 +40,14 @@ public:
 
 
 private:
-	ErrType loadSetting(LPCTSTR location);
-	ErrType parse();
+	void loadSetting(LPCTSTR location);
+	void parse();
 	bool getTok(OUT LPTSTR word);
 
 public:
 	enum 
 	{
-		 WORD_SIZE = 100,
+		 MAX_WORD_SIZE = 100,
 		 MAXERRLEN = 100,
 		 MAXGROUPSIZE = 10,
 	};
@@ -59,7 +61,7 @@ private:
 	size_t bufferSize = 0;
 
 	int32 _groupIndex = -1;
-	WCHAR _groupsName[MAXGROUPSIZE][WORD_SIZE] = { {0}, };
+	WCHAR _groupsName[MAXGROUPSIZE][MAX_WORD_SIZE] = { {0}, };
 	
 	HashMap<String, String> _settingsContainer[MAXGROUPSIZE];
 };

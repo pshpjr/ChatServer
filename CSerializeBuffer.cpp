@@ -60,7 +60,7 @@ void CSerializeBuffer::encode(char staticKey)
 	char p = 0;
 	char e = 0;
 
-	for (size_t i = 1; i <= encodeLen; i++)
+	for (int i = 1; i <= encodeLen; i++)
 	{
 		p = (*encodeData) ^ (p + head->randomKey + i);
 		e = p ^ (e + staticKey + i);
@@ -83,7 +83,7 @@ void CSerializeBuffer::Decode(char staticKey)
 	char p = 0;
 	char e = 0;
 	char oldP = 0;
-	for (size_t i = 1; i <= decodeLen; i++)
+	for (int i = 1; i <= decodeLen; i++)
 	{
 		p = (*decodeData) ^ (e + staticKey + i);
 		e = *decodeData;
@@ -221,7 +221,7 @@ CSerializeBuffer& CSerializeBuffer::operator<<(LPWSTR value)
 {
 	//insert null terminated string to buffer
 	//int strlen = wcslen(value) + 1;
-	int strlen = wcslen(value)+1;
+	size_t strlen = wcslen(value)+1;
 
 	wcscpy_s((wchar_t*)_rear, strlen, value);
 	_rear += strlen * sizeof(WCHAR);
@@ -232,7 +232,7 @@ CSerializeBuffer& CSerializeBuffer::operator<<(LPCWSTR value)
 {
 	//insert null terminated string to buffer
 	//int strlen = wcslen(value) + 1;
-	int strlen = wcslen(value)+1;
+	size_t strlen = wcslen(value)+1;
 	wcscpy_s((wchar_t*)_rear, strlen, value);
 
 	_rear += strlen * sizeof(WCHAR);
@@ -374,7 +374,7 @@ void CSerializeBuffer::SetCSTR(LPCSTR arr, int size)
 
 CSerializeBuffer& CSerializeBuffer::operator>>(LPWSTR value)
 {
-	int strlen = wcslen((LPWCH)_front) + 1;
+	size_t strlen = wcslen((LPWCH)_front) + 1;
 
 	wcscpy_s(value, strlen, (wchar_t*)_front);
 	_front += strlen * sizeof(WCHAR);

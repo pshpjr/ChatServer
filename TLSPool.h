@@ -34,11 +34,16 @@ public:
 
 	int GetGPoolSize() const { return _pooledNodeSize; }
 	int GetGPoolEmptyCount() const { return _poolEmptyCount; }
+	int GetAcquireCount() const { return _acquireCount; }
+	int GetRelaseCount() const { return _releaseCount; }
+
 	Node* createNode()
 	{
 		Node* newNode = (Node*)malloc(sizeof(Node));
+		_Analysis_assume_(newNode!=nullptr)
 		newNode->_tail = nullptr; 
 
+		allocked.push_back(newNode);
 
 		if constexpr (!usePlacement)
 			new (&newNode->_data) T();
@@ -52,7 +57,7 @@ public:
 	Node* AcquireNode(int size)
 	{
 		EnterCriticalSection(&_cs);
-
+		_acquireCount++;
 		int i = 0;
 
 		Node* newTop = _top;
@@ -76,6 +81,8 @@ public:
 			}
 			_top = newTop;
 
+			
+
 			for (int i = 0; i < size; ++i)
 			{
 				Node* newNode = createNode();
@@ -85,6 +92,7 @@ public:
 			}
 			_pooledNodeSize += size;
 			_poolEmptyCount++;
+			newTop->_tail;
 		}
 		else
 		{
@@ -98,7 +106,15 @@ public:
 			newTop->_tail = nullptr;
 
 			_pooledNodeSize -= size;
+			newTop->_tail;
 		}
+
+		Node* test = _top;
+		for ( int i = 0; i < _pooledNodeSize - 1; ++i )
+		{
+			test = test->_tail;
+		}
+
 		LeaveCriticalSection(&_cs);
 
 		return ret;
@@ -109,10 +125,19 @@ public:
 	{
 		EnterCriticalSection(&_cs);
 
+
+		_releaseCount++;
+
 		tail->_tail = _top;
+
+
+
 		_top = Head;
 
 		_pooledNodeSize += size;
+
+
+
 		LeaveCriticalSection(&_cs);
 	}
 
@@ -161,7 +186,7 @@ public:
 			}
 
 			Node* newHead = releaseTail->_tail;
-
+			releaseTail->_tail = nullptr;
 			pool->_top = newHead;
 
 			ReleaseNode(releaseHead, releaseTail, TLS_POOL_INITIAL_SIZE);
@@ -175,6 +200,8 @@ public:
 private:
 	CRITICAL_SECTION _cs;
 
+	list<Node*> allocked;
+
 	inline static DWORD localPoolTlsIndex = 0;
 	Node* _top = nullptr;
 	int _pooledNodeSize = 0;
@@ -182,6 +209,9 @@ private:
 	long poolID = 0;
 	const int _localPoolSize = TLS_POOL_INITIAL_SIZE;
 	const int _globalPoolSize = GLOBAL_POOL_INITIAL_SIZE;
+
+	long _acquireCount = 0;
+	long _releaseCount = 0;
 
 	int _poolEmptyCount = 0;
 

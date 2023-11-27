@@ -19,7 +19,7 @@ public:
 
 
 	Executable() : _overlapped{0} { }
-	virtual void Execute(PULONG_PTR key, DWORD transferred,void* iocp) = 0;
+	virtual void Execute(ULONG_PTR arg, DWORD transferred,void* iocp) = 0;
 	virtual ~Executable() = default;
 
 	void Clear() { memset(&_overlapped, 0, sizeof(_overlapped)); }
@@ -36,75 +36,62 @@ public:
 /**
  * \brief _execute의 인자로 key값을 넘겨주고 있다. 필요하다면 post 함수 호출할 때 넣어야 한다. 
  */
-class CountExecutable :public Executable
+class WaitExecutable :public Executable
 {
 public:
-	CountExecutable(void* wakeupAddr, long* const Counter) : wakeupPtr(wakeupAddr), Counter(Counter){  }
-	virtual ~CountExecutable() = default;
+	virtual ~WaitExecutable() = default;
 
-	void Execute(PULONG_PTR key, DWORD transferred, void* iocp)
+	void Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 	{
 		_execute(key,iocp);
-		long result = InterlockedDecrement(Counter);
 
-
-		//if (result == 0)
-		//{
-		//	WakeByAddressSingle(wakeupPtr);
-		//}
+		isDone = true;
+		WakeByAddressSingle(&isDone);
 	}
 
-	//void Wait()
-	//{
-	//		WaitOnAddress(wakeupPtr, Counter, sizeof(long), INFINITE);
-	//}
-
+	void Join()
+	{
+		char expect = false;
+		WaitOnAddress(&isDone, &expect, sizeof(long), INFINITE);
+	}
 
 protected:
-	virtual void _execute(PULONG_PTR key, void* iocp) = 0;
+	virtual void _execute(ULONG_PTR key, void* iocp) = 0;
 
 private:
-	void* wakeupPtr = nullptr;
-	long* Counter = 0;
+	char isDone = false;
 };
 
 template <typename T>
 class ExecutableManager
 {
-	static_assert(std::is_base_of_v<CountExecutable, T>);
+	static_assert(std::is_base_of_v<WaitExecutable, T>);
 public:
-	ExecutableManager(int count,HANDLE iocp):Counter(count),_iocp(iocp)
+	ExecutableManager(int count,HANDLE iocp):_iocp(iocp)
 	{
-		_executables.reserve(count);
-
-		for (int i = 0; i < count; ++i)
-		{
-				_executables.emplace_back((void*)& wakeupPtr, (long*) & Counter);
-		}
-
-
+		_executables.resize(count);
 	}
-	void SetCounter(int count)
-	{
-				Counter = count;
-	}
+
 	void Run(ULONG_PTR arg)
 	{
-		PostQueuedCompletionStatus(_iocp, 1, arg, _executables[executablesCount++].GetOverlapped());
-	}
-	void Wait()
-	{
-		while (Counter != 0)
+		
+		for ( auto& exe : _executables ) 
 		{
-			
+			int transfered = 1;
+			PostQueuedCompletionStatus(_iocp, transfered, arg, exe.GetOverlapped());
+
+		}
+	}
+	void Wait() 
+	{
+		for ( auto& exe : _executables )
+		{
+			exe.Join();
 		}
 	}
 private:
 	HANDLE _iocp = INVALID_HANDLE_VALUE;
 	vector<T> _executables;
-	int executablesCount = 0;
-	long wakeupPtr = 0;
-	volatile long Counter = 0;
 };
 
 class RecvExecutable : public Executable
@@ -114,7 +101,7 @@ public:
 	{
 		_type = ioType::RECV;
 	}
-	void Execute(PULONG_PTR key, DWORD transferred, void* iocp) override;
+	void Execute(ULONG_PTR key, DWORD transferred, void* iocp) override;
 	~RecvExecutable() override = default;
 
 private:
@@ -132,7 +119,7 @@ public:
 	{
 		_type = ioType::POSTRECV;
 	}
-	void Execute(PULONG_PTR key, DWORD transferred, void* iocp) override;
+	void Execute(ULONG_PTR key, DWORD transferred, void* iocp) override;
 	~PostSendExecutable() override = default;
 
 	chrono::system_clock::time_point lastSend;
@@ -145,7 +132,7 @@ public:
 	{
 		_type = ioType::SEND;
 	}
-	void Execute(PULONG_PTR key, DWORD transferred, void* iocp) override;
+	void Execute(ULONG_PTR key, DWORD transferred, void* iocp) override;
 	~SendExecutable() override = default;
 
 };
@@ -157,7 +144,7 @@ public:
 	{
 		_type = ioType::RELEASE;
 	}
-	void Execute(PULONG_PTR key, DWORD transferred, void* iocp) override;
+	void Execute(ULONG_PTR key, DWORD transferred, void* iocp) override;
 	~ReleaseExecutable() override = default;
 
 };

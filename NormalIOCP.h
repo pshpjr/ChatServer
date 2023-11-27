@@ -19,13 +19,15 @@ protected:
 
 	unsigned short GetSessionIndex(uint64 sessionID) const { return (unsigned short)(sessionID >> 47); }
 
+	void _processBuffer(Session& session, CSerializeBuffer& buffer);
+	void waitStart();
 protected:
 	virtual ~NormalIOCP();
 
 	//IOCP
 	HANDLE _iocp = INVALID_HANDLE_VALUE;
 	Socket _listenSocket;
-	bool _isRunning = false;
+	char _isRunning = false;
 	vector<HANDLE> _threadArray;
 	uint16 _maxNetThread = 0;
 	String _ip;
@@ -49,7 +51,7 @@ protected:
 	int g_id = 0;
 	static const int MAX_SESSIONS = 16000;
 	Session sessions[MAX_SESSIONS];
-	LockFreeStack<short> freeIndex;
+	LockFreeStack<unsigned short> freeIndex;
 	const unsigned long long idMask = 0x000'7FFF'FFFF'FFFF;
 	const unsigned long long indexMask = 0x7FFF'8000'0000'0000;
 	const long releaseFlag = 0x0010'0000;

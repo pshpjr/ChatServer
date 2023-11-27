@@ -23,7 +23,7 @@ void Session::Enqueue(CSerializeBuffer* buffer)
 
 void Session::Close()
 {
-	_connect = false;
+	InterlockedExchange8(&_connect,0);
 
 	_socket.CancleIO();
 }
@@ -31,9 +31,12 @@ void Session::Close()
 bool Session::Release(LPCWSTR content, int type)
 {
 	int refDecResult = InterlockedDecrement(&_refCount);
-	
+
+#ifdef SESSION_DEBUG
+
 	auto index = InterlockedIncrement(&debugIndex);
 	release_D[index % debugSize] = { refDecResult,content,type };
+#endif
 
 	if (refDecResult == 0)
 	{
@@ -98,7 +101,7 @@ void Session::trySend()
 
 
 	int sendPackets = 0;
-	WSABUF sendWsaBuf[MAX_SEND_COUNT];
+	WSABUF sendWsaBuf[MAX_SEND_COUNT] = {};
 	for (int i = 0; i < MAX_SEND_COUNT; i++)
 	{
 		CSerializeBuffer* buffer;
@@ -141,7 +144,6 @@ void Session::trySend()
 
 	DWORD flags = 0;
 	_postSendExecute.Clear();
-	ASSERT_CRASH(_postSendExecute._overlapped.InternalHigh == 0);
 
 	int sendResult = _socket.Send(sendWsaBuf, sendPackets, flags ,&_postSendExecute._overlapped);
 	if (sendResult == SOCKET_ERROR)
@@ -153,11 +155,9 @@ void Session::trySend()
 		}
 
 		switch (error) {
-		//ConnectionAborted
-		case 10053:
+		case WSAECONNABORTED:
 			__fallthrough;
-		//WSAECONNRESET
-		case 10054:
+		case WSAECONNRESET:
 			__fallthrough;
 			break;
 		default:
@@ -184,7 +184,7 @@ void Session::RecvNotIncrease()
 
 
 	_recvExecute.Clear();
-	WSABUF recvWsaBuf[2];
+	WSABUF recvWsaBuf[2] {};
 	DWORD flags = 0;
 	char bufferCount = 1;
 
@@ -215,11 +215,10 @@ void Session::RecvNotIncrease()
 		}
 
 		switch (error) {
-		//ConnectionAborted
-		case 10053:
+		case WSAECONNABORTED:
 			__fallthrough;
-		//WSACONNRESET
-		case 10054:
+
+		case WSAECONNRESET:
 			__fallthrough;
 			break;
 		default:
@@ -253,12 +252,12 @@ void Session::Reset()
 	CSerializeBuffer* sendBuffer;
 	while (_sendQ.Dequeue(sendBuffer))
 	{
-		sendBuffer->Release();
+		sendBuffer->Release(L"ResetSendRelease");
 	}
 	_recvQ.Clear();
 	while (_sendingQ.Dequeue(sendBuffer))
 	{
-		sendBuffer->Release();
+		sendBuffer->Release(L"ResetSendingRelease");
 	}
 	_socket.Close();
 }

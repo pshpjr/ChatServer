@@ -19,14 +19,11 @@ public:
 		GCrashDump = new CrashDump();
 		GLogger = new CLogger();
 		GSettingParser = new SettingParser();
-		//GProfiler = new Profiler();
 
 	}
 	~CoreGlobal()
 	{
 
-
-		//delete GProfiler;
 		delete GSettingParser;
 		delete GLogger;
 		delete GCrashDump;

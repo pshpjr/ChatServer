@@ -5,9 +5,10 @@
 #include "Session.h"
 #include "IOCP.h"
 #include "CSerializeBuffer.h"
+#include "CoreGlobal.h"
+#include "Profiler.h"
 
-
-void RecvExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
+void RecvExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 {
 	Session& session = *(Session*)key;
 
@@ -24,7 +25,6 @@ void RecvExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
 		recvNormal(session,iocp);
 	}
 
-
 	session.RecvNotIncrease();
 }
 
@@ -40,7 +40,7 @@ void RecvExecutable::recvNormal(Session& session, void* iocp)
 			break;
 		}
 
-		Header header;
+		Header header {};
 		session._recvQ.Peek((char*)&header, sizeof(Header));
 
 
@@ -56,17 +56,20 @@ void RecvExecutable::recvNormal(Session& session, void* iocp)
 		session._recvQ.Peek(buffer.GetDataPtr(), header.len);
 		session._recvQ.Dequeue(header.len);
 		buffer.MoveWritePos(header.len);
+
 		InterlockedIncrement(&((IOCP*)iocp)->_recvCount);
+
 
 		try
 		{
 			((IOCP*)iocp)->OnRecvPacket(session._sessionID, buffer);
 		}
-		catch (const std::invalid_argument& err)
+		catch (const std::invalid_argument&)
 		{
-			printf("ERR");
+			GLogger->write(L"RecvErr", LogLevel::Debug, L"ERR");
 		}
-		buffer.Release();
+
+		buffer.Release(L"RecvRelease");
 
 	}
 }
@@ -81,11 +84,10 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 		loopCOunt++;
 		if (session._recvQ.Size() < sizeof(Header))
 		{
-
 			break;
 		}
 
-		Header header;
+		Header header {};
 
 		char* packetBegin = nullptr;
 		session._recvQ.Peek((char*)&header, sizeof(Header));
@@ -108,6 +110,10 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 		{
 			break;
 		}
+		if ( header.len == 0 ) {
+			DebugBreak();
+		}
+
 
 		session._recvQ.Dequeue(sizeof(Header));
 
@@ -137,18 +143,18 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 		{
 			((IOCP*)iocp)->OnRecvPacket(session._sessionID, buffer);
 		}
-		catch (const std::invalid_argument& err)
+		catch (const std::invalid_argument&)
 		{
 			session.Close();
 		}
 
 
-		buffer.Release();
+		buffer.Release(L"RecvRelease");
 	}
 }
 
-int compCount;
-void PostSendExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
+
+void PostSendExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 {
 	Session* session = (Session*)key;
 	auto& sendingQ = session->_sendingQ;
@@ -158,7 +164,7 @@ void PostSendExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
 
 	while (sendingQ.Dequeue(buffer))
 	{
-		buffer->Release();
+		buffer->Release(L"PostSendRelease");
 	}
 
 
@@ -180,7 +186,7 @@ void PostSendExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
 
 }
 
-void SendExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
+void SendExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 {
 	Session* session = (Session*)key;
 
@@ -188,13 +194,13 @@ void SendExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
 	session->trySend();
 }
 
-void ReleaseExecutable::Execute(PULONG_PTR key, DWORD transferred, void* iocp)
+void ReleaseExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 {
 	Session* session = (Session*)key;
 
 	session->Reset();
 
 	session->_owner->onDisconnect(session->_sessionID);
-	auto index = session->_sessionID >> 47;
+	unsigned short index = (uint16) (session->_sessionID >> 47);
 	session->_owner->freeIndex.Push(index);
 }

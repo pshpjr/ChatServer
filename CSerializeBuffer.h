@@ -5,7 +5,7 @@
 #include <stdexcept>
 class Player;
 
-
+//#define SERIAL_DEBUG
 class CSerializeBuffer
 {
 	friend class SessionManager;
@@ -13,9 +13,11 @@ class CSerializeBuffer
 	friend class SingleThreadObjectPool<CSerializeBuffer, 0, false>;
 	friend class PostSendExecutable;
 	friend class IOCP;
+	friend class NormalIOCP;
 	friend class Session;
 	friend class RecvExecutable;
-	enum bufferOption { BUFFER_SIZE = 4096 };
+
+	enum bufferOption { BUFFER_SIZE = 512 };
 
 #pragma pack(1)
 
@@ -49,6 +51,20 @@ class CSerializeBuffer
 
 public:
 
+#ifdef SERIAL_DEBUG
+	//DEBUG
+	struct RelastinReleaseEncrypt_D {
+		long refCount;
+		LPCWSTR location;
+		long long contentType;
+	};
+	static const int debugSize = 2000;
+
+	long debugIndex = 0;
+	RelastinReleaseEncrypt_D release_D[debugSize];
+
+#endif
+
 	/// <summary>
 	/// Alloc을 받으면 레퍼런스가 1임. 
 	/// </summary>
@@ -57,20 +73,38 @@ public:
 	{
 		auto ret = _pool.Alloc();
 		ret->Clear();
-		ret->IncreaseRef();
+		ret->IncreaseRef(L"AllocInc");
 		return ret;
 	}
 
-	void IncreaseRef() { InterlockedIncrement(&_refCount); }
+	long IncreaseRef(LPCWCH content) { 
+		auto refIncResult = InterlockedIncrement(&_refCount);	
 
-	void Release()
+#ifdef SERIAL_DEBUG
+		auto index = InterlockedIncrement(&debugIndex);
+		release_D[index % debugSize] = { refIncResult,content,0 };
+#endif
+
+	return refIncResult; 
+	}
+
+	void Release(LPCWCH content)
 	{
 		auto refResult = InterlockedDecrement(&_refCount);
+
+#ifdef SERIAL_DEBUG
+		auto index = InterlockedIncrement(&debugIndex);
+		release_D[index % debugSize] = { refResult,content,0 };
+#endif
+
 		if (refResult == 0)
 		{
 			_pool.Free(this);
 		}
 	}
+
+
+	int	GetDataSize() const { return static_cast< int >( _rear - _data ); }
 private:
 	//버퍼랑 데이터 위치는 고정. 헤더랑 딴 건 가변
 	CSerializeBuffer() :_buffer(new char[BUFFER_SIZE + sizeof(NetHeader)]), _head(_buffer), _data(_buffer + sizeof(NetHeader)), _front(_data), _rear(_data)
@@ -108,11 +142,10 @@ private:
 	bool checksumValid();
 
 
-	int	GetDataSize() const { return static_cast<int>(_rear - _data); }
 	char* GetDataPtr(void) const { return _data; }
 	int getBufferSize() const { return  _bufferSize; }
 
-	int GetFullSize() const { return _rear - _head; }
+	ULONG GetFullSize() const { return ULONG(_rear - _head); }
 
 
 
@@ -211,6 +244,7 @@ private:
 
 	static TLSPool<CSerializeBuffer, 0, false> _pool;
 
+	public:
 	long _refCount = 0;
 
 	SRWLOCK _encodeLock;

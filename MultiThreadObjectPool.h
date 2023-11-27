@@ -53,7 +53,6 @@ public:
 
 	T* Alloc()
 	{
-		Node* next;
 		Node* retNode;
 
 		for(;;)

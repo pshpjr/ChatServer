@@ -19,12 +19,14 @@ public:
 	void Stop();
 	bool SendPacket(SessionID sessionId, CSerializeBuffer* buffer, int type);
 	bool SendPacket(SessionID sessionId, CSerializeBuffer* buffer);
+	bool SendPackets(SessionID sessionId, list<CSerializeBuffer*>& bufArr);
 	bool DisconnectSession(SessionID sessionId);
 	bool isEnd();
 	void SetMaxPacketSize(int size);
 	void SetTimeout(SessionID sessionId, int timeoutMillisecond);
-	void SetDefaultTimeout(int timeoutMillisecond);
-	void SetTimeout(bool isCheck);
+	void SetDefaultTimeout(unsigned int timeoutMillisecond);
+	void PostExecutable(Executable* exe, ULONG_PTR arg);
+
 
 	virtual void OnWorkerThreadBegin() {}; 
 	virtual void OnWorkerThreadEnd() {};
@@ -35,6 +37,9 @@ public:
 	virtual void OnInit() {};
 	virtual void OnStart() {};
 	virtual void OnEnd() {};
+	virtual void OnSessionTimeout(SessionID sessionId,String ip, Port port) {};
+
+
 	//DEBUG
 	void SetRecvDebug(SessionID id, unsigned int type);
 
@@ -50,6 +55,8 @@ public:
 	uint64 GetPacketPoolSize();
 	uint32 GetPacketPoolEmptyCount();
 	uint64 GetTimeoutCount();
+	uint32 GetPacketPoolAcquireCount();
+	uint32 GetPacketPoolReleaseCount();
 
 private:
 	void onDisconnect(SessionID sessionId);

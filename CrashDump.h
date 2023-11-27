@@ -34,7 +34,7 @@ public:
 
 	static LONG WINAPI ExceptionFilter(__in PEXCEPTION_POINTERS pExceptionPointer)
 	{
-		int iWorkingMemory = 0;
+		size_t iWorkingMemory = 0;
 		SYSTEMTIME st;
 
 		long DumpCount = InterlockedIncrement(&_dumpCount);
@@ -70,7 +70,7 @@ public:
 
 		if (hFile != INVALID_HANDLE_VALUE)
 		{
-			MINIDUMP_EXCEPTION_INFORMATION eInfo;
+			MINIDUMP_EXCEPTION_INFORMATION eInfo {};
 			eInfo.ThreadId = GetCurrentThreadId();
 			eInfo.ExceptionPointers = pExceptionPointer;
 			eInfo.ClientPointers = TRUE;

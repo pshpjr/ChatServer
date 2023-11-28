@@ -37,8 +37,8 @@ protected:
 	//MONITOR
 	uint64 _acceptCount = 0;
 	uint64 _oldAccepCount = 0;
-	uint64 _recvCount = 0;
-	uint64 _sendCount = 0;
+	int64 _recvCount = 0;
+	int64 _sendCount = 0;
 	uint64 _acceptTps = 0;
 	uint64 _recvTps = 0;
 	uint64 _sendTps = 0;

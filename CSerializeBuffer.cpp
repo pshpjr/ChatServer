@@ -115,6 +115,7 @@ bool CSerializeBuffer::checksumValid()
 
 void CSerializeBuffer::setEncryptHeader(NetHeader header)
 {
+	isEncrypt++;
 	*(NetHeader*)_head = header;
 
 }

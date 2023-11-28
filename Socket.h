@@ -14,6 +14,8 @@ public:
 
 	Socket(SOCKET socket, SOCKADDR_IN addr);
 
+	bool isSameSubnet(const String& comp, char subnetMaskBits);
+	static bool isSameSubnet(const IN_ADDR& a, const IN_ADDR& b, char subnetMaskBits);
 
 	bool Init();
 	bool Bind(String ip, uint16 port);
@@ -22,6 +24,8 @@ public:
 	bool Connect(String ip, uint16 port);
 	void CancleIO();
 	void Close();
+	static IN_ADDR ip2Address(const WCHAR* ip);
+
 	/// <summary>
 	/// 
 	/// </summary>
@@ -38,8 +42,8 @@ public:
 	String GetIP() const;
 	uint16 GetPort() const;
 
-	SOCKET _beforeSocket=-1;
+
 private:
-	static IN_ADDR ip2Address(const WCHAR* ip);
+	SOCKET _beforeSocket = -1;
 };
 

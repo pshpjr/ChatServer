@@ -138,7 +138,6 @@ void Session::trySend()
 	}
 
 
-
 	needCheckSendTimeout = true;
 	_postSendExecute.lastSend = chrono::system_clock::now();
 

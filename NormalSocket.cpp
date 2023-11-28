@@ -1,7 +1,7 @@
 ﻿#include "stdafx.h"
 #include "NormalSocket.h"
-
 #include "Socket.h"
+
 
 Socket::Socket() : NormalSocket(INVALID_SOCKET, {0})
 {
@@ -9,6 +9,26 @@ Socket::Socket() : NormalSocket(INVALID_SOCKET, {0})
 
 Socket::Socket(SOCKET socket, SOCKADDR_IN addr) : NormalSocket(socket, addr)
 {
+}
+
+bool Socket::isSameSubnet(const String& comp, char subnetMaskBits)
+{
+	IN_ADDR compAddr;
+	InetPtonW(AF_INET, comp.c_str(), &compAddr);
+
+	return isSameSubnet(compAddr, _sockAddr.sin_addr,subnetMaskBits);
+}
+
+bool Socket::isSameSubnet(const IN_ADDR& a, const IN_ADDR& b, char subnetMaskBits)
+{
+	ASSERT_CRASH(0 <= subnetMaskBits && subnetMaskBits <= 32, "subnetSizeError");
+	unsigned long subnetMask = ( 0xFFFFFFFFull >> ( 32 - subnetMaskBits ) ) & 0xFFFFFFFF;
+
+	unsigned long compMasked = a.S_un.S_addr & subnetMask;
+	unsigned long tarMasked = b.S_un.S_addr & subnetMask;
+
+
+	return compMasked == tarMasked;
 }
 
 void Socket::CancleIO()

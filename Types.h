@@ -20,3 +20,5 @@ using SessionID = uint64;
 using SocketID = uint64;
 using SockAddr_in = SOCKADDR_IN;
 
+using SessionID = uint64;
+using Port = uint16;

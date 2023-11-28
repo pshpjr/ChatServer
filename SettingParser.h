@@ -28,18 +28,49 @@ public:
 
 	void Init(LPCWSTR location = L"serverSetting.txt");
 
-	bool GetValue(LPCWSTR name, OUT int32& value);
-	bool GetValue(LPCWSTR name, OUT LPWSTR value);
-	bool GetValue(LPCWSTR name, OUT String& value);
-	bool GetValue(LPCWSTR name, OUT std::string& value);
+
+	template <typename T>
+	void GetValue(String name, T& value)
+	{
+		auto result = getValue(name);
+		
+		if constexpr ( is_integral_v<T>)
+		{
+			value = stoi(result);
+		}
+		else if constexpr ( is_floating_point_v<T>)
+		{
+			value = stod(result);
+		}
+		else if constexpr ( is_same_v<T, String> )
+		{
+			value = result;
+		}
+		//else if constexpr ( is_same_v<T, std::string> )
+		//{
+
+		//}
+		else if constexpr ( is_same_v<T, LPCWSTR> )
+		{
+			wcscpy_s(value, MAX_WORD_SIZE, result.c_str());
+		}
+		else
+		{
+			static_assert( std::is_integral<T>::value || std::is_floating_point<T>::value, "Unsupported type" );
+		}
+
+	}
+	//void GetValue(const String name, OUT LPWSTR value);
+	//void GetValue(const String name, OUT String& value);
+	//void GetValue(const String name, OUT std::string& value);
 
 	~SettingParser()
 	{
 		free(_buffer);
 	}
 
-
 private:
+	String getValue(const String name);
 	void loadSetting(LPCTSTR location);
 	void parse();
 	bool getTok(OUT LPTSTR word);
@@ -53,15 +84,13 @@ public:
 	};
 
 private:
-	FILE* _settingStream =nullptr;
-
 	LPWSTR _buffer = nullptr;
 
 	size_t _bufferIndex = 0;
 	size_t bufferSize = 0;
 
 	int32 _groupIndex = -1;
-	WCHAR _groupsName[MAXGROUPSIZE][MAX_WORD_SIZE] = { {0}, };
+	String _groupsName[MAXGROUPSIZE];
 	
 	HashMap<String, String> _settingsContainer[MAXGROUPSIZE];
 };

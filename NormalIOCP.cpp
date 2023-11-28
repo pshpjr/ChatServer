@@ -265,7 +265,7 @@ bool IOCP::DisconnectSession(SessionID sessionId)
 
 	return true;  
 }
-void IOCP::onDisconnect(SessionID sessionId)
+void IOCP::_onDisconnect(SessionID sessionId)
 {
 	InterlockedDecrement16(&_sessionCount);
 	OnDisconnect(sessionId);
@@ -507,8 +507,8 @@ void IOCP::AcceptThread(LPVOID arg)
 
 		session.OffReleaseFlag();
 		session._connect = true;
-
-		OnConnect(session.GetSessionID());
+		
+		OnConnect(session.GetSessionID(),clientSocket.GetSockAddr());
 		session.RecvNotIncrease();
 
 		InterlockedIncrement16(&_sessionCount);
@@ -530,8 +530,8 @@ void IOCP::MonitorThread(LPVOID arg)
 		_packetPoolSize = CSerializeBuffer::_pool.GetGPoolSize();
 		_packetPoolEmpty = CSerializeBuffer::_pool.GetGPoolEmptyCount();
 
-		InterlockedExchange(&_recvCount, 0);
-		InterlockedExchange(&_sendCount, 0);
+		InterlockedExchange64(&_recvCount, 0);
+		InterlockedExchange64(&_sendCount, 0);
 
 		auto sleepTime = chrono::duration_cast<chrono::milliseconds> (next - chrono::system_clock::now());
 		next += chrono::milliseconds(1000);
@@ -569,6 +569,11 @@ void IOCP::TimeoutThread(LPVOID arg)
 	}
 	printf("TimeoutThread End\n");
 
+}
+
+void IOCP::increaseRecvCount()
+{
+	InterlockedIncrement64(&_recvCount);
 }
 
 

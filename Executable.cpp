@@ -31,7 +31,7 @@ void RecvExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 void RecvExecutable::recvNormal(Session& session, void* iocp)
 {
 	using Header = CSerializeBuffer::LANHeader;
-
+	IOCP server = *reinterpret_cast< IOCP* >( iocp );
 	while (true)
 	{
 		if (session._recvQ.Size() < sizeof(Header))
@@ -57,7 +57,7 @@ void RecvExecutable::recvNormal(Session& session, void* iocp)
 		session._recvQ.Dequeue(header.len);
 		buffer.MoveWritePos(header.len);
 
-		InterlockedIncrement(&((IOCP*)iocp)->_recvCount);
+		server.increaseRecvCount();
 
 
 		try
@@ -77,6 +77,7 @@ void RecvExecutable::recvNormal(Session& session, void* iocp)
 void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 {
 	using Header = CSerializeBuffer::NetHeader;
+	IOCP server = *reinterpret_cast< IOCP*>(iocp);
 	int loopCOunt = 0;
 
 	while (true)
@@ -135,7 +136,7 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 			break;
 		}
 
-		InterlockedIncrement(&((IOCP*)iocp)->_recvCount);
+		server.increaseRecvCount();
 		//session.debugIndex++;
 		//session.Debug[session.debugIndex] = { packetBegin,session._recvQ.GetFront(),session._recvQ.GetRear() };
 
@@ -147,7 +148,6 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 		{
 			session.Close();
 		}
-
 
 		buffer.Release(L"RecvRelease");
 	}
@@ -177,7 +177,7 @@ void PostSendExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 		DebugBreak();
 	}
 
-	InterlockedIncrement(&((IOCP*)iocp)->_sendCount);
+	InterlockedIncrement64(&((IOCP*)iocp)->_sendCount);
 	
 	session->trySend();
 
@@ -200,7 +200,7 @@ void ReleaseExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 
 	session->Reset();
 
-	session->_owner->onDisconnect(session->_sessionID);
+	session->_owner->_onDisconnect(session->_sessionID);
 	unsigned short index = (uint16) (session->_sessionID >> 47);
 	session->_owner->freeIndex.Push(index);
 }

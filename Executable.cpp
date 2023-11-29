@@ -31,7 +31,7 @@ void RecvExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 void RecvExecutable::recvNormal(Session& session, void* iocp)
 {
 	using Header = CSerializeBuffer::LANHeader;
-	IOCP server = *reinterpret_cast< IOCP* >( iocp );
+	IOCP& server = *reinterpret_cast< IOCP* >( iocp );
 	while (true)
 	{
 		if (session._recvQ.Size() < sizeof(Header))

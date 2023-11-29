@@ -222,7 +222,11 @@ String SettingParser::getValue(const String name)
 	{
 		if ( _groupsName[i].compare(Group) == 0 )
 		{
-			return _settingsContainer[i].find(Name)->second;
+			auto result = _settingsContainer[i].find(Name);
+
+			if ( result == _settingsContainer[i].end() )
+				throw EInvalidName();
+			return result->second;
 		}
 	}
 	throw EInvalidGroup();

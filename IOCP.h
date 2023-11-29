@@ -25,7 +25,7 @@ public:
 	void SetTimeout(SessionID sessionId, int timeoutMillisecond);
 	void SetDefaultTimeout(unsigned int timeoutMillisecond);
 	void PostExecutable(Executable* exe, ULONG_PTR arg);
-
+	
 
 	virtual void OnWorkerThreadBegin() {}; 
 	virtual void OnWorkerThreadEnd() {};
@@ -56,8 +56,8 @@ public:
 	uint64 GetTimeoutCount();
 	uint32 GetPacketPoolAcquireCount();
 	uint32 GetPacketPoolReleaseCount();
-
-
+	uint64 GetDisconnectCount();
+	uint64 GetDisconnectPersec();
 private:
 	//MONITOR
 	void increaseRecvCount();

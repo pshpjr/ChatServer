@@ -24,12 +24,14 @@ public:
 	{
 		mysql_init(&conn);
 
+		SetReconnect(true);
+
 		connection = mysql_real_connect(&conn, ip, id, pass, db, port, ( char* ) NULL, 0);
 		const char* err = nullptr;
 		if ( connection == NULL )
 		{
-			err = mysql_error(connection);
-			auto num = mysql_errno(connection);
+			err = mysql_error(&conn);
+			auto num = mysql_errno(&conn);
 			throw DBErr(err);
 
 			printf("%d \n", num);
@@ -38,7 +40,7 @@ public:
 
 	~DBConnection()
 	{
-
+		Close();
 	}
 
 	void Query(LPCSTR query, ...)
@@ -60,8 +62,8 @@ public:
 		query_stat = mysql_query(connection, vec.data());
 		if ( query_stat != 0 )
 		{
-			err = mysql_error(connection);
-			auto num = mysql_errno(connection);
+			err = mysql_error(&conn);
+			auto num = mysql_errno(&conn);
 			throw DBErr(err);
 
 			printf("%d \n", num);
@@ -103,12 +105,17 @@ public:
 		mysql_close(connection);
 	}
 
+	void SetReconnect(bool useReconnect)
+	{
+		bool reconnect = useReconnect;
+		mysql_options(&conn, MYSQL_OPT_RECONNECT, &reconnect);
+	}
+
 private:
 	MYSQL conn;
 	MYSQL* connection = NULL;
 	MYSQL_RES* sql_result;
 	MYSQL_ROW sql_row;
 	int query_stat;
-
 };
 

@@ -39,13 +39,17 @@ protected:
 	uint64 _oldAccepCount = 0;
 	int64 _recvCount = 0;
 	int64 _sendCount = 0;
+	uint64 _oldDisconnect = 0;
+	int64 _disconnectCount = 0;
 	uint64 _acceptTps = 0;
 	uint64 _recvTps = 0;
 	uint64 _sendTps = 0;
+	uint64 _disconnectps = 0;
 	short _sessionCount = 0;
 	uint64 _packetPoolSize = 0;
 	uint32 _packetPoolEmpty = 0;
 	uint64 _timeoutSessions = 0;
+
 
 // SESSION_MANAGER
 	int g_id = 0;

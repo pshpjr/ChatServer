@@ -40,3 +40,14 @@ public:
 	}
 
 };
+
+class EInvalidName: public std::exception
+{
+
+public:
+	char const* what() const override
+	{
+		return "item name is invalid";
+	}
+
+};

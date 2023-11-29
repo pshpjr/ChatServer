@@ -268,6 +268,7 @@ bool IOCP::DisconnectSession(SessionID sessionId)
 void IOCP::_onDisconnect(SessionID sessionId)
 {
 	InterlockedDecrement16(&_sessionCount);
+	InterlockedIncrement64(&_disconnectCount);
 	OnDisconnect(sessionId);
 }
 
@@ -360,6 +361,16 @@ uint32 IOCP::GetPacketPoolAcquireCount()
 uint32 IOCP::GetPacketPoolReleaseCount()
 {
 	return CSerializeBuffer::_pool.GetRelaseCount();
+}
+
+uint64 IOCP::GetDisconnectCount()
+{
+	return _disconnectCount;
+}
+
+uint64 IOCP::GetDisconnectPersec()
+{
+	return _disconnectps;
 }
 
 
@@ -525,6 +536,8 @@ void IOCP::MonitorThread(LPVOID arg)
 	{
 		_acceptTps = _acceptCount - _oldAccepCount;
 		_oldAccepCount = _acceptCount;
+		_disconnectps = _disconnectCount - _oldDisconnect;
+		_oldDisconnect = _disconnectCount;
 		_recvTps = _recvCount;
 		_sendTps = _sendCount;
 		_packetPoolSize = CSerializeBuffer::_pool.GetGPoolSize();

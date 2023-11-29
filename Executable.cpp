@@ -77,7 +77,7 @@ void RecvExecutable::recvNormal(Session& session, void* iocp)
 void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 {
 	using Header = CSerializeBuffer::NetHeader;
-	IOCP server = *reinterpret_cast< IOCP*>(iocp);
+	IOCP& server = *reinterpret_cast< IOCP*>(iocp);
 	int loopCOunt = 0;
 
 	while (true)

@@ -32,52 +32,57 @@ public:
 
 	void Enqueue(const T& data)
 	{
-		Node* newNode = _pool.Alloc();
+		Node* newNode;
+		{
+			PRO_BEGIN("GET_NODE")
+			newNode = _pool.Alloc();
+		}
+
 		newNode->data = data;
 
 		newNode->next = nullptr;
 		auto nextTailCount = InterlockedIncrement16(&tailCount);
 		Node* newTail = (Node*)((unsigned long long)newNode | ((unsigned long long)(nextTailCount)) << 47);
 
-
-
-		while (true)
 		{
-			Node* tail = _tail;
-			Node* tailNode = (Node*)((unsigned long long)tail & pointerMask);
-			auto enqCount = InterlockedIncrement(&tryEnqueueCount);
-			if (enqCount == 100)
+			PRO_BEGIN("Enqueue_Loop")
+			while ( true )
 			{
-				DebugBreak();
-			}
-
-
-			if (tailNode->next == nullptr)
-			{
-				if (InterlockedCompareExchangePointer((PVOID*)&tailNode->next, newTail, nullptr) == nullptr)
+				Node* tail = _tail;
+				Node* tailNode = ( Node* ) ( ( unsigned long long )tail & pointerMask );
+				auto enqCount = InterlockedIncrement(&tryEnqueueCount);
+				if ( enqCount == 100 )
 				{
-					InterlockedExchange(&tryEnqueueCount, 0);
-					//auto debugCount = InterlockedIncrement64(&debugIndex);
-					//auto index = debugCount % debugSize;
+					DebugBreak();
+				}
 
-					//debug[index].threadID = std::this_thread::get_id();
-					//debug[index].type = IoTypes::Enqueue;
-					//debug[index].oldHead = (unsigned long long)tailNode;
-					//debug[index].newHead = (unsigned long long)((Node*)((unsigned long long)newTail &pointerMask));
 
-					if(InterlockedCompareExchangePointer((PVOID*)&_tail, newTail, tail)==tail)
+				if ( tailNode->next == nullptr )
+				{
+					if ( InterlockedCompareExchangePointer(( PVOID* ) &tailNode->next, newTail, nullptr) == nullptr )
 					{
+						InterlockedExchange(&tryEnqueueCount, 0);
+						//auto debugCount = InterlockedIncrement64(&debugIndex);
+						//auto index = debugCount % debugSize;
 
+						//debug[index].threadID = std::this_thread::get_id();
+						//debug[index].type = IoTypes::Enqueue;
+						//debug[index].oldHead = (unsigned long long)tailNode;
+						//debug[index].newHead = (unsigned long long)((Node*)((unsigned long long)newTail &pointerMask));
+
+						if ( InterlockedCompareExchangePointer(( PVOID* ) &_tail, newTail, tail) == tail )
+						{
+
+						}
+
+						break;
 					}
-
-					break;
+				}
+				else
+				{
+					InterlockedCompareExchangePointer(( PVOID* ) &_tail, tailNode->next, tail);
 				}
 			}
-			else
-			{
-				InterlockedCompareExchangePointer((PVOID*)&_tail, tailNode->next, tail);
-			}
-			
 		}
 		InterlockedIncrement(&_size);
 	}
@@ -125,10 +130,8 @@ public:
 private:
 	const unsigned long long pointerMask = 0x000'7FFF'FFFF'FFFF;
 
-	//이거 붙어있을 때 떨어져 있을 때 성능 차이 비교
 	Node* _head = nullptr;
 	Node* _tail = nullptr;
-	//얘도 계속 수정됨. 따로 있을 때 비교.
 	short tailCount = 0;
 	static long ID;
 	long _size = 0;

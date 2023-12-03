@@ -17,7 +17,7 @@ class CSerializeBuffer
 	friend class Session;
 	friend class RecvExecutable;
 
-	enum bufferOption { BUFFER_SIZE = 512 };
+	enum bufferOption { BUFFER_SIZE = 256 };
 
 #pragma pack(1)
 
@@ -33,11 +33,6 @@ class CSerializeBuffer
 		unsigned char checkSum;
 	};
 #pragma pack()
-
-	struct HeapBreakDebug
-	{
-		char emptySpace[100];
-	};
 
 
 
@@ -115,12 +110,6 @@ private:
 
 	~CSerializeBuffer()
 	{
-		DebugBreak();
-		for (int i = 0; i < 100; ++i)
-		{
-			if (_heapBreakDebug.emptySpace[i] != 0)
-				DebugBreak();
-		}
 
 		delete[] _buffer;
 	}
@@ -239,8 +228,6 @@ private:
 	char* _rear = nullptr;
 	int _bufferSize = BUFFER_SIZE;
 	char isEncrypt = false;
-	
-	HeapBreakDebug _heapBreakDebug = {0,};
 
 	static TLSPool<CSerializeBuffer, 0, false> _pool;
 

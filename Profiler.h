@@ -58,8 +58,8 @@ public:
 
 private:
 	int _itemNumber = 0;
-	std::chrono::system_clock::time_point  _start;
-	std::chrono::system_clock::time_point  _end;
+	std::chrono::steady_clock::time_point  _start;
+	std::chrono::steady_clock::time_point  _end;
 };
 
 class ProfileManager
@@ -115,7 +115,7 @@ private:
 };
 extern ProfileManager GProfiler;
 
-#define PROFILE
+//#define PROFILE
 
 #ifdef PROFILE
 

@@ -37,7 +37,7 @@ public:
 	virtual void OnStart() {};
 	virtual void OnEnd() {};
 	virtual void OnSessionTimeout(SessionID sessionId,String ip, Port port) {};
-
+	virtual void OnMonitorRun() {};
 
 	//DEBUG
 	void SetRecvDebug(SessionID id, unsigned int type);

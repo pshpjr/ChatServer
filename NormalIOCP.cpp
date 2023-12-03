@@ -254,6 +254,8 @@ void NormalIOCP::_processBuffer(Session& session, CSerializeBuffer& buffer)
 
 bool IOCP::DisconnectSession(SessionID sessionId)
 {
+
+
 	auto result = FindSession(sessionId, L"DisconnectInc");
 	if (result == nullptr)
 		return false;
@@ -543,6 +545,8 @@ void IOCP::MonitorThread(LPVOID arg)
 		_packetPoolSize = CSerializeBuffer::_pool.GetGPoolSize();
 		_packetPoolEmpty = CSerializeBuffer::_pool.GetGPoolEmptyCount();
 
+		OnMonitorRun();
+
 		InterlockedExchange64(&_recvCount, 0);
 		InterlockedExchange64(&_sendCount, 0);
 
@@ -570,6 +574,7 @@ void IOCP::TimeoutThread(LPVOID arg)
 				if ( session.CheckTimeout(now) ) 
 				{
 					OnSessionTimeout(session.GetSessionID(),session.GetIP(),session.GetPort());
+					session.TimeoutReset();
 					_timeoutSessions++;
 				}
 			}

@@ -144,8 +144,10 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 		{
 			((IOCP*)iocp)->OnRecvPacket(session._sessionID, buffer);
 		}
-		catch (const std::invalid_argument&)
+		catch (const std::invalid_argument& e)
 		{
+
+			printf("%s",e.what());
 			session.Close();
 		}
 

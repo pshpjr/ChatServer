@@ -36,6 +36,12 @@ public:
 	void SetOwner(IOCP& owner) { _owner = &owner; }
 	void Reset();
 	void SetNetSession(char staticKey) { _staticKey = staticKey; }
+	void TimeoutReset()
+	{
+		auto now = chrono::system_clock::now();
+		lastRecv = now;
+		_postSendExecute.lastSend = now;
+	}
 	String GetIP() { return _socket.GetIP(); }
 	uint16 GetPort() { return _socket.GetPort(); }
 

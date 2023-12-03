@@ -23,8 +23,6 @@ class MultiThreadObjectPool
 
 public:
 
-
-
 	MultiThreadObjectPool(int baseAllocSize):_count(baseAllocSize)
 	{
 		for (int i = 0; i < baseAllocSize; ++i)
@@ -53,6 +51,7 @@ public:
 
 	T* Alloc()
 	{
+		PRO_BEGIN("LOCKFREEPOOL_ALLOC")
 		Node* retNode;
 
 		for(;;)

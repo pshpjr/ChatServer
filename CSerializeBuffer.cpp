@@ -220,10 +220,11 @@ void CSerializeBuffer::setEncryptHeader(NetHeader header)
 
 CSerializeBuffer& CSerializeBuffer::operator<<(LPWSTR value)
 {
+
 	//insert null terminated string to buffer
 	//int strlen = wcslen(value) + 1;
 	size_t strlen = wcslen(value)+1;
-
+	canPush(strlen);
 	wcscpy_s((wchar_t*)_rear, strlen, value);
 	_rear += strlen * sizeof(WCHAR);
 	return *this;
@@ -234,6 +235,7 @@ CSerializeBuffer& CSerializeBuffer::operator<<(LPCWSTR value)
 	//insert null terminated string to buffer
 	//int strlen = wcslen(value) + 1;
 	size_t strlen = wcslen(value)+1;
+	canPush(strlen);
 	wcscpy_s((wchar_t*)_rear, strlen, value);
 
 	_rear += strlen * sizeof(WCHAR);
@@ -242,6 +244,7 @@ CSerializeBuffer& CSerializeBuffer::operator<<(LPCWSTR value)
 
 CSerializeBuffer& CSerializeBuffer::operator<<(String& value)
 {
+	canPush(value.size());
 	operator<<((uint16)(value.size() * sizeof(WCHAR)));
 
 	value.copy((LPWCH)_rear, value.size());
@@ -341,7 +344,7 @@ CSerializeBuffer& CSerializeBuffer::operator>>(String& value)
 {
 	WORD len = 0;
 	operator >> (len);
-
+	canPop(len);
 	len /= sizeof(WCHAR);
 	value = String((wchar_t*)_front, len);
 
@@ -351,24 +354,28 @@ CSerializeBuffer& CSerializeBuffer::operator>>(String& value)
 
 void CSerializeBuffer::GetWSTR(LPWSTR arr, int strLen)
 {
+	canPop(strLen);
 	wcscpy_s(arr, strLen, (wchar_t*)_front);
 	_front += strLen * sizeof(WCHAR);
 }
 
 void CSerializeBuffer::GetCSTR(LPSTR arr, int size)
 {
-	strcpy_s(arr, size, _front);
-	_front += size * sizeof(WCHAR);
+	canPop(size);
+	memcpy_s(arr, size, _front,size);
+	_front += size;
 }
 
 void CSerializeBuffer::SetWSTR(LPCWSTR arr, int size)
 {
+	canPush(size);
 	wcscpy_s((LPWSTR)_rear, size, (wchar_t*)arr);
 	_rear += size * sizeof(WCHAR);
 }
 
 void CSerializeBuffer::SetCSTR(LPCSTR arr, int size)
 {
+	canPop(size);
 	memcpy_s(_rear, size, arr, size);
 	_rear += size;
 }
@@ -376,7 +383,7 @@ void CSerializeBuffer::SetCSTR(LPCSTR arr, int size)
 CSerializeBuffer& CSerializeBuffer::operator>>(LPWSTR value)
 {
 	size_t strlen = wcslen((LPWCH)_front) + 1;
-
+	canPop(strlen);
 	wcscpy_s(value, strlen, (wchar_t*)_front);
 	_front += strlen * sizeof(WCHAR);
 	return *this;

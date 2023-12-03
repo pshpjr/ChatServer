@@ -158,7 +158,7 @@ SingleThreadObjectPool<data, dataId, usePlacement>::~SingleThreadObjectPool()
 template <typename data, int dataId, bool usePlacement>
 data* SingleThreadObjectPool<data, dataId, usePlacement>::Alloc()
 {
-
+	PRO_BEGIN("ALLOC_POOLALLOC_SINGLE")
 	if (_top != nullptr)
 	{
 		Node* retNode = _top;
@@ -188,7 +188,7 @@ template <typename data, int dataId, bool usePlacement>
 bool SingleThreadObjectPool<data, dataId, usePlacement>::Free(data* pdata)
 {
 	Node* dataNode = (Node*)((char*)pdata - offsetof(Node, _data));
-
+	
 	//정상인지 테스트
 #ifdef MYDEBUG
 	if (dataNode->_head == (Node*)0x3412)

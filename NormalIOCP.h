@@ -60,15 +60,9 @@ protected:
 	const unsigned long long indexMask = 0x7FFF'8000'0000'0000;
 	const long releaseFlag = 0x0010'0000;
 
-
-
-
 	uint64 g_sessionId = 0;
 	char _staticKey;
 
 	bool gracefulEnd = false;
-
-
-
 };
 

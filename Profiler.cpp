@@ -35,7 +35,7 @@ void Profiler::ProfileDataOutText(LPWSTR szFileName)
 		swprintf_s(errBuffer, TEXT("errNo : %d | SettingParser::loadSetting, fopen %s"), openRet, buffer );
 		return;
 	}
-	fwprintf_s(fout, L"\t\tName\t\t|\t\t\tAvg\t\t\t|\t\tCall\t\t|\t\tMin\t\t|\t\tMax\t\t|\t\t\n");
+	fwprintf_s(fout, L"\t%10s\t\t\t\t%16s\t\t\t\t%10s\t\t\t%10s\t\t\t%10s\t\t\n",L"Name",L"Avg",L"Call",L"Min",L"Max");
 	
 	for (auto& sample : Profile_Samples)
 	{
@@ -105,12 +105,12 @@ void Profiler::applyProfile(const int& item_number, std::chrono::microseconds ti
 ProfileItem::ProfileItem(LPCWSTR name)
 {
 	_itemNumber = GProfiler.Get().getItemNumber(name);
-	_start = std::chrono::system_clock::now();
+	_start = std::chrono::steady_clock::now();
 }
 
 ProfileItem::~ProfileItem()
 {
-	_end = std::chrono::system_clock::now();
+	_end = std::chrono::steady_clock::now();
 	GProfiler.Get().applyProfile(_itemNumber, std::chrono::duration_cast<std::chrono::microseconds>(_end - _start));
 }
 

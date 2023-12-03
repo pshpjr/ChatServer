@@ -1,15 +1,14 @@
 ﻿#pragma once
 #include "Windows.h"
 #include "SingleThreadObjectPool.h"
-
-static constexpr int TLS_POOL_INITIAL_SIZE = 2000;
+#include "Profiler.h"
+static constexpr int TLS_POOL_INITIAL_SIZE = 5'000;
 static constexpr int GLOBAL_POOL_INITIAL_SIZE = TLS_POOL_INITIAL_SIZE*10;
 
 
 template <typename T, int dataId, bool usePlacement = false>
 class TLSPool
 {
-
 public:
 	using poolType = SingleThreadObjectPool<T, dataId, usePlacement>;
 	using Node = typename poolType::Node;
@@ -40,11 +39,11 @@ public:
 	Node* createNode()
 	{
 		Node* newNode = (Node*)malloc(sizeof(Node));
-		_Analysis_assume_(newNode!=nullptr)
 		newNode->_tail = nullptr; 
 
+#ifdef TLSPoolDebug
 		allocked.push_back(newNode);
-
+#endif
 		if constexpr (!usePlacement)
 			new (&newNode->_data) T();
 		return newNode;
@@ -56,23 +55,16 @@ public:
 	 */
 	Node* AcquireNode(int size)
 	{
+		int i = 0;
+		Node* ret = nullptr;
 		EnterCriticalSection(&_cs);
 		_acquireCount++;
-		int i = 0;
 
 		Node* newTop = _top;
-		Node* ret = nullptr;
-
-		//if(_pooledNodeCount == 0)
-		//{
-		//	DebugBreak();
-		//}
-
-
-
 		if(_pooledNodeSize < size)
 		{
-			for (int i = 0; i < size; ++i)
+			PRO_BEGIN("ACQUIRE_NEW")
+			for (int i = 0; i < size*2; ++i)
 			{
 				Node* newNode = createNode();
 
@@ -80,8 +72,6 @@ public:
 				newTop = newNode;
 			}
 			_top = newTop;
-
-			
 
 			for (int i = 0; i < size; ++i)
 			{
@@ -96,6 +86,7 @@ public:
 		}
 		else
 		{
+			PRO_BEGIN("ACQUIRE_INPOOL")
 			ret = _top;
 
 			for (int i = 0; i < size-1; ++i)
@@ -109,11 +100,6 @@ public:
 			newTop->_tail;
 		}
 
-		Node* test = _top;
-		for ( int i = 0; i < _pooledNodeSize - 1; ++i )
-		{
-			test = test->_tail;
-		}
 
 		LeaveCriticalSection(&_cs);
 
@@ -144,6 +130,7 @@ public:
 
 	T* Alloc()
 	{
+		PRO_BEGIN("TLSPOOL_ALLOC")
 		poolType* pool = (poolType*)TlsGetValue(localPoolTlsIndex);
 
 		if (pool == nullptr)
@@ -154,16 +141,18 @@ public:
 
 		if(pool->GetObjectCount() == 0)
 		{
+			PRO_BEGIN("TLSPOOL_ALLOC_ACQUIRE")
 			pool->_top = AcquireNode(TLS_POOL_INITIAL_SIZE);
 			pool->_objectCount = TLS_POOL_INITIAL_SIZE;
 
 		}
-
+		PRO_BEGIN("TLSPOOL_ALLOC_PoolAlloc")
 		return pool->Alloc();
 	}
 
 	void Free(T* data)
 	{
+		//PRO_BEGIN("FREE")
 		poolType* pool = (poolType*)TlsGetValue(localPoolTlsIndex);
 
 		if (pool == nullptr)
@@ -176,7 +165,7 @@ public:
 
 		if (pool->GetObjectCount() > TLS_POOL_INITIAL_SIZE*2)
 		{
-
+			//PRO_BEGIN("FREE_RELEASE")
 			Node* releaseHead = pool->_top;
 
 			Node* releaseTail = pool->_top;
@@ -200,7 +189,7 @@ public:
 private:
 	CRITICAL_SECTION _cs;
 
-	list<Node*> allocked;
+
 
 	inline static DWORD localPoolTlsIndex = 0;
 	Node* _top = nullptr;
@@ -210,11 +199,11 @@ private:
 	const int _localPoolSize = TLS_POOL_INITIAL_SIZE;
 	const int _globalPoolSize = GLOBAL_POOL_INITIAL_SIZE;
 
-	long _acquireCount = 0;
-	long _releaseCount = 0;
+	unsigned long _acquireCount = 0;
+	unsigned long _releaseCount = 0;
 
-	int _poolEmptyCount = 0;
-
+	unsigned int _poolEmptyCount = 0;
+#ifdef TLSPoolDebug
 	struct Debug
 	{
 		int threadID;
@@ -226,6 +215,8 @@ private:
 	};
 	long debugIndex = 0;
 	Debug debug[1000];
+	list<Node*> allocked;
+#endif
 };
 
 #ifndef USE_TLS_POOL

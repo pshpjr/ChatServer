@@ -46,10 +46,12 @@ public:
 		{
 			value = result;
 		}
-		//else if constexpr ( is_same_v<T, std::string> )
-		//{
+		else if constexpr ( is_same_v<T, std::string> )
+		{
+			std::string s(result.begin(), result.end());
 
-		//}
+			value = move(s);
+		}
 		else if constexpr ( is_same_v<T, LPCWSTR> )
 		{
 			wcscpy_s(value, MAX_WORD_SIZE, result.c_str());

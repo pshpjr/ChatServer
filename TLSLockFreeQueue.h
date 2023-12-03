@@ -18,7 +18,7 @@ class TLSLockFreeQueue
 public:
 	TLSLockFreeQueue() : queueID((Node*)InterlockedIncrement64(&GID))
 	{
-		Node* dummy = _pool.Alloc();
+		Node* dummy = _tlsLFQNodePool.Alloc();
 
 		dummy->next = queueID;
 		_head = dummy;
@@ -27,39 +27,45 @@ public:
 
 	void Enqueue(const T& data)
 	{
-		Node* allocNode = _pool.Alloc();
+		Node* allocNode; {
+			PRO_BEGIN("GET_NODE")
+			allocNode = _tlsLFQNodePool.Alloc();
+		}
+		 
 		Node* newNode = allocNode;
 		newNode->data = data;
 		newNode->next = queueID;
 
 		auto headCount = InterlockedIncrement16(&tailCount);
-		Node* newTail = (Node*)((unsigned long long)newNode | ((unsigned long long)(headCount)) << 47);
-
-		while (true)
+		Node* newTail = ( Node* ) ( ( unsigned long long )newNode | ( ( unsigned long long )( headCount ) ) << 47 );
 		{
-			Node* tail = _tail;
-			Node* tailNode = (Node*)((unsigned long long)tail & pointerMask);
-			
-			if (tailNode->next == queueID)
+			PRO_BEGIN("Enqueue_Loop")
+			while ( true )
 			{
-				if (InterlockedCompareExchangePointer((PVOID*)&tailNode->next, newTail, (PVOID*)queueID) == queueID)
-				{
-	
-					if(InterlockedCompareExchangePointer((PVOID*)&_tail, newTail, tail)==tail)
-					{
-					}
+				Node* tail = _tail;
+				Node* tailNode = ( Node* ) ( ( unsigned long long )tail & pointerMask );
 
-					break;
+				if ( tailNode->next == queueID )
+				{
+					if ( InterlockedCompareExchangePointer(( PVOID* ) &tailNode->next, newTail, ( PVOID* ) queueID) == queueID )
+					{
+
+						if ( InterlockedCompareExchangePointer(( PVOID* ) &_tail, newTail, tail) == tail )
+						{
+						}
+
+						break;
+					}
 				}
+				//tail의 next가 queueiD가 아니면 경우의 수는 2가지
+				//다른 큐의 id이거나 이미 tail 뒤에 누가 넣었거나, 다른 큐에 들어갔거나
+				//내 큐의 tail이라면 cas 통과하지만, 그 외의 경우에는 _tail과 다를 것임. 
+				else
+				{
+					InterlockedCompareExchangePointer(( PVOID* ) &_tail, tailNode->next, tail);
+				}
+
 			}
-			//tail의 next가 queueiD가 아니면 경우의 수는 2가지
-			//다른 큐의 id이거나 이미 tail 뒤에 누가 넣었거나, 다른 큐에 들어갔거나
-			//내 큐의 tail이라면 cas 통과하지만, 그 외의 경우에는 _tail과 다를 것임. 
-			else
-			{
-				InterlockedCompareExchangePointer((PVOID*)&_tail, tailNode->next, tail);
-			}
-			
 		}
 		InterlockedIncrement(&_size);
 
@@ -123,7 +129,7 @@ public:
 				}
 
 
-				_pool.Free(headNode);
+				_tlsLFQNodePool.Free(headNode);
 				break;
 			}
 
@@ -142,7 +148,7 @@ private:
 
 	const unsigned long long pointerMask = 0x000'7FFF'FFFF'FFFF;
 
-	inline static TLSPool<Node, 0, false> _pool;
+	inline static TLSPool<Node, 0, false> _tlsLFQNodePool;
 
 
 	short tailCount = 0;

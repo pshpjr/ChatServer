@@ -1,21 +1,7 @@
 ﻿#pragma once
 #pragma comment(lib,"libmysql.lib")
 #include "externalHeader/mysql.h"
-
-
-class DBErr : public std::exception 
-{
-public:
-	DBErr(const char* errStr) : _errString(errStr)
-	{
-
-	}
-
-	std::string& getErrStr() { return _errString; }
-
-private:
-	std::string _errString;
-};
+#include "DBException.h"
 
 class DBConnection
 {
@@ -24,7 +10,7 @@ public:
 	{
 		mysql_init(&conn);
 
-		SetReconnect(true);
+		//SetReconnect(true);
 
 		connection = mysql_real_connect(&conn, ip, id, pass, db, port, ( char* ) NULL, 0);
 		const char* err = nullptr;
@@ -43,8 +29,13 @@ public:
 		Close();
 	}
 
-	void Query(LPCSTR query, ...)
+	std::chrono::milliseconds Query(LPCSTR query, ...)
 	{
+		using std::chrono::system_clock;
+		using std::chrono::duration_cast;
+		using std::chrono::duration;
+		using std::chrono::milliseconds;
+		using namespace std::chrono_literals;
 		va_list args;
 
 		va_start(args, query);
@@ -57,19 +48,23 @@ public:
 		vsnprintf(&vec[0], len + 1, query, args);
 		va_end(args);
 
-
+		auto start = system_clock::now();
 		const char* err;
 		query_stat = mysql_query(connection, vec.data());
 		if ( query_stat != 0 )
 		{
 			err = mysql_error(&conn);
 			auto num = mysql_errno(&conn);
+
+			auto dur = duration_cast< milliseconds >( system_clock::now() - start);
+			
 			throw DBErr(err);
 
 			printf("%d \n", num);
-
 		}
 		sql_result = mysql_store_result(connection);
+
+		return duration_cast< milliseconds >( system_clock::now() - start );
 	}
 
 	bool next()

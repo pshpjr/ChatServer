@@ -12,7 +12,7 @@ void RecvExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 {
 	Session& session = *(Session*)key;
 
-	session._recvQ.MoveRear(transferred);
+	session._recvBuffer->MoveWritePos(transferred);
 
 	char sKey = session._staticKey;
 
@@ -83,58 +83,44 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 	while (true)
 	{
 		loopCOunt++;
-		if (session._recvQ.Size() < sizeof(Header))
+		auto recvBuffer = session._recvBuffer;
+
+		if ( recvBuffer->GetPacketSize() < sizeof(Header))
 		{
 			break;
 		}
 
-		Header header {};
+		Header* header = ( Header* ) recvBuffer->GetFront();
 
-		char* packetBegin = nullptr;
-		session._recvQ.Peek((char*)&header, sizeof(Header));
-		packetBegin = session._recvQ.GetFront();
-
-		if (header.len > session._maxPacketLen)
+		if (header->len > session._maxPacketLen)
 		{
 			session.Close();
 			break;
 		}
 
-
-		if (header.code != dfPACKET_CODE) 
+		if (header->code != dfPACKET_CODE)
 		{
 			session.Close();
 			break;
 		}
 
-		if (session._recvQ.Size() < header.len + sizeof(Header))
+		if (recvBuffer->GetDataSize() < header->len + sizeof(Header))
 		{
 			break;
 		}
-		if ( header.len == 0 ) {
-			DebugBreak();
-		}
+		
+		auto& contentBuffer = *ContentSerializeBuffer::Alloc(recvBuffer->GetFront(), recvBuffer->GetRear());
+		contentBuffer.isEncrypt++;
+		contentBuffer.Decode(session._staticKey, ( Header* ) contentBuffer.GetFront());
 
-
-		session._recvQ.Dequeue(sizeof(Header));
-
-		auto& buffer = *CSerializeBuffer::Alloc();
-
-		session._recvQ.Peek(buffer.GetDataPtr(), header.len);
-		session._recvQ.Dequeue(header.len);
-
-		buffer.MoveWritePos(header.len);
-		buffer.setEncryptHeader(header);
-		buffer.isEncrypt++;
-
-		buffer.Decode(session._staticKey);
-		if (!buffer.checksumValid()) 
+		if (!contentBuffer.checksumValid(( Header* ) contentBuffer.GetFront()))
 		{
 			//printf("checkSumInvalid %d %p\n", buffer._rear- buffer._front, buffer._front);
 
 			session.Close();
 			break;
 		}
+		contentBuffer.MoveReadPos(sizeof(Header));
 
 		server.increaseRecvCount();
 		//session.debugIndex++;
@@ -142,7 +128,7 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 
 		try
 		{
-			((IOCP*)iocp)->OnRecvPacket(session._sessionID, buffer);
+			((IOCP*)iocp)->OnRecvPacket(session._sessionID, contentBuffer);
 		}
 		catch (const std::invalid_argument& e)
 		{
@@ -151,7 +137,9 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 			session.Close();
 		}
 
-		buffer.Release(L"RecvRelease");
+		recvBuffer->MoveReadPos(sizeof(Header));
+		recvBuffer->MoveReadPos(header->len);
+		contentBuffer.Release(L"RecvRelease");
 	}
 }
 

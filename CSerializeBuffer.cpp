@@ -4,6 +4,7 @@
 #include "Protocol.h"
 
 TLSPool<CSerializeBuffer, 0, false> CSerializeBuffer::_pool;
+TLSPool<ContentSerializeBuffer, 0, false> ContentSerializeBuffer::_pool;
 
 void CSerializeBuffer::writeLanHeader()
 {
@@ -46,13 +47,51 @@ void CSerializeBuffer::Encode(char staticKey)
 	}
 }
 
+long CSerializeBuffer::IncreaseRef(LPCWCH content)
+{
+	auto refIncResult = InterlockedIncrement(&_refCount);
+
+#ifdef SERIAL_DEBUG
+	auto index = InterlockedIncrement(&debugIndex);
+	release_D[index % debugSize] = { refIncResult,content,0 };
+#endif
+
+	return refIncResult;
+}
+
+void CSerializeBuffer::Release(LPCWCH content)
+{
+	auto refResult = InterlockedDecrement(&_refCount);
+
+#ifdef SERIAL_DEBUG
+	auto index = InterlockedIncrement(&debugIndex);
+	release_D[index % debugSize] = { refResult,content,0 };
+#endif
+
+	_release(refResult);
+}
+
+CSerializeBuffer* CSerializeBuffer::Alloc()
+{
+	auto ret = _pool.Alloc();
+	ret->Clear();
+	ret->IncreaseRef(L"AllocInc");
+	return ret;
+}
+
+bool CSerializeBuffer::CopyData(CSerializeBuffer& dst)
+{
+	memcpy_s(dst.GetHead(), dst.GetFullSize(), GetFront(), GetPacketSize());
+
+	dst.MoveWritePos(GetPacketSize());
+}
+
 void CSerializeBuffer::encode(char staticKey)
 {
-
 	using Header = CSerializeBuffer::NetHeader;
 
 	Header* head = (Header*)GetHead();
-
+	
 
 	char* encodeData = GetDataPtr() - 1;
 	int encodeLen = GetDataSize() + 1;
@@ -70,15 +109,12 @@ void CSerializeBuffer::encode(char staticKey)
 	isEncrypt++;
 }
 
-void CSerializeBuffer::Decode(char staticKey)
+void CSerializeBuffer::Decode(char staticKey, NetHeader* head)
 {
 	using Header = CSerializeBuffer::NetHeader;
 
- 	Header* head = (Header*)GetHead();
-
-
-	char* decodeData = GetDataPtr() - 1;
-	int decodeLen = GetDataSize() + 1;
+	char* decodeData = (char*)head + offsetof(NetHeader,checkSum);
+	int decodeLen = head->len + sizeof(NetHeader) - offsetof(NetHeader, checkSum);
 
 	char p = 0;
 	char e = 0;
@@ -94,31 +130,23 @@ void CSerializeBuffer::Decode(char staticKey)
 	isEncrypt--;
 }
 
-bool CSerializeBuffer::checksumValid()
+bool CSerializeBuffer::checksumValid(NetHeader* head)
 {
-
-	NetHeader* header = (NetHeader*)GetHead();
-	char* checkIndex = GetDataPtr();
+	char* checkIndex = ( char* ) head + sizeof(NetHeader);
 	//TODO: 아래 방식이 잘못되면 위로 복구.
-	int checkLen = GetDataSize();
+	int checkLen = head->len;
 	unsigned char payloadChecksum = 0;
 	for (int i = 0; i < checkLen; i++)
 	{
 		payloadChecksum += *checkIndex;
 		checkIndex++;
 	}
-	if (payloadChecksum != header->checkSum)
+	if (payloadChecksum != head->checkSum)
 		return false;
 	return true;
 
 }
 
-void CSerializeBuffer::setEncryptHeader(NetHeader header)
-{
-	isEncrypt++;
-	*(NetHeader*)_head = header;
-
-}
 //
 //CSerializeBuffer& CSerializeBuffer::operator<<(unsigned char value)
 //{
@@ -387,4 +415,12 @@ CSerializeBuffer& CSerializeBuffer::operator>>(LPWSTR value)
 	wcscpy_s(value, strlen, (wchar_t*)_front);
 	_front += strlen * sizeof(WCHAR);
 	return *this;
+}
+
+void ContentSerializeBuffer::_release(int refCount)
+{
+	if ( refCount == 0 )
+	{
+		_pool.Free(this);
+	}
 }

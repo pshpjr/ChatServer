@@ -98,8 +98,6 @@ void Session::trySend()
 		return;
 	}
 
-
-
 	int sendPackets = 0;
 	WSABUF sendWsaBuf[MAX_SEND_COUNT] = {};
 	for (int i = 0; i < MAX_SEND_COUNT; i++)
@@ -181,30 +179,17 @@ void Session::RecvNotIncrease()
 		return;
 	}
 
-
 	_recvExecute.Clear();
-	WSABUF recvWsaBuf[2] {};
+
+	_recvBuffer = CSerializeBuffer::Alloc();
+	WSABUF recvWsaBuf {};
 	DWORD flags = 0;
-	char bufferCount = 1;
-
-
-	recvWsaBuf[0].buf = _recvQ.GetRear(); //recv 1회시 불변
-	recvWsaBuf[0].len = _recvQ.DirectEnqueueSize();// 스레드 상황에 따라 변경 가능. 늘어나기만 함. 
-
-	//넣을 수 있는 공간이 잘린 상황이 front가 rear보다 항상 앞에 있다고 생각해도 되는가?
-	//그런 듯 함
-	//getFront 함수를 써도 문제 없는 이유는 지금 한 세션에 한 스레드만 접근한다고 가정하고 있기 때문. 
-	if (_recvQ.FreeSize() > recvWsaBuf[0].len)
-	{
-		recvWsaBuf[1].buf = _recvQ.GetBuffer();
-		recvWsaBuf[1].len = _recvQ.FreeSize() - recvWsaBuf[0].len;
-
-		bufferCount = 2;
-	}
+	recvWsaBuf.buf = _recvBuffer->GetDataPtr();
+	recvWsaBuf.len = _recvBuffer->getBufferSize();
 
 	lastRecv = chrono::system_clock::now();
 
-	int recvResult = _socket.Recv(recvWsaBuf, bufferCount, &flags, &_recvExecute._overlapped);
+	int recvResult = _socket.Recv(&recvWsaBuf, 1, &flags, &_recvExecute._overlapped);
 	if (recvResult == SOCKET_ERROR)
 	{
 		int error = WSAGetLastError();
@@ -242,6 +227,7 @@ void Session::Reset()
 	_sendExecute.Clear();
 	_recvExecute.Clear();
 	_postSendExecute.Clear();
+	_recvBuffer->Release(L"SessionResetRelease");
 	_isSending = false;
 	needCheckSendTimeout = false;
 	_timeout = _defaultTimeout;

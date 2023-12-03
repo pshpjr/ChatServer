@@ -2,8 +2,8 @@
 #include "Windows.h"
 #include "SingleThreadObjectPool.h"
 #include "Profiler.h"
-static constexpr int TLS_POOL_INITIAL_SIZE = 5'000;
-static constexpr int GLOBAL_POOL_INITIAL_SIZE = TLS_POOL_INITIAL_SIZE*10;
+constexpr int TLS_POOL_INITIAL_SIZE = 5'000;
+constexpr int GLOBAL_POOL_INITIAL_SIZE = TLS_POOL_INITIAL_SIZE*10;
 
 
 template <typename T, int dataId, bool usePlacement = false>
@@ -14,13 +14,16 @@ public:
 	using Node = typename poolType::Node;
 
 
-	TLSPool():poolID(InterlockedIncrement(&GPoolID))
+	TLSPool(int localPoolSize = TLS_POOL_INITIAL_SIZE, int globalPoolSize = GLOBAL_POOL_INITIAL_SIZE):
+		poolID(InterlockedIncrement(&GPoolID)),
+		_localPoolSize(localPoolSize),
+		_globalPoolSize(globalPoolSize)
 	{
 
 		InitializeCriticalSection(&_cs);
 		localPoolTlsIndex = TlsAlloc();
 
-		_pooledNodeSize = GLOBAL_POOL_INITIAL_SIZE;
+		_pooledNodeSize = _globalPoolSize;
 		
 		for (int i = 0; i < _pooledNodeSize; ++i)
 		{
@@ -135,16 +138,15 @@ public:
 
 		if (pool == nullptr)
 		{
-			pool = new poolType(TLS_POOL_INITIAL_SIZE);
+			pool = new poolType(_localPoolSize);
 			TlsSetValue(localPoolTlsIndex, pool);
 		}
 
 		if(pool->GetObjectCount() == 0)
 		{
 			PRO_BEGIN("TLSPOOL_ALLOC_ACQUIRE")
-			pool->_top = AcquireNode(TLS_POOL_INITIAL_SIZE);
-			pool->_objectCount = TLS_POOL_INITIAL_SIZE;
-
+			pool->_top = AcquireNode(_localPoolSize);
+			pool->_objectCount = _localPoolSize;
 		}
 		PRO_BEGIN("TLSPOOL_ALLOC_PoolAlloc")
 		return pool->Alloc();
@@ -157,20 +159,20 @@ public:
 
 		if (pool == nullptr)
 		{
-			pool = new poolType(TLS_POOL_INITIAL_SIZE);
+			pool = new poolType(_localPoolSize);
 			TlsSetValue(localPoolTlsIndex, pool);
 		}
 
 		pool->Free(data);
 
-		if (pool->GetObjectCount() > TLS_POOL_INITIAL_SIZE*2)
+		if (pool->GetObjectCount() > _localPoolSize *2)
 		{
 			//PRO_BEGIN("FREE_RELEASE")
 			Node* releaseHead = pool->_top;
 
 			Node* releaseTail = pool->_top;
 
-			for (int i = 0; i < TLS_POOL_INITIAL_SIZE-1; ++i) {
+			for (int i = 0; i < _localPoolSize -1; ++i) {
 				releaseTail = releaseTail->_tail;
 			}
 
@@ -178,9 +180,9 @@ public:
 			releaseTail->_tail = nullptr;
 			pool->_top = newHead;
 
-			ReleaseNode(releaseHead, releaseTail, TLS_POOL_INITIAL_SIZE);
+			ReleaseNode(releaseHead, releaseTail, _localPoolSize);
 
-			pool->_objectCount -= TLS_POOL_INITIAL_SIZE;
+			pool->_objectCount -= _localPoolSize;
 
 		}
 	}
@@ -196,8 +198,8 @@ private:
 	int _pooledNodeSize = 0;
 	inline static long GPoolID;
 	long poolID = 0;
-	const int _localPoolSize = TLS_POOL_INITIAL_SIZE;
-	const int _globalPoolSize = GLOBAL_POOL_INITIAL_SIZE;
+	const int _localPoolSize;
+	const int _globalPoolSize;
 
 	unsigned long _acquireCount = 0;
 	unsigned long _releaseCount = 0;

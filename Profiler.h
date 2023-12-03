@@ -115,7 +115,7 @@ private:
 };
 extern ProfileManager GProfiler;
 
-//#define PROFILE
+#define PROFILE
 
 #ifdef PROFILE
 

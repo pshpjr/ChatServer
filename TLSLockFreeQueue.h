@@ -142,9 +142,11 @@ public:
 	long Size() const { return _size; }
 
 private:
-	long _size = 0;
 	Node* _head = nullptr;
-	Node* _tail = nullptr;
+
+	long _size = 0;
+
+
 
 	const unsigned long long pointerMask = 0x000'7FFF'FFFF'FFFF;
 
@@ -162,7 +164,7 @@ private:
 
 
 	long tryEnqueueCount = 0;
-
+	Node* _tail = nullptr;
 };
 template <typename T>
 int64 TLSLockFreeQueue<T>::GID = 0;

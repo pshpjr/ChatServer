@@ -175,7 +175,6 @@ void IOCP::SetDefaultTimeout(unsigned int timeoutMillisecond)
 
 bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer, int type)
 {
-
 	auto result = FindSession(sessionId, L"SendPacketInc");
 	if (result == nullptr)
 		return false;

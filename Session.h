@@ -11,6 +11,8 @@ class IOCP;
 class SessionManager;
 class CSerializeBuffer;
 
+
+#define SESSION_DEBUG
 class Session
 {
 	friend class Executable;
@@ -102,6 +104,8 @@ private:
 	uint64 _sessionID = 0;
 	Socket _socket;
 	CRingBuffer _recvQ;
+	CSerializeBuffer* _recvBuffer;
+
 	TLSLockFreeQueue<CSerializeBuffer*> _sendQ;
 	TLSLockFreeQueue<CSerializeBuffer*> _sendingQ;
 	IOCP* _owner;

@@ -6,12 +6,12 @@
 #include "IOCP.h"
 #include "Protocol.h"
 #include <cstdio>
-Session::Session(): _owner(nullptr)
+Session::Session() : _owner(nullptr), _socket({}), _sessionID(-1), _recvBuffer(nullptr)
 {
 
 }
 
-Session::Session(Socket socket, uint64 sessionId, IOCP& owner) : _socket(socket), _sessionID(sessionId), _owner(&owner)
+Session::Session(Socket socket, uint64 sessionId, IOCP& owner) : _socket(socket), _sessionID(sessionId), _owner(&owner),_recvBuffer(nullptr)
 { 
 
 }
@@ -24,7 +24,7 @@ void Session::Enqueue(CSerializeBuffer* buffer)
 void Session::Close()
 {
 	InterlockedExchange8(&_connect,0);
-
+	DebugBreak();
 	_socket.CancleIO();
 }
 
@@ -121,7 +121,7 @@ void Session::trySend()
 		
 
 		sendWsaBuf[i].buf = buffer->GetHead();
-		sendWsaBuf[i].len = buffer->GetFullSize();
+		sendWsaBuf[i].len = buffer->SendDataSize();
 
 		ASSERT_CRASH(sendWsaBuf[i].len > 0, "Out of Case");
 	}
@@ -181,11 +181,13 @@ void Session::RecvNotIncrease()
 
 	_recvExecute.Clear();
 
-	_recvBuffer = CSerializeBuffer::Alloc();
 	WSABUF recvWsaBuf {};
 	DWORD flags = 0;
-	recvWsaBuf.buf = _recvBuffer->GetDataPtr();
-	recvWsaBuf.len = _recvBuffer->getBufferSize();
+
+
+
+	recvWsaBuf.buf = _recvBuffer->GetRear();
+	recvWsaBuf.len = _recvBuffer->canPushSize();
 
 	lastRecv = chrono::system_clock::now();
 

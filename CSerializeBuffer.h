@@ -106,32 +106,36 @@ protected:
 	void Decode(char staticKey, NetHeader* head);
 	bool checksumValid(NetHeader* head);
 
+	//recv시 헤더부터 여기에 다 받음. 
+	//send시 여기에 데이터가 담김. 
 	char* GetDataPtr(void) const { return _data; }
+
+
 	int getBufferSize() const { return  _bufferSize; }
-	int getUsableSize() const { return _bufferSize - GetPacketSize(); }
-	ULONG GetFullSize() const { return ULONG(_rear - _head); }
+	int canPushSize() const {
+		return (int)(BUFFER_SIZE - distance(_data, _rear) ); }
+	ULONG SendDataSize() const { return ULONG(_rear - _head); }
 
 	void MoveWritePos(int size) { _rear += size; }
 	void MoveReadPos(int size) { _front += size; }
 
-	int	GetPacketSize(void) const { return static_cast<int>(_rear - _front); }
+	int	CanPopSize(void) const { return static_cast<int>(_rear - _front); }
 	char* GetFront() const { return _front; }
 	char* GetRear() const { return _rear; }
-	void PacketEnd() { _front = _rear; }
 
 	char* GetHead() const { return _head; }
 
 	void writeLanHeader();
-	
 
-	void canPush(int size) 
+
+	void canPush(int64 size) 
 	{
-		if ((BUFFER_SIZE - (_rear - _front)) < size)
+		if ( canPushSize() < size)
 			throw std::invalid_argument{ "size is bigger than free space in buffer" };
 	}
-	void canPop(int size) 
+	void canPop(int64 size)
 	{ 
-		if (_rear - _front < size)
+		if (CanPopSize() < size)
 			throw std::invalid_argument{ "size is bigger than data in buffer" };
 	}
 
@@ -158,12 +162,8 @@ private:
 
 	}
 
-
-
-
-
 private:
-	enum bufferOption { BUFFER_SIZE = 1024 };
+	enum bufferOption { BUFFER_SIZE = 4096 };
 
 
 	char* _buffer = nullptr;
@@ -174,7 +174,7 @@ private:
 
 	static TLSPool<CSerializeBuffer, 0, false> _pool;
 
-	public:
+public:
 	long _refCount = 0;
 
 	SRWLOCK _encodeLock;
@@ -187,7 +187,7 @@ private:
 		LPCWSTR location;
 		long long contentType;
 	};
-	static const int debugSize = 2000;
+	static const int debugSize = 1000;
 
 	long debugIndex = 0;
 	RelastinReleaseEncrypt_D release_D[debugSize];

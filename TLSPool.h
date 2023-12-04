@@ -2,35 +2,40 @@
 #include "Windows.h"
 #include "SingleThreadObjectPool.h"
 #include "Profiler.h"
-constexpr int TLS_POOL_INITIAL_SIZE = 5'000;
-constexpr int GLOBAL_POOL_INITIAL_SIZE = TLS_POOL_INITIAL_SIZE*10;
-
+const int TLS_POOL_INITIAL_SIZE = 5'000;
+const int GLOBAL_POOL_MULTIPLIER = 10;
 
 template <typename T, int dataId, bool usePlacement = false>
 class TLSPool
 {
+
+
 public:
 	using poolType = SingleThreadObjectPool<T, dataId, usePlacement>;
 	using Node = typename poolType::Node;
 
+		struct controlData
+	{
+		Node* front;
+		Node* end;
+	};
 
-	TLSPool(int localPoolSize = TLS_POOL_INITIAL_SIZE, int globalPoolSize = GLOBAL_POOL_INITIAL_SIZE):
+	TLSPool(int localPoolSize, int globalPoolMultiplier):
 		poolID(InterlockedIncrement(&GPoolID)),
 		_localPoolSize(localPoolSize),
-		_globalPoolSize(globalPoolSize)
+		_globalPoolMultiplier(globalPoolMultiplier)
 	{
 
 		InitializeCriticalSection(&_cs);
 		localPoolTlsIndex = TlsAlloc();
 
-		_pooledNodeSize = _globalPoolSize;
+		_pooledNodeSize = _globalPoolMultiplier;
 		
-		for (int i = 0; i < _pooledNodeSize; ++i)
+		for ( int j = 0; j < _globalPoolMultiplier; j++ )
 		{
-			Node* newNode = createNode();
 
-			newNode->_tail = _top;
-			_top = newNode;
+			_nextBucket.Push(makeControl());
+			
 		}
 	}
 
@@ -42,6 +47,7 @@ public:
 	Node* createNode()
 	{
 		Node* newNode = (Node*)malloc(sizeof(Node));
+		__analysis_assume(newNode != nullptr);
 		newNode->_tail = nullptr; 
 
 #ifdef TLSPoolDebug
@@ -56,78 +62,41 @@ public:
 	 * \brief 노드 쓰는 각종 작업에서 리턴하는 건 뭉치의 가장 처음 노드. 
 	 * \return 
 	 */
-	Node* AcquireNode(int size)
+	controlData AcquireNode(int size)
 	{
-		int i = 0;
-		Node* ret = nullptr;
-		EnterCriticalSection(&_cs);
-		_acquireCount++;
+		PRO_BEGIN("ACQUIRE_NODE");
+		InterlockedIncrement(&_acquireCount);
 
-		Node* newTop = _top;
-		if(_pooledNodeSize < size)
+
+		controlData data;
+
+		if ( !_nextBucket.Pop(data) )
 		{
-			PRO_BEGIN("ACQUIRE_NEW")
-			for (int i = 0; i < size*2; ++i)
-			{
-				Node* newNode = createNode();
 
-				newNode->_tail = newTop;
-				newTop = newNode;
-			}
-			_top = newTop;
+			auto cb1 = makeControl();
+			auto retCb = makeControl();
 
-			for (int i = 0; i < size; ++i)
-			{
-				Node* newNode = createNode();
-
-				newNode->_tail = ret;
-				ret = newNode;
-			}
-			_pooledNodeSize += size;
-			_poolEmptyCount++;
-			newTop->_tail;
+			data = retCb;
+			_nextBucket.Push(cb1);
+			InterlockedAdd(&_pooledNodeSize, size);
+			return retCb;
 		}
-		else
-		{
-			PRO_BEGIN("ACQUIRE_INPOOL")
-			ret = _top;
-
-			for (int i = 0; i < size-1; ++i)
-			{
-				newTop = newTop->_tail;
-			}
-			_top = newTop->_tail;
-			newTop->_tail = nullptr;
-
-			_pooledNodeSize -= size;
-			newTop->_tail;
-		}
-
-
-		LeaveCriticalSection(&_cs);
-
-		return ret;
+		InterlockedAdd(&_pooledNodeSize, -size);
+		return data;
 	}
 
 
 	void ReleaseNode(Node* Head,Node* tail,int size)
 	{
-		EnterCriticalSection(&_cs);
+		PRO_BEGIN("RELEASE_NODE");
+		controlData cb;
+		cb.front = Head;
+		cb.end = tail;
 
+		_nextBucket.Push(cb);
 
-		_releaseCount++;
-
-		tail->_tail = _top;
-
-
-
-		_top = Head;
-
-		_pooledNodeSize += size;
-
-
-
-		LeaveCriticalSection(&_cs);
+		InterlockedIncrement(&_releaseCount);
+		InterlockedAdd(&_pooledNodeSize, size);
 	}
 
 
@@ -145,7 +114,9 @@ public:
 		if(pool->GetObjectCount() == 0)
 		{
 			PRO_BEGIN("TLSPOOL_ALLOC_ACQUIRE")
-			pool->_top = AcquireNode(_localPoolSize);
+			auto cb = AcquireNode(_localPoolSize);
+
+			pool->_top = cb.front;
 			pool->_objectCount = _localPoolSize;
 		}
 		PRO_BEGIN("TLSPOOL_ALLOC_PoolAlloc")
@@ -178,6 +149,8 @@ public:
 
 			Node* newHead = releaseTail->_tail;
 			releaseTail->_tail = nullptr;
+
+
 			pool->_top = newHead;
 
 			ReleaseNode(releaseHead, releaseTail, _localPoolSize);
@@ -187,22 +160,41 @@ public:
 		}
 	}
 
+	controlData makeControl()
+	{
+		Node* newTop = createNode();
+
+		controlData data;
+		data.end = newTop;
+
+		for ( int i = 0; i < _localPoolSize -1; ++i )
+		{
+			Node* newNode = createNode();
+
+			newNode->_tail = newTop;
+			newTop = newNode;
+		}
+
+		data.front = newTop;
+
+		return data;
+	}
 
 private:
 	CRITICAL_SECTION _cs;
 
-
+	LockFreeStack<controlData> _nextBucket;
 
 	inline static DWORD localPoolTlsIndex = 0;
 	Node* _top = nullptr;
-	int _pooledNodeSize = 0;
+	long _pooledNodeSize = 0;
 	inline static long GPoolID;
 	long poolID = 0;
-	const int _localPoolSize;
-	const int _globalPoolSize;
+	int _localPoolSize;
+	int _globalPoolMultiplier;
 
-	unsigned long _acquireCount = 0;
-	unsigned long _releaseCount = 0;
+	long _acquireCount = 0;
+	long _releaseCount = 0;
 
 	unsigned int _poolEmptyCount = 0;
 #ifdef TLSPoolDebug
@@ -224,6 +216,5 @@ private:
 #ifndef USE_TLS_POOL
 
 #define USE_TLS_POOL(CLASS) 	friend TLSPool<CLASS, 0, false>; friend SingleThreadObjectPool<CLASS, 0, false>;
-
 
 #endif

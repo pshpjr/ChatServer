@@ -4,6 +4,7 @@
 #include <list>
 #include <Windows.h>
 #include <thread>
+#include <mutex>
 class ProfileManager;
 class ProfileItem;
 
@@ -64,8 +65,9 @@ private:
 
 class ProfileManager
 {
+
+	ProfileManager() { InitializeSRWLock(&_profileListLock); setTLSNum(); }
 public:
-	ProfileManager() : TLSNum(TlsAlloc()) { InitializeSRWLock(&_profileListLock); }
 	~ProfileManager()
 	{
 		time_t timer = time(NULL);
@@ -78,17 +80,29 @@ public:
 		ProfileDataOutText(buffer);
 		TlsFree(TLSNum);
 	}
-	Profiler& Get()
+
+	static ProfileManager& Get()
+	{
+		call_once(_flag, []()
+				  {
+					  _instance = new ProfileManager;
+				  });
+		return *_instance;
+	}
+
+	Profiler& GetLocalProfiler()
 	{
 		auto ret = (Profiler*)TlsGetValue(TLSNum);
 
-		if (ret == nullptr)
+		if ( ret == nullptr )
 		{
+			ret = new Profiler;
+			TlsSetValue(TLSNum, ret);
 			AcquireSRWLockExclusive(&_profileListLock);
 
-			ret = new Profiler;
-			_profilerList.push_back(ret);
-			TlsSetValue(TLSNum, ret);
+
+			_profilerList.push_front(ret);
+
 			ReleaseSRWLockExclusive(&_profileListLock);
 		}
 
@@ -107,15 +121,24 @@ public:
 		ReleaseSRWLockShared(&_profileListLock);
 	}
 	void SetOptional(std::wstring optional);
+
+	void setTLSNum()
+	{
+		TLSNum = TlsAlloc();
+	}
 private:
+	
+	inline static once_flag _flag;
+	inline static ProfileManager* _instance;
+
 	std::list<Profiler*> _profilerList;
 	SRWLOCK _profileListLock;
 	std::wstring optionalText;
-	const DWORD TLSNum;
+	DWORD TLSNum;
 };
-extern ProfileManager GProfiler;
 
-#define PROFILE
+
+//#define PROFILE
 
 #ifdef PROFILE
 

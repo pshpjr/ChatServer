@@ -12,7 +12,7 @@ class SessionManager;
 class CSerializeBuffer;
 
 
-#define SESSION_DEBUG
+//#define SESSION_DEBUG
 class Session
 {
 	friend class Executable;
@@ -23,6 +23,9 @@ class Session
 	friend class IOCP;
 	friend class NormalIOCP;
 public:
+
+	char* _debugRecvPtr = nullptr;
+
 	Session();
 	Session(Socket socket, uint64 sessionId, IOCP& owner);
 	void Enqueue(CSerializeBuffer* buffer);

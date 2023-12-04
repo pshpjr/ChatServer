@@ -1,10 +1,19 @@
 ﻿#include "stdafx.h"
+#include "Profiler.h"
 #include "CSerializeBuffer.h"
 
 #include "Protocol.h"
 
-TLSPool<CSerializeBuffer, 0, false> CSerializeBuffer::_pool;
-TLSPool<ContentSerializeBuffer, 0, false> ContentSerializeBuffer::_pool;
+int SERIAL_INIT_SIZE = 10000;
+int SERIAL_INIT_MULTIPLIER = 5;
+int CONTEINT_INIT_SIZE = 10000;
+int CONTEINT_INIT_MULTIPLIER = 5;
+
+
+
+TLSPool<ContentSerializeBuffer, 0, false> ContentSerializeBuffer::_pool(CONTEINT_INIT_SIZE, CONTEINT_INIT_MULTIPLIER);
+//TLSPool<CSerializeBuffer, 0, false> CSerializeBuffer::_pool(50000, 50000*10);
+TLSPool<CSerializeBuffer, 0, false> CSerializeBuffer::_pool(SERIAL_INIT_SIZE, SERIAL_INIT_MULTIPLIER);
 
 void CSerializeBuffer::writeLanHeader()
 {
@@ -81,9 +90,11 @@ CSerializeBuffer* CSerializeBuffer::Alloc()
 
 bool CSerializeBuffer::CopyData(CSerializeBuffer& dst)
 {
-	memcpy_s(dst.GetHead(), dst.GetFullSize(), GetFront(), GetPacketSize());
+	memcpy_s(dst.GetDataPtr(), dst.canPushSize(), GetFront(), CanPopSize());
 
-	dst.MoveWritePos(GetPacketSize());
+	dst.MoveWritePos(CanPopSize());
+
+	return true;
 }
 
 void CSerializeBuffer::encode(char staticKey)
@@ -250,7 +261,6 @@ CSerializeBuffer& CSerializeBuffer::operator<<(LPWSTR value)
 {
 
 	//insert null terminated string to buffer
-	//int strlen = wcslen(value) + 1;
 	size_t strlen = wcslen(value)+1;
 	canPush(strlen);
 	wcscpy_s((wchar_t*)_rear, strlen, value);
@@ -261,7 +271,6 @@ CSerializeBuffer& CSerializeBuffer::operator<<(LPWSTR value)
 CSerializeBuffer& CSerializeBuffer::operator<<(LPCWSTR value)
 {
 	//insert null terminated string to buffer
-	//int strlen = wcslen(value) + 1;
 	size_t strlen = wcslen(value)+1;
 	canPush(strlen);
 	wcscpy_s((wchar_t*)_rear, strlen, value);
@@ -416,6 +425,7 @@ CSerializeBuffer& CSerializeBuffer::operator>>(LPWSTR value)
 	_front += strlen * sizeof(WCHAR);
 	return *this;
 }
+
 
 void ContentSerializeBuffer::_release(int refCount)
 {

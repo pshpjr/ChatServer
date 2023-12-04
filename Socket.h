@@ -44,6 +44,7 @@ public:
 
 
 private:
+
 	SOCKET _beforeSocket = -1;
 };
 

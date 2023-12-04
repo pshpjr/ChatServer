@@ -9,7 +9,6 @@
 #include <thread>
 #include <vector>
 
-ProfileManager GProfiler;
 /*
  * 	TCHAR errBuffer[MAXERRLEN];
 
@@ -104,14 +103,14 @@ void Profiler::applyProfile(const int& item_number, std::chrono::microseconds ti
 
 ProfileItem::ProfileItem(LPCWSTR name)
 {
-	_itemNumber = GProfiler.Get().getItemNumber(name);
+	_itemNumber = ProfileManager::Get().GetLocalProfiler().getItemNumber(name);
 	_start = std::chrono::steady_clock::now();
 }
 
 ProfileItem::~ProfileItem()
 {
 	_end = std::chrono::steady_clock::now();
-	GProfiler.Get().applyProfile(_itemNumber, std::chrono::duration_cast<std::chrono::microseconds>(_end - _start));
+	ProfileManager::Get().GetLocalProfiler().applyProfile(_itemNumber, std::chrono::duration_cast<std::chrono::microseconds>(_end - _start));
 }
 
 bool cmp(PROFILE_SAMPLE& lhs, PROFILE_SAMPLE& rhs)

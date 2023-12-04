@@ -10,6 +10,7 @@
 
 void RecvExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 {
+
 	Session& session = *(Session*)key;
 
 	session._recvBuffer->MoveWritePos(transferred);
@@ -23,6 +24,31 @@ void RecvExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 	else 
 	{
 		recvNormal(session,iocp);
+	}
+	auto oldBuffer = session._recvBuffer;
+
+	if ( oldBuffer->CanPopSize() == CSerializeBuffer::BUFFER_SIZE)
+	{
+		throw exception("PacketIsBiggerThenBuffer");
+	}
+
+	if ( oldBuffer->CanPopSize() == 0 )
+	{
+
+		oldBuffer->Clear();
+	}
+	else if ( oldBuffer->canPushSize() == 0 )
+	{
+
+		auto newBuffer = CSerializeBuffer::Alloc();
+
+		if ( oldBuffer->CanPopSize() != 0 )
+		{
+			oldBuffer->CopyData(*newBuffer);
+		}
+
+		session._recvBuffer = newBuffer;
+		oldBuffer->Release(L"OldBufferRelease");
 	}
 
 	session.RecvNotIncrease();
@@ -76,6 +102,7 @@ void RecvExecutable::recvNormal(Session& session, void* iocp)
 
 void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 {
+
 	using Header = CSerializeBuffer::NetHeader;
 	IOCP& server = *reinterpret_cast< IOCP*>(iocp);
 	int loopCOunt = 0;
@@ -85,12 +112,18 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 		loopCOunt++;
 		auto recvBuffer = session._recvBuffer;
 
-		if ( recvBuffer->GetPacketSize() < sizeof(Header))
+		if ( recvBuffer->CanPopSize() < sizeof(Header))
 		{
 			break;
 		}
 
 		Header* header = ( Header* ) recvBuffer->GetFront();
+
+		if ( header->code != dfPACKET_CODE )
+		{
+			session.Close();
+			break;
+		}
 
 		if (header->len > session._maxPacketLen)
 		{
@@ -98,13 +131,7 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 			break;
 		}
 
-		if (header->code != dfPACKET_CODE)
-		{
-			session.Close();
-			break;
-		}
-
-		if (recvBuffer->GetDataSize() < header->len + sizeof(Header))
+		if (recvBuffer->CanPopSize() < header->len + sizeof(Header))
 		{
 			break;
 		}
@@ -128,6 +155,7 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 
 		try
 		{
+
 			((IOCP*)iocp)->OnRecvPacket(session._sessionID, contentBuffer);
 		}
 		catch (const std::invalid_argument& e)
@@ -146,6 +174,7 @@ void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 
 void PostSendExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 {
+
 	Session* session = (Session*)key;
 	auto& sendingQ = session->_sendingQ;
 
@@ -178,6 +207,7 @@ void PostSendExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 
 void SendExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 {
+
 	Session* session = (Session*)key;
 
 
@@ -186,6 +216,7 @@ void SendExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 
 void ReleaseExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 {
+
 	Session* session = (Session*)key;
 
 	session->Reset();

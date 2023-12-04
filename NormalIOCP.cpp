@@ -28,6 +28,8 @@ IOCP::IOCP()
 
 bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread, uint16 workerThread, char staticKey)
 {
+
+	
 	_isRunning = true;
 	_maxNetThread = maxNetThread;
 	_staticKey = staticKey;
@@ -410,6 +412,7 @@ unsigned __stdcall IOCP::AcceptEntry(LPVOID arg)
 
 void IOCP::WorkerThread(LPVOID arg)
 {
+
 	srand(GetCurrentThreadId());
 	waitStart();
 	while (true)
@@ -418,7 +421,8 @@ void IOCP::WorkerThread(LPVOID arg)
 		Executable* overlapped = nullptr;
 		Session* session = nullptr;
 
-		auto ret = GetQueuedCompletionStatus(_iocp, &transferred, (PULONG_PTR) &session, (LPOVERLAPPED*)&overlapped, INFINITE);
+		auto ret = GetQueuedCompletionStatus(_iocp, &transferred, ( PULONG_PTR ) &session, ( LPOVERLAPPED* ) &overlapped, INFINITE);
+
 		overlapped = (Executable*)((char*)overlapped - offsetof(Executable, _overlapped));
 		if(transferred==0&&session== nullptr)
 		{
@@ -472,6 +476,7 @@ void IOCP::WorkerThread(LPVOID arg)
 
 void IOCP::AcceptThread(LPVOID arg)
 {
+
 	waitStart();
 	while (_isRunning)
 	{
@@ -512,6 +517,7 @@ void IOCP::AcceptThread(LPVOID arg)
 
 		auto& session = sessions[sessionIndex];
 		auto result = session.IncreaseRef(L"AcceptInc");
+		session._recvBuffer = CSerializeBuffer::Alloc();
 
 		session.SetSessionID(sessionID);
 		session.SetSocket(clientSocket);
@@ -560,6 +566,7 @@ void IOCP::MonitorThread(LPVOID arg)
 
 void IOCP::TimeoutThread(LPVOID arg)
 {
+
 	waitStart();
 	auto start = chrono::system_clock::now();
 	auto next = chrono::time_point_cast<chrono::milliseconds>(start) + chrono::milliseconds(1000);

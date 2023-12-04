@@ -150,7 +150,9 @@ private:
 
 	const unsigned long long pointerMask = 0x000'7FFF'FFFF'FFFF;
 
-	inline static TLSPool<Node, 0, false> _tlsLFQNodePool;
+	int initSize = 5000;
+	int multiplier = 10;
+	static TLSPool<Node, 0, false> _tlsLFQNodePool;
 
 
 	short tailCount = 0;
@@ -166,5 +168,8 @@ private:
 	long tryEnqueueCount = 0;
 	Node* _tail = nullptr;
 };
+template <typename T>
+TLSPool<typename TLSLockFreeQueue<T>::Node, 0, false> typename TLSLockFreeQueue<T>::_tlsLFQNodePool(100, 1000);
+
 template <typename T>
 int64 TLSLockFreeQueue<T>::GID = 0;

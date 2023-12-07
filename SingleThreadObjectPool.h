@@ -158,7 +158,6 @@ SingleThreadObjectPool<data, dataId, usePlacement>::~SingleThreadObjectPool()
 template <typename data, int dataId, bool usePlacement>
 data* SingleThreadObjectPool<data, dataId, usePlacement>::Alloc()
 {
-	PRO_BEGIN("ALLOC_POOLALLOC_SINGLE")
 	if (_top != nullptr)
 	{
 		Node* retNode = _top;

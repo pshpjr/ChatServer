@@ -1,7 +1,5 @@
 ﻿#pragma once
-#include <Windows.h>
 
-class CSerializeBuffer;
 class CRingBuffer
 {
 public:
@@ -30,28 +28,12 @@ public:
 	int DirectDequeueSize() const;
 
 	/**
- * \brief dst에 size만큼 복사한다.
- * \param dst 복사할 버퍼
- * \param size 복사할 크기
- * \return 복사한 데이터의 크기
- */
-	int Peek(char* dst, int size) const;
-
-	/**
 	 * \brief deqSize만큼 버퍼에서 제거한다.
 	 * \param deqSize 제거할 크기
 	 * \return 삭제한 데이터의 크기
 	 */
 	int Dequeue(int deqSize);
 
-
-	/**
-	 * \brief
-	 * \param data
-	 * \param size
-	 * \return 삽입한 데이터의 크기
-	 */
-	int Enqueue(char* data, int size);
 
 	/**
 	 * \brief
@@ -113,8 +95,6 @@ public:
 	uint32 FreeSize() const { return BUFFER_SIZE - Size() - 1; }
 
 private:
-
-	CRITICAL_SECTION _cs;
 
 	const int BUFFER_SIZE;
 	const int ALLOC_SIZE;

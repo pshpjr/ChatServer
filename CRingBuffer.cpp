@@ -2,13 +2,12 @@
 #include "stdafx.h"
 #include "CRingBuffer.h"
 
-#include "CSerializeBuffer.h"
+#include "CSendBuffer.h"
 
 
 CRingBuffer::CRingBuffer(int size) :BUFFER_SIZE(size), ALLOC_SIZE(BUFFER_SIZE + 10), _buffer(new char[ALLOC_SIZE]), _front(0), _rear(0)
 {
 	memset(_buffer + BUFFER_SIZE, 0, 10);
-	InitializeCriticalSection(&_cs);
 }
 
 CRingBuffer::~CRingBuffer()
@@ -83,77 +82,6 @@ int CRingBuffer::DirectDequeueSize() const
 }
 
 
-int CRingBuffer::Peek(char* dst, int size) const
-{
-	if (_front == _rear)
-		return 0;
-
-	int peekSize = size;
-	//size는 늘어나기만 함. 
-	if (Size() < size)
-	{
-		DebugBreak();
-		peekSize = Size();
-	}
-
-	if (DirectDequeueSize() >= peekSize)
-	{
-		memcpy_s(dst, peekSize, _buffer + _front, peekSize);
-	}
-	else
-	{
-		int deqSize = DirectDequeueSize();
-
-		memcpy_s(dst, deqSize, _buffer + _front, deqSize);
-		memcpy_s(dst + deqSize, peekSize - deqSize, _buffer, peekSize - deqSize);
-	}
-
-	return peekSize;
-}
-
-
-int CRingBuffer::Enqueue(char* data, int dataSize)
-{
-	//버퍼 꽉 참.
-	if ((_rear + 1) % BUFFER_SIZE == _front)
-		return 0;
-
-	//이 아래는 버퍼가 가득 차지 않았다고 가정. 버퍼에 있는 데이터 크기는 줄어들기만 함. 
-
-	int insertSize = dataSize;
-
-	//direcEnqueueSize 함수도 항상 증가함. 변경되어도 상관 없음.
-
-	//freeSize 함수의 결과는 항상 증가함. 변경되어도 상관 없음.
-	//여기서 음수가 나왔다 : 
-	int freeRet = FreeSize();
-	if (freeRet < dataSize)
-	{
-		DebugBreak();
-		insertSize = FreeSize();
-	}
-
-	//rear 나만 건드림
-	if (DirectEnqueueSize() >= insertSize)
-	{
-		memcpy_s(_buffer + _rear, insertSize, data, insertSize);
-	}
-	else
-	{
-		int directEnqueueSize = DirectEnqueueSize();
-		memcpy_s(_buffer + _rear, directEnqueueSize, data, directEnqueueSize);
-		memcpy_s(_buffer, insertSize - directEnqueueSize, data + directEnqueueSize, insertSize - directEnqueueSize);
-	}
-
-	//rear는 항상 나만 건드림
-	_rear = (_rear + insertSize) % BUFFER_SIZE;
-
-
-
-	return insertSize;
-}
-
-
 int CRingBuffer::Dequeue(int deqSize)
 {
 	if (_front == _rear)
@@ -171,6 +99,12 @@ int CRingBuffer::Dequeue(int deqSize)
 	}
 
 	_front = (_front + size) % BUFFER_SIZE;
+
+	if ( _front == _rear )
+	{
+		Clear();
+	}
+
 	return size;
 }
 

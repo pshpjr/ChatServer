@@ -64,7 +64,6 @@ public:
 	 */
 	controlData AcquireNode(int size)
 	{
-		PRO_BEGIN("ACQUIRE_NODE");
 		InterlockedIncrement(&_acquireCount);
 
 
@@ -88,7 +87,6 @@ public:
 
 	void ReleaseNode(Node* Head,Node* tail,int size)
 	{
-		PRO_BEGIN("RELEASE_NODE");
 		controlData cb;
 		cb.front = Head;
 		cb.end = tail;
@@ -102,7 +100,6 @@ public:
 
 	T* Alloc()
 	{
-		PRO_BEGIN("TLSPOOL_ALLOC")
 		poolType* pool = (poolType*)TlsGetValue(localPoolTlsIndex);
 
 		if (pool == nullptr)
@@ -113,13 +110,11 @@ public:
 
 		if(pool->GetObjectCount() == 0)
 		{
-			PRO_BEGIN("TLSPOOL_ALLOC_ACQUIRE")
 			auto cb = AcquireNode(_localPoolSize);
 
 			pool->_top = cb.front;
 			pool->_objectCount = _localPoolSize;
 		}
-		PRO_BEGIN("TLSPOOL_ALLOC_PoolAlloc")
 		return pool->Alloc();
 	}
 

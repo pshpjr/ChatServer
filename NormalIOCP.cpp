@@ -2,11 +2,16 @@
 #include "NormalIOCP.h"
 
 #include <chrono>
-#include <process.h>
+
+#include <synchapi.h>
+#pragma comment(lib,"Synchronization.lib")
+
 
 #include "IOCP.h"
 #include "Session.h"
-#include "CSerializeBuffer.h"
+#include "CSendBuffer.h"
+
+#include "CRecvBuffer.h"
 
 /*****************************/
 //			INIT
@@ -28,8 +33,8 @@ IOCP::IOCP()
 
 bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread, uint16 workerThread, char staticKey)
 {
-
 	
+
 	_isRunning = true;
 	_maxNetThread = maxNetThread;
 	_staticKey = staticKey;
@@ -37,7 +42,7 @@ bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread, uint1
 	_port = port;
 	
 	if (staticKey) {
-		for (auto& session : sessions) {
+		for (auto& session : _sessions) {
 			session.SetNetSession(staticKey);
 			session.SetOwner(*this);
 		}
@@ -128,7 +133,7 @@ void IOCP::Start()
 void IOCP::Stop()
 {
 	_isRunning = false;
-	_listenSocket.CancleIO();
+	_listenSocket.Close();
 	PostQueuedCompletionStatus(_iocp, 0, 0, nullptr);
 
 	for (auto h : _threadArray) {
@@ -164,7 +169,7 @@ void IOCP::SetDefaultTimeout(unsigned int timeoutMillisecond)
 		return;
 	}
 
-	for ( auto& s : sessions )
+	for ( auto& s : _sessions )
 	{
 		s.SetDefaultTimeout(timeoutMillisecond);
 		s.SetTimeout(timeoutMillisecond);
@@ -175,48 +180,31 @@ void IOCP::SetDefaultTimeout(unsigned int timeoutMillisecond)
 //			Network
 /*****************************/
 
-bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer, int type)
+bool IOCP::SendPacket(SessionID sessionId, CSendBuffer* buffer, int type)
 {
+	PRO_BEGIN("SendPacket");
 	auto result = FindSession(sessionId, L"SendPacketInc");
-	if (result == nullptr)
+	if ( result == nullptr )
 		return false;
 	auto& session = *result;
 
 	session.writeContentLog(type);
 
-	buffer->IncreaseRef(L"SendPacketInc");
-
-	int size = buffer->GetDataSize();
-	if (size == 0)
-	{
-		DebugBreak();
-	}
-
-
-	session.Enqueue(buffer);
-	session.dataNotSend++;
-
-	PostQueuedCompletionStatus(_iocp, -1, (ULONG_PTR)&session, &session._sendExecute._overlapped);
-
-	session.Release(L"SendPacketRelease");
-	return true;
-}
-
-bool IOCP::SendPacket(SessionID sessionId, CSerializeBuffer* buffer)
-{
-	auto result = FindSession(sessionId, L"SendPacketInc");
-	if (result == nullptr)
-		return false;
-	auto& session = *result;
-
 	_processBuffer(session, *buffer);
 
-	PostQueuedCompletionStatus(_iocp, -1, (ULONG_PTR)&session, &session._sendExecute._overlapped);
+	PostQueuedCompletionStatus(_iocp, -1, ( ULONG_PTR ) &session, &session._sendExecute._overlapped);
 	session.Release(L"SendPacketRelease");
 	return true;
 }
 
-bool IOCP::SendPackets(SessionID sessionId, list<CSerializeBuffer*>& bufArr)
+bool IOCP::SendPacket(SessionID sessionId, CSendBuffer* buffer)
+{
+
+	return SendPacket(sessionId, buffer, 0);
+
+}
+
+bool IOCP::SendPackets(SessionID sessionId, list<CSendBuffer*>& bufArr)
 {
 	auto result = FindSession(sessionId, L"SendPacketInc");
 	if ( result == nullptr )
@@ -225,7 +213,7 @@ bool IOCP::SendPackets(SessionID sessionId, list<CSerializeBuffer*>& bufArr)
 	auto len = bufArr.size();
 	if ( len == 0 )
 		return false;
-
+	
 
 	for (auto buffer: bufArr) 
 	{
@@ -238,7 +226,7 @@ bool IOCP::SendPackets(SessionID sessionId, list<CSerializeBuffer*>& bufArr)
 }
 
 
-void NormalIOCP::_processBuffer(Session& session, CSerializeBuffer& buffer)
+void NormalIOCP::_processBuffer(Session& session, CSendBuffer& buffer)
 {
 	auto result = buffer.IncreaseRef(L"ProcessBuffInc");
 
@@ -247,7 +235,7 @@ void NormalIOCP::_processBuffer(Session& session, CSerializeBuffer& buffer)
 	{
 		DebugBreak();
 	}
-	session.Enqueue(&buffer);
+	session.EnqueueSendData(&buffer);
 	session.dataNotSend++;
 }
 
@@ -255,7 +243,6 @@ void NormalIOCP::_processBuffer(Session& session, CSerializeBuffer& buffer)
 
 bool IOCP::DisconnectSession(SessionID sessionId)
 {
-
 
 	auto result = FindSession(sessionId, L"DisconnectInc");
 	if (result == nullptr)
@@ -279,14 +266,14 @@ void IOCP::_onDisconnect(SessionID sessionId)
 //			INIT
 /*****************************/
 
-bool IOCP::isEnd()
+bool IOCP::isEnd() const
 {
 	return gracefulEnd;
 }
 
-void IOCP::SetMaxPacketSize(int size)
+void IOCP::SetMaxPacketSize(int size) 
 {
-	for (auto& session : sessions) {
+	for (auto& session : _sessions) {
 		session.SetMaxPacketLen(size);
 	}
 }
@@ -300,80 +287,160 @@ void IOCP::PostExecutable(Executable* exe, ULONG_PTR arg)
 {
 	int transfered = 2;
 	PostQueuedCompletionStatus(_iocp, transfered, arg, exe->GetOverlapped());
-
 }
 
 
-void IOCP::SetRecvDebug(SessionID id, unsigned int type)
-{
-	auto sessionIndex = (id >> 47);
-	auto& session = sessions[sessionIndex];
 
-	session.release_D[InterlockedIncrement(&session.debugIndex)%session.debugSize] = { session._refCount,L"RecvPacket",type };
-}
 
 /*****************************
 			Monitor
 *****************************/
 
-uint64 IOCP::GetAcceptCount()
+uint64 IOCP::GetAcceptCount() const
 {
 	return _acceptCount;
 }
 
-uint64 IOCP::GetAcceptTps()
+uint64 IOCP::GetAcceptTps() const
 {
 	return _acceptTps;
 }
 
-uint64 IOCP::GetRecvTps()
+uint64 IOCP::GetRecvTps() const
 {
 	return _recvTps;
 }
 
-uint64 IOCP::GetSendTps()
+uint64 IOCP::GetSendTps() const
 {
 	return _sendTps;
 }
 
-uint16 IOCP::GetSessions()
+uint16 IOCP::GetSessions() const
 {
 	return _sessionCount;
 }
 
-uint64 IOCP::GetPacketPoolSize()
+uint64 IOCP::GetPacketPoolSize() const
 {
 	return _packetPoolSize;
 }
 
-uint32 IOCP::GetPacketPoolEmptyCount()
+uint32 IOCP::GetPacketPoolEmptyCount() const
 {
 	return _packetPoolEmpty;
 }
 
-uint64 IOCP::GetTimeoutCount()
+uint64 IOCP::GetTimeoutCount() const
 {
 	return _timeoutSessions;
 }
 
-uint32 IOCP::GetPacketPoolAcquireCount()
+uint32 IOCP::GetPacketPoolAcquireCount() const
 {
-	return CSerializeBuffer::_pool.GetAcquireCount();
+	return CSendBuffer::_pool.GetAcquireCount();
 }
 
-uint32 IOCP::GetPacketPoolReleaseCount()
+uint32 IOCP::GetPacketPoolReleaseCount() const
 {
-	return CSerializeBuffer::_pool.GetRelaseCount();
+	return CSendBuffer::_pool.GetRelaseCount();
 }
 
-uint64 IOCP::GetDisconnectCount()
+uint64 IOCP::GetDisconnectCount() const
 {
 	return _disconnectCount;
 }
 
-uint64 IOCP::GetDisconnectPersec()
+uint64 IOCP::GetDisconnectPersec() const
 {
 	return _disconnectps;
+}
+
+uint32 IOCP::GetSegmentTimeout() const
+{
+	return _tcpSegmenTimeout;
+}
+
+size_t IOCP::GetPageFaultCount() const
+{
+	return _memMonitor.GetPageFaultCount();
+}
+
+size_t IOCP::GetPeakPMemSize() const
+{
+	return _memMonitor.GetPeakPMemSize();
+}
+
+size_t IOCP::GetPMemSize() const
+{
+	return _memMonitor.GetPMemSize();
+}
+
+size_t IOCP::GetPeakVmemSize() const
+{
+	return _memMonitor.GetPeakVmemSize();
+}
+
+size_t IOCP::GetVMemsize() const
+{
+	return _memMonitor.GetVMemsize();
+}
+
+size_t IOCP::GetPeakPagedPoolUsage() const
+{
+	return _memMonitor.GetPeakPagedPoolUsage();
+}
+
+size_t IOCP::GetPeakNonPagedPoolUsage() const
+{
+	return _memMonitor.GetPeakNonPagedPoolUsage();
+}
+
+size_t IOCP::GetPagedPoolUsage() const
+{
+	return _memMonitor.GetPagedPoolUsage();
+}
+
+size_t IOCP::GetNonPagedPoolUsage() const
+{
+	return _memMonitor.GetNonPagedPoolUsage();
+}
+
+void IOCP::PrintLibMonitorInfo() const
+{
+	printf("==================================================================================\n");
+	printf("%-11s%25s%10s%25s%11s\n", "+++++", "", "LIBS", "", "+++++");
+	printf("----------------------------------------------------------------------------------\n");
+	printf("+  %-14s : %6lldMB / %-6lldMB | %-14s : %6lldMB / %-6lldMB \n",
+		   "VirtualMem", GetVMemsize()/ 1000'000, GetPeakVmemSize()/1000'000,
+		   "PhysicalMem", GetPMemSize() / 1000'000, GetPeakPMemSize() / 1000'000);
+	printf("+  %-14s : %6.2f %% / %-6.2f%%  |\n",
+		   "TotalCPU", _cpuMonitor.ProcessTotal(), _cpuMonitor.ProcessorTotal());
+	printf("+  %-14s : %6.2f %% / %-6.2f%%  |  %-14s : %6.2f %% / %-6.2f%% \n",
+		   "KernelCPU", _cpuMonitor.ProcessKernel(), _cpuMonitor.ProcessorKernel(),
+		   "UserCPU", _cpuMonitor.ProcessUser(), _cpuMonitor.ProcessorUser());
+	printf("----------------------------------------------------------------------------------\n");
+
+	printf("+  %-14s : %10u\n", "Sessions", GetSessions());
+	printf("+  %-14s : %10lld, %-15s : %10lld\n", "Accept", GetAcceptCount(), "AcceptTPS", GetAcceptTps());
+	printf("+  %-14s : %10lld, %-15s : %10lld\n", "RecvTPS", GetRecvTps(),"SendTPS", GetSendTps());
+	printf("+  %-14s : %10lld, %-15s : %10lld\n", "Disconnect", GetDisconnectCount(),"DisconnectTPS", GetDisconnectPersec());
+	printf("+  %-14s : %10d, %-15s : %10lld\n", "SegmentTimeout", GetSegmentTimeout(),"Timeout", GetTimeoutCount());
+
+	printf("+  %-14s : %10d, %-15s : %10d\n", "GSendPool",
+		   CSendBuffer::_pool.GetGPoolSize(), "GSendPoolEmpty", CSendBuffer::_pool.GetGPoolEmptyCount());
+
+	printf("+  %-14s : %10d, %-15s : %10d\n", "GRecvPool", 
+		   CRecvBuffer::_pool.GetGPoolSize(), "GRecvPoolEmpty", CRecvBuffer::_pool.GetGPoolEmptyCount());
+
+	printf("+  %-14s : %10d, %-15s : %10d\n", "SendPoolAcq", 
+		   CSendBuffer::_pool.GetAcquireCount(),"SendPoolRel", CSendBuffer::_pool.GetRelaseCount());
+
+	printf("+  %-14s : %10d, %-15s : %10d\n", "RecvPoolAcq",
+		   CRecvBuffer::_pool.GetAcquireCount(), "RecvPoolRel", CRecvBuffer::_pool.GetRelaseCount() );
+
+	printf("----------------------------------------------------------------------------------\n");
+
 }
 
 
@@ -440,7 +507,7 @@ void IOCP::WorkerThread(LPVOID arg)
 				__fallthrough;
 			//ERROR_SEM_TIMEOUT. 장치에서 끊은 경우 (5회 재전송 실패 등..)
 			case ERROR_SEM_TIMEOUT:
-				__fallthrough;
+				InterlockedIncrement(&_tcpSegmenTimeout);
 			//WSA_OPERATION_ABORTED cancleIO로 인한 것. 
 			case WSA_OPERATION_ABORTED:
 				__fallthrough;
@@ -487,10 +554,11 @@ void IOCP::AcceptThread(LPVOID arg)
 				break;
 
 			printf("AcceptError %d", WSAGetLastError());
+			_acceptErrorCount++;
 			DebugBreak();
 			int a = 10;
 		}
-
+		PRO_BEGIN("Accept");
 
 		if (OnAccept(clientSocket.GetSockAddr()) == false)
 		{
@@ -515,9 +583,8 @@ void IOCP::AcceptThread(LPVOID arg)
 		uint64 sessionID = (uint64)sessionIndex << 47;
 		sessionID |= (g_sessionId++);
 
-		auto& session = sessions[sessionIndex];
+		auto& session = _sessions[sessionIndex];
 		auto result = session.IncreaseRef(L"AcceptInc");
-		session._recvBuffer = CSerializeBuffer::Alloc();
 
 		session.SetSessionID(sessionID);
 		session.SetSocket(clientSocket);
@@ -547,8 +614,11 @@ void IOCP::MonitorThread(LPVOID arg)
 		_oldDisconnect = _disconnectCount;
 		_recvTps = _recvCount;
 		_sendTps = _sendCount;
-		_packetPoolSize = CSerializeBuffer::_pool.GetGPoolSize();
-		_packetPoolEmpty = CSerializeBuffer::_pool.GetGPoolEmptyCount();
+		_packetPoolSize = CSendBuffer::_pool.GetGPoolSize();
+		_packetPoolEmpty = CSendBuffer::_pool.GetGPoolEmptyCount();
+
+		_memMonitor.Update();
+		_cpuMonitor.UpdateCpuTime();
 
 		OnMonitorRun();
 
@@ -575,14 +645,16 @@ void IOCP::TimeoutThread(LPVOID arg)
 		auto now = chrono::system_clock::now();
 		if ( _checkTiemout ) 
 		{
-			for ( auto& session : sessions )
+			for ( auto& session : _sessions )
 			{
-				if ( session.CheckTimeout(now) ) 
+				if ( !session.CheckTimeout(now) )
 				{
-					OnSessionTimeout(session.GetSessionID(),session.GetIP(),session.GetPort());
-					session.TimeoutReset();
-					_timeoutSessions++;
+					continue;
 				}
+
+				OnSessionTimeout(session.GetSessionID(), session.GetIP(), session.GetPort());
+				session.ResetTimeoutwait();
+				_timeoutSessions++;
 			}
 		}
 
@@ -617,7 +689,7 @@ NormalIOCP::~NormalIOCP()
 Session* NormalIOCP::FindSession(uint64 id, LPCWSTR content)
 {
 	auto sessionIndex = id >> 47;
-	auto& session = sessions[sessionIndex];
+	auto& session = _sessions[sessionIndex];
 	auto result = session.IncreaseRef(content);
 
 	//릴리즈 중이거나 세션 변경되었으면 
@@ -642,3 +714,5 @@ void NormalIOCP::waitStart()
 	}
 
 }
+
+

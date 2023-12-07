@@ -148,6 +148,7 @@ Socket Socket::Accept()
 
 	SOCKET clientSocket = accept(_socket, (SOCKADDR*)&clientAddr, &len);
 
+
 	return { clientSocket, clientAddr };
 }
 

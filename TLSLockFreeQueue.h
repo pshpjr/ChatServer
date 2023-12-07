@@ -1,7 +1,6 @@
 ﻿#pragma once
 #include "Memorypool.h"
 #include "TLSPool.h"
-#include <thread>
 
 
 template <typename T>
@@ -28,7 +27,6 @@ public:
 	void Enqueue(const T& data)
 	{
 		Node* allocNode; {
-			PRO_BEGIN("GET_NODE")
 			allocNode = _tlsLFQNodePool.Alloc();
 		}
 		 
@@ -39,7 +37,6 @@ public:
 		auto headCount = InterlockedIncrement16(&tailCount);
 		Node* newTail = ( Node* ) ( ( unsigned long long )newNode | ( ( unsigned long long )( headCount ) ) << 47 );
 		{
-			PRO_BEGIN("Enqueue_Loop")
 			while ( true )
 			{
 				Node* tail = _tail;

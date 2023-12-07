@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include <string>
-#include <WinSock2.h>
+
 
 
 using BYTE = unsigned char;
@@ -18,7 +18,6 @@ using String = std::wstring;
 //소켓 관련
 using SessionID = uint64;
 using SocketID = uint64;
+#include <WinSock2.h>
 using SockAddr_in = SOCKADDR_IN;
-
-using SessionID = uint64;
 using Port = uint16;

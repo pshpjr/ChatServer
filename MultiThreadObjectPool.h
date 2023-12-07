@@ -51,7 +51,6 @@ public:
 
 	T* Alloc()
 	{
-		PRO_BEGIN("LOCKFREEPOOL_ALLOC")
 		Node* retNode;
 
 		for(;;)

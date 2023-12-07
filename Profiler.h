@@ -110,6 +110,20 @@ public:
 	}
 
 	void ProfileDataOutText(LPWSTR szFileName);
+	void DumpAndReset()
+	{
+		time_t timer = time(NULL);
+		tm t;
+		localtime_s(&t, &timer);
+		WCHAR buffer[100];
+		wsprintfW(buffer,
+				  L"profile_%d-%d-%d_%2d%2d_%x.txt",
+				  t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, std::this_thread::get_id());
+		ProfileDataOutText(buffer);
+
+		ProfileReset();
+	}
+
 
 	void ProfileReset(void)
 	{
@@ -138,7 +152,7 @@ private:
 };
 
 
-//#define PROFILE
+#define PROFILE
 
 #ifdef PROFILE
 

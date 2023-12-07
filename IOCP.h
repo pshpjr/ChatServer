@@ -1,6 +1,9 @@
 ﻿#pragma once
-#include "CSerializeBuffer.h"
+#include "BuildOption.h"
 #include "types.h"
+
+class CSendbuffer;
+class CRecvBuffer;
 
 class IOCP : public IOCP_CLASS
 {
@@ -11,53 +14,59 @@ class IOCP : public IOCP_CLASS
 public:
 	IOCP();
 
-
-
 	bool Init(String ip, Port port, uint16 backlog, uint16 maxRunningThread,uint16 workerThread, char staticKey);
 	void Start();
 	void Stop();
-	bool SendPacket(SessionID sessionId, CSerializeBuffer* buffer, int type);
-	bool SendPacket(SessionID sessionId, CSerializeBuffer* buffer);
-	bool SendPackets(SessionID sessionId, list<CSerializeBuffer*>& bufArr);
+	inline bool SendPacket(SessionID sessionId, CSendBuffer* buffer, int type);
+	bool SendPacket(SessionID sessionId, CSendBuffer* buffer);
+	bool SendPackets(SessionID sessionId, list<CSendBuffer*>& bufArr);
 	bool DisconnectSession(SessionID sessionId);
-	bool isEnd();
+	bool isEnd() const;
 	void SetMaxPacketSize(int size);
 	void SetTimeout(SessionID sessionId, int timeoutMillisecond);
 	void SetDefaultTimeout(unsigned int timeoutMillisecond);
 	void PostExecutable(Executable* exe, ULONG_PTR arg);
 	
 
+	void PrintLibMonitorInfo() const;
 	virtual void OnWorkerThreadBegin() {}; 
 	virtual void OnWorkerThreadEnd() {};
 	virtual bool OnAccept(SockAddr_in) { return true; };
 	virtual void OnConnect(SessionID sessionId, const SockAddr_in& info) {};
 	virtual void OnDisconnect(SessionID sessionId) {};
-	virtual void OnRecvPacket(SessionID sessionId, CSerializeBuffer& buffer) {};
+	virtual void OnRecvPacket(SessionID sessionId, CRecvBuffer& buffer) {};
 	virtual void OnInit() {};
 	virtual void OnStart() {};
 	virtual void OnEnd() {};
 	virtual void OnSessionTimeout(SessionID sessionId,String ip, Port port) {};
 	virtual void OnMonitorRun() {};
 
-	//DEBUG
-	void SetRecvDebug(SessionID id, unsigned int type);
-
-
 	//MONITOR
+	uint64 GetAcceptCount() const;
+	uint64 GetAcceptTps() const;
+	uint64 GetRecvTps() const;
+	uint64 GetSendTps() const;
+	uint16 GetSessions() const;
+	uint64 GetPacketPoolSize() const;
+	uint32 GetPacketPoolEmptyCount() const;
+	uint64 GetTimeoutCount() const;
+	uint32 GetPacketPoolAcquireCount() const;
+	uint32 GetPacketPoolReleaseCount() const;
+	uint64 GetDisconnectCount() const;
+	uint64 GetDisconnectPersec() const;
+	uint32 GetSegmentTimeout() const;
+
+	size_t GetPageFaultCount() const;
+	size_t GetPeakPMemSize() const;
+	size_t GetPMemSize() const;
+	size_t GetPeakVmemSize() const;
+	size_t GetVMemsize() const;
+	size_t GetPeakPagedPoolUsage() const;
+	size_t GetPeakNonPagedPoolUsage() const;
+	size_t GetPagedPoolUsage() const;
+	size_t GetNonPagedPoolUsage() const;
 
 
-	uint64 GetAcceptCount();
-	uint64 GetAcceptTps();
-	uint64 GetRecvTps();
-	uint64 GetSendTps();
-	uint16 GetSessions();
-	uint64 GetPacketPoolSize();
-	uint32 GetPacketPoolEmptyCount();
-	uint64 GetTimeoutCount();
-	uint32 GetPacketPoolAcquireCount();
-	uint32 GetPacketPoolReleaseCount();
-	uint64 GetDisconnectCount();
-	uint64 GetDisconnectPersec();
 private:
 	//MONITOR
 	void increaseRecvCount();

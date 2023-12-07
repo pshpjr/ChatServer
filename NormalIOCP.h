@@ -4,6 +4,14 @@
 #include "Types.h"
 #include "LockFreeStack.h"
 #include "Session.h"
+#include "CCpuUsage.h"
+#include "MemoryUsage.h"
+class SendBuffer;
+namespace 
+{
+	const int MAX_SESSIONS = 24000;
+	const long releaseFlag = 0x0010'0000;
+}
 
 class NormalIOCP
 {
@@ -11,16 +19,15 @@ class NormalIOCP
 	friend class RecvExecutable;
 	friend class SendExecutable;
 	friend class PostSendExecutable;
-public:
-
 protected:
 
-	Session* FindSession(uint64 id,  LPCWSTR content);
+	inline Session* FindSession(uint64 id,  LPCWSTR content);
 
 	unsigned short GetSessionIndex(uint64 sessionID) const { return (unsigned short)(sessionID >> 47); }
 
-	void _processBuffer(Session& session, CSerializeBuffer& buffer);
+	inline void _processBuffer(Session& session, CSendBuffer& buffer);
 	void waitStart();
+	
 protected:
 	virtual ~NormalIOCP();
 
@@ -34,13 +41,14 @@ protected:
 	uint16 _port;
 	bool _checkTiemout = true;
 	
-	//MONITOR
+//MONITOR
 	uint64 _acceptCount = 0;
 	uint64 _oldAccepCount = 0;
 	int64 _recvCount = 0;
 	int64 _sendCount = 0;
 	uint64 _oldDisconnect = 0;
 	int64 _disconnectCount = 0;
+	uint32 _tcpSegmenTimeout = 0;
 	uint64 _acceptTps = 0;
 	uint64 _recvTps = 0;
 	uint64 _sendTps = 0;
@@ -49,20 +57,23 @@ protected:
 	uint64 _packetPoolSize = 0;
 	uint32 _packetPoolEmpty = 0;
 	uint64 _timeoutSessions = 0;
+	uint32 _acceptErrorCount = 0;
 
+	//Memory
+
+	MemoryUsage _memMonitor;
+	CCpuUsage _cpuMonitor;
 
 // SESSION_MANAGER
-	int g_id = 0;
-	static const int MAX_SESSIONS = 16000;
-	Session sessions[MAX_SESSIONS];
+
+	Session _sessions[MAX_SESSIONS];
 	LockFreeStack<unsigned short> freeIndex;
-	const unsigned long long idMask = 0x000'7FFF'FFFF'FFFF;
-	const unsigned long long indexMask = 0x7FFF'8000'0000'0000;
-	const long releaseFlag = 0x0010'0000;
 
 	uint64 g_sessionId = 0;
-	char _staticKey;
+	char _staticKey = 0;
 
 	bool gracefulEnd = false;
+public:
+
 };
 

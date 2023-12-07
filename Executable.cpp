@@ -4,93 +4,117 @@
 #include "Protocol.h"
 #include "Session.h"
 #include "IOCP.h"
-#include "CSerializeBuffer.h"
+#include "CSendBuffer.h"
+#include "CRecvBuffer.h"
+
+
 #include "CoreGlobal.h"
+#include "CLogger.h"
 #include "Profiler.h"
+
+
+void SendExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
+{
+
+	Session* session = ( Session* ) key;
+
+
+	session->trySend();
+}
+
+
+
+
 
 void RecvExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 {
+	PRO_BEGIN("RecvExecute");
+	Session& session = *( Session* ) key;
 
-	Session& session = *(Session*)key;
-
-	session._recvBuffer->MoveWritePos(transferred);
+	session._recvQ.MoveRear(transferred);
 
 	char sKey = session._staticKey;
 
-	if (sKey) 
+	if ( sKey )
 	{
-		recvEncrypt(session,iocp);
+		recvHandler<NetHeader>(session, iocp);
 	}
-	else 
+	else
 	{
-		recvNormal(session,iocp);
-	}
-	auto oldBuffer = session._recvBuffer;
-
-	if ( oldBuffer->CanPopSize() == CSerializeBuffer::BUFFER_SIZE)
-	{
-		throw exception("PacketIsBiggerThenBuffer");
-	}
-
-	if ( oldBuffer->CanPopSize() == 0 )
-	{
-
-		oldBuffer->Clear();
-	}
-	else if ( oldBuffer->canPushSize() == 0 )
-	{
-
-		auto newBuffer = CSerializeBuffer::Alloc();
-
-		if ( oldBuffer->CanPopSize() != 0 )
-		{
-			oldBuffer->CopyData(*newBuffer);
-		}
-
-		session._recvBuffer = newBuffer;
-		oldBuffer->Release(L"OldBufferRelease");
+		recvHandler<LANHeader>(session, iocp);
 	}
 
 	session.RecvNotIncrease();
 }
 
+
+void PostSendExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
+{
+
+	Session* session = ( Session* ) key;
+	auto& sendingQ = session->_sendingQ;
+
+	CSendBuffer* buffer = nullptr;
+	int sendingCount = session->dataNotSend;
+
+	for ( int i = 0; sendingCount; i++ )
+	{
+		sendingQ[i]->Release(L"PostSendRelease");
+	}
+
+	session->dataNotSend = 0;
+
+	session->needCheckSendTimeout = false;
+
+	int oldSending = InterlockedExchange(&session->_isSending, 0);
+	if ( oldSending != 1 )
+	{
+		DebugBreak();
+	}
+
+	InterlockedIncrement64(&( ( IOCP* ) iocp )->_sendCount);
+
+	session->trySend();
+
+	uint64 sessionID = session->_sessionID;
+	session->Release(L"PostSendRelease");
+
+}
+
+
 void RecvExecutable::recvNormal(Session& session, void* iocp)
 {
-	using Header = CSerializeBuffer::LANHeader;
+	using Header = LANHeader;
 	IOCP& server = *reinterpret_cast< IOCP* >( iocp );
-	while (true)
+	while ( true )
 	{
-		if (session._recvQ.Size() < sizeof(Header))
+		if ( session._recvQ.Size() < sizeof(Header) )
 		{
-
 			break;
 		}
 
-		Header header {};
-		session._recvQ.Peek((char*)&header, sizeof(Header));
+		Header header = *( Header* ) session._recvQ.GetFront();
 
-
-
-		if (session._recvQ.Size() < header.len)
+		if ( session._recvQ.Size() < header.len )
 		{
 			break;
 		}
 
 		session._recvQ.Dequeue(sizeof(Header));
 
-		auto& buffer = *CSerializeBuffer::Alloc();
-		session._recvQ.Peek(buffer.GetDataPtr(), header.len);
+		auto front = session._recvQ.GetFront();
+		auto rear = front + header.len;
+
+		auto& buffer = *CRecvBuffer::Alloc(front, rear);
 		session._recvQ.Dequeue(header.len);
-		buffer.MoveWritePos(header.len);
 
 		server.increaseRecvCount();
 
-
 		try
 		{
-			((IOCP*)iocp)->OnRecvPacket(session._sessionID, buffer);
+			( ( IOCP* ) iocp )->OnRecvPacket(session._sessionID, buffer);
 		}
-		catch (const std::invalid_argument&)
+		catch ( const std::invalid_argument& )
 		{
 			GLogger->write(L"RecvErr", LogLevel::Debug, L"ERR");
 		}
@@ -102,126 +126,151 @@ void RecvExecutable::recvNormal(Session& session, void* iocp)
 
 void RecvExecutable::recvEncrypt(Session& session, void* iocp)
 {
+	//using Header = NetHeader;
+	//IOCP& server = *reinterpret_cast< IOCP*>(iocp);
+	//int loopCOunt = 0;
 
-	using Header = CSerializeBuffer::NetHeader;
-	IOCP& server = *reinterpret_cast< IOCP*>(iocp);
-	int loopCOunt = 0;
+	//while (true)
+	//{
+	//	loopCOunt++;
+	//	auto recvBuffer = session._recvBuffer;
 
-	while (true)
+	//	if ( recvBuffer->CanPopSize() < sizeof(Header))
+	//	{
+	//		break;
+	//	}
+
+	//	Header* header = ( Header* ) recvBuffer->GetFront();
+
+	//	if ( header->code != dfPACKET_CODE )
+	//	{
+	//		session.Close();
+	//		break;
+	//	}
+
+	//	if (header->len > session._maxPacketLen)
+	//	{
+	//		session.Close();
+	//		break;
+	//	}
+
+	//	if (recvBuffer->CanPopSize() < header->len + sizeof(Header))
+	//	{
+	//		break;
+	//	}
+	//	
+	//	auto& contentBuffer = *RecvBuffer::Alloc(recvBuffer->GetFront(), recvBuffer->GetRear());
+	//	contentBuffer.isEncrypt++;
+	//	contentBuffer.Decode(session._staticKey, ( Header* ) contentBuffer.GetFront());
+
+	//	if (!contentBuffer.checksumValid(( Header* ) contentBuffer.GetFront()))
+	//	{
+	//		//printf("checkSumInvalid %d %p\n", buffer._rear- buffer._front, buffer._front);
+
+	//		session.Close();
+	//		break;
+	//	}
+	//	contentBuffer.MoveReadPos(sizeof(Header));
+
+	//	server.increaseRecvCount();
+	//	//session.debugIndex++;
+	//	//session.Debug[session.debugIndex] = { packetBegin,session._recvQ.GetFront(),session._recvQ.GetRear() };
+
+	//	try
+	//	{
+
+	//		((IOCP*)iocp)->OnRecvPacket(session._sessionID, contentBuffer);
+	//	}
+	//	catch (const std::invalid_argument& e)
+	//	{
+
+	//		printf("%s",e.what());
+	//		session.Close();
+	//	}
+
+	//	recvBuffer->MoveReadPos(sizeof(Header));
+	//	recvBuffer->MoveReadPos(header->len);
+	//	contentBuffer.Release(L"RecvRelease");
+	//}
+}
+
+template <typename Header>
+void RecvExecutable::recvHandler(Session& session, void* iocp)
+{
+	IOCP& server = *reinterpret_cast< IOCP* >( iocp );
+	while ( true )
 	{
-		loopCOunt++;
-		auto recvBuffer = session._recvBuffer;
-
-		if ( recvBuffer->CanPopSize() < sizeof(Header))
+		if ( session._recvQ.Size() < sizeof(Header) )
 		{
 			break;
 		}
 
-		Header* header = ( Header* ) recvBuffer->GetFront();
+		Header* header = ( Header* ) session._recvQ.GetFront();
 
-		if ( header->code != dfPACKET_CODE )
+		if constexpr ( is_same_v<Header, NetHeader> )
 		{
-			session.Close();
+			if ( header->code != dfPACKET_CODE )
+			{
+				session.Close();
+				break;
+			}
+
+			if ( header->len > session._maxPacketLen )
+			{
+				session.Close();
+				break;
+			}
+		}
+
+		if ( session._recvQ.Size() < header->len )
+		{
 			break;
 		}
 
-		if (header->len > session._maxPacketLen)
-		{
-			session.Close();
-			break;
-		}
+		session._recvQ.Dequeue(sizeof(Header));
 
-		if (recvBuffer->CanPopSize() < header->len + sizeof(Header))
-		{
-			break;
-		}
-		
-		auto& contentBuffer = *ContentSerializeBuffer::Alloc(recvBuffer->GetFront(), recvBuffer->GetRear());
-		contentBuffer.isEncrypt++;
-		contentBuffer.Decode(session._staticKey, ( Header* ) contentBuffer.GetFront());
+		char* front = session._recvQ.GetFront();
+		char* rear = front + header->len;
 
-		if (!contentBuffer.checksumValid(( Header* ) contentBuffer.GetFront()))
-		{
-			//printf("checkSumInvalid %d %p\n", buffer._rear- buffer._front, buffer._front);
+		auto& buffer = *CRecvBuffer::Alloc(front, rear);
 
-			session.Close();
-			break;
+		if constexpr ( is_same_v<Header, NetHeader> )
+		{
+			buffer.Decode(session._staticKey, header);
+
+			if ( !buffer.checksumValid(header) )
+			{
+				//printf("checkSumInvalid %d %p\n", buffer._rear- buffer._front, buffer._front);
+
+				session.Close();
+				break;
+			}
 		}
-		contentBuffer.MoveReadPos(sizeof(Header));
 
 		server.increaseRecvCount();
-		//session.debugIndex++;
-		//session.Debug[session.debugIndex] = { packetBegin,session._recvQ.GetFront(),session._recvQ.GetRear() };
-
 		try
 		{
-
-			((IOCP*)iocp)->OnRecvPacket(session._sessionID, contentBuffer);
+			( ( IOCP* ) iocp )->OnRecvPacket(session._sessionID, buffer);
 		}
-		catch (const std::invalid_argument& e)
+		catch ( const std::invalid_argument& )
 		{
-
-			printf("%s",e.what());
-			session.Close();
+			GLogger->write(L"RecvErr", LogLevel::Debug, L"ERR");
 		}
 
-		recvBuffer->MoveReadPos(sizeof(Header));
-		recvBuffer->MoveReadPos(header->len);
-		contentBuffer.Release(L"RecvRelease");
+		session._recvQ.Dequeue(header->len);
+
+		buffer.Release(L"RecvRelease");
 	}
-}
-
-
-void PostSendExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
-{
-
-	Session* session = (Session*)key;
-	auto& sendingQ = session->_sendingQ;
-
-	CSerializeBuffer* buffer = nullptr;
-
-
-	while (sendingQ.Dequeue(buffer))
-	{
-		buffer->Release(L"PostSendRelease");
-	}
-
-
-	session->dataNotSend = 0;
-
-	session->needCheckSendTimeout = false;
-	
-	int oldSending = InterlockedExchange(&session->_isSending, 0);
-	if (oldSending != 1) {
-		DebugBreak();
-	}
-
-	InterlockedIncrement64(&((IOCP*)iocp)->_sendCount);
-	
-	session->trySend();
-
-	uint64 sessionID = session->_sessionID;
-	session->Release(L"PostSendRelease");
-
-}
-
-void SendExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
-{
-
-	Session* session = (Session*)key;
-
-
-	session->trySend();
 }
 
 void ReleaseExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 {
 
-	Session* session = (Session*)key;
+	Session* session = ( Session* ) key;
 
 	session->Reset();
 
 	session->_owner->_onDisconnect(session->_sessionID);
-	unsigned short index = (uint16) (session->_sessionID >> 47);
+	unsigned short index = ( uint16 ) ( session->_sessionID >> 47 );
 	session->_owner->freeIndex.Push(index);
 }

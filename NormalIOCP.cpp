@@ -275,7 +275,7 @@ void NormalIOCP::_processBuffer(Session& session, CSendBuffer& buffer)
 }
 
 
-SessionID IOCP::createClientSession(String ip, Port port)
+SessionID IOCP::Connect(String ip, Port port)
 {
 	unsigned short index;
 	freeIndex.Pop(index);
@@ -308,6 +308,7 @@ SessionID IOCP::createClientSession(String ip, Port port)
 	_sessions[index].SetSessionID(sessionID);
 	_sessions[index].OffReleaseFlag();
 	_sessions[index].SetConnect();
+	_sessions[index].SetLanSession();
 
 	_sessions[index].RecvNotIncrease();
 

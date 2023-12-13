@@ -89,6 +89,8 @@ public:
 	void SetSessionID(SessionID sessionID) { _sessionID = sessionID; }
 	void SetOwner(IOCP& owner) { _owner = &owner; }
 	void SetNetSession(char staticKey) { _staticKey = staticKey; }
+	void SetLanSession() { SetNetSession(0); }
+
 	void SetDefaultTimeout(int timoutMillisecond);
 	void SetTimeout(int timoutMillisecond);
 	void OffReleaseFlag() { auto result = InterlockedBitTestAndReset(&_refCount, 20); }

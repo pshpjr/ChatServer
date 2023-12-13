@@ -23,10 +23,6 @@ void GroupManager::MoveSession(SessionID target, GroupID dst)
 	session->Release(L"MoveSessionRel");
 }
 
-SessionID GroupManager::createSession(String ip, Port port)
-{
-	return _owner->createClientSession(ip, port);
-}
 
 GroupManager::GroupManager(IOCP* owner) : _owner(owner)
 {

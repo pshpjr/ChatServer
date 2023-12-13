@@ -50,10 +50,12 @@ public:
 
 		auto start = system_clock::now();
 		const char* err;
+		
 		query_stat = mysql_query(connection, vec.data());
 		if ( query_stat != 0 )
 		{
 			err = mysql_error(&conn);
+
 			auto num = mysql_errno(&conn);
 
 			auto dur = duration_cast< milliseconds >( system_clock::now() - start);
@@ -63,6 +65,7 @@ public:
 			printf("%d \n", num);
 		}
 		sql_result = mysql_store_result(connection);
+
 
 		return duration_cast< milliseconds >( system_clock::now() - start );
 	}
@@ -109,8 +112,8 @@ public:
 private:
 	MYSQL conn;
 	MYSQL* connection = NULL;
-	MYSQL_RES* sql_result;
-	MYSQL_ROW sql_row;
-	int query_stat;
+	MYSQL_RES* sql_result = {};
+	MYSQL_ROW sql_row = {};
+	int query_stat = {};
 };
 

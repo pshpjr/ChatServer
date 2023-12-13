@@ -47,9 +47,9 @@ optional<String> RedisConnection::Get(const string& key)
 	{
 		return{};
 	}
-	auto cRet = move(rep.as_string());
+	auto cRet = rep.as_string();
 
 	String ret(cRet.begin(), cRet.end());
 
-	return ret;
+	return move(ret);
 }

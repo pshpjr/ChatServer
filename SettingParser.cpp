@@ -1,7 +1,6 @@
 ﻿#include "stdafx.h"
 #include "SettingParser.h"
 
-#include <Windows.h>
 #include <string.h>
 
 #include <iostream>
@@ -31,6 +30,9 @@ void SettingParser::loadSetting(LPCTSTR location)
 
 	rawText.seekg(0);
 	_buffer = ( LPWCH ) malloc(fileSize * 2 + 2);
+	if ( _buffer == nullptr )
+		throw exception();
+
 	bufferSize = fileSize + 1;
 
 	rawText.read(_buffer, fileSize);

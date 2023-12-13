@@ -1,13 +1,26 @@
 ﻿#pragma once
 #include "Memorypool.h"
 #include "MultiThreadObjectPool.h"
-#include <thread>
+
 
 
 
 template <typename T>
 class LockFreeQueue
 {
+	union Pointer
+	{
+		struct 
+		{
+			short tmp1;
+			short tmp2;
+			short tmp3;
+			short index;
+		};
+		long pointer;
+	};
+
+
 	struct Node
 	{
 
@@ -30,7 +43,7 @@ public:
 
 	long Size() const { return _size; }
 
-	void Enqueue(const T& data)
+	int Enqueue(const T& data)
 	{
 		Node* newNode = _pool.Alloc();
 		newNode->data = data;
@@ -40,23 +53,17 @@ public:
 		Node* newTail = (Node*)((unsigned long long)newNode | ((unsigned long long)(nextTailCount)) << 47);
 
 
-
+		int loop = 0;
 		while (true)
 		{
+
 			Node* tail = _tail;
 			Node* tailNode = (Node*)((unsigned long long)tail & pointerMask);
-			auto enqCount = InterlockedIncrement(&tryEnqueueCount);
-			if (enqCount == 100)
-			{
-				DebugBreak();
-			}
-
 
 			if (tailNode->next == nullptr)
 			{
 				if (InterlockedCompareExchangePointer((PVOID*)&tailNode->next, newTail, nullptr) == nullptr)
 				{
-					InterlockedExchange(&tryEnqueueCount, 0);
 					//auto debugCount = InterlockedIncrement64(&debugIndex);
 					//auto index = debugCount % debugSize;
 
@@ -77,18 +84,21 @@ public:
 			{
 				InterlockedCompareExchangePointer((PVOID*)&_tail, tailNode->next, tail);
 			}
-			
+			loop++;
 		}
 		InterlockedIncrement(&_size);
+		return loop;
 	}
 
-	bool Dequeue(T& data)
+	int Dequeue(T& data)
 	{
 		if (_size == 0)
-			return false;
+			return -1;
 
+		int loopCount = 0;
 		while (true)
 		{
+
 			Node* head = _head;
 			Node* headNode = (Node*)((unsigned long long)head & pointerMask);
 
@@ -114,16 +124,16 @@ public:
 				_pool.Free(headNode);
 				break;
 			}
-
+			loopCount++;
 		}
 		InterlockedDecrement(&_size);
 
-		return true;
+		return loopCount;
 	}
 
 
 private:
-	const unsigned long long pointerMask = 0x000'7FFF'FFFF'FFFF;
+	const unsigned long long pointerMask = 0x0000'7FFF'FFFF'FFFF;
 
 	//이거 붙어있을 때 떨어져 있을 때 성능 차이 비교
 	Node* _head = nullptr;
@@ -141,7 +151,6 @@ private:
 	//debugData<T> debug[debugSize];
 
 
-	long tryEnqueueCount = 0;
 
 };
 template <typename T>

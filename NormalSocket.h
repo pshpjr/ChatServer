@@ -1,8 +1,6 @@
 ﻿#pragma once
 #include <WinSock2.h>
 
-
-
 class NormalSocket
 {
 public:
@@ -11,10 +9,7 @@ public:
 
 	}
 
-
 protected:
-	
 	SOCKADDR_IN _sockAddr;
 	SOCKET _socket;
-
 };

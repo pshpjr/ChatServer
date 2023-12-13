@@ -1,8 +1,7 @@
 ﻿#pragma once
 
 #include <cstdio>
-#include <Windows.h>
-#include <thread>
+#include <winnt.h>
 #include "MultiThreadObjectPool.h"
 
 
@@ -11,7 +10,7 @@ class LockFreeStack
 {
 	struct Node
 	{
-		T data;
+		T data {};
 		Node* next = nullptr;
 		Node() = default;
 		Node(const T& data) : data(data), next(nullptr) {}

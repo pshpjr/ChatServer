@@ -1,8 +1,20 @@
 ﻿#pragma once
-#include <synchapi.h>
-#pragma comment(lib,"Synchronization.lib")
+#include "Container.h"
 
-class Session;
+
+namespace executable {
+	enum ExecutableTransfer
+	{
+		BASE = 1,
+		POST,
+		RECV,
+		SEND,
+		RELEASE,
+		WAIT,
+		GROUP
+	};
+}
+
 class Executable
 {
 	friend class Server;
@@ -16,9 +28,7 @@ public:
 		RELEASE,
 		CUSTOM
 	};
-
-
-	Executable() : _overlapped{0} { }
+	Executable() :_type(CUSTOM), _overlapped{0} { }
 	virtual void Execute(ULONG_PTR arg, DWORD transferred,void* iocp) = 0;
 	virtual ~Executable() = default;
 
@@ -33,9 +43,6 @@ public:
 	OVERLAPPED _overlapped;
 };
 
-/**
- * \brief _execute의 인자로 key값을 넘겨주고 있다. 필요하다면 post 함수 호출할 때 넣어야 한다. 
- */
 class WaitExecutable :public Executable
 {
 public:
@@ -43,7 +50,7 @@ public:
 
 	void Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 	{
-		_execute(key,iocp);
+		_execute(key, iocp);
 
 		isDone = true;
 		WakeByAddressSingle(&isDone);
@@ -65,24 +72,24 @@ private:
 template <typename T>
 class ExecutableManager
 {
-	static_assert(std::is_base_of_v<WaitExecutable, T>);
+	static_assert( std::is_base_of_v<WaitExecutable, T> );
 public:
-	ExecutableManager(int count,HANDLE iocp):_iocp(iocp)
+	ExecutableManager(int count, HANDLE iocp) :_iocp(iocp)
 	{
 		_executables.resize(count);
 	}
 
 	void Run(ULONG_PTR arg)
 	{
-		
-		for ( auto& exe : _executables ) 
+
+		for ( auto& exe : _executables )
 		{
 			int transfered = 1;
 			PostQueuedCompletionStatus(_iocp, transfered, arg, exe.GetOverlapped());
 
 		}
 	}
-	void Wait() 
+	void Wait()
 	{
 		for ( auto& exe : _executables )
 		{
@@ -94,57 +101,6 @@ private:
 	vector<T> _executables;
 };
 
-class RecvExecutable : public Executable
-{
-public:
-	RecvExecutable()
-	{
-		_type = ioType::RECV;
-	}
-	void Execute(ULONG_PTR key, DWORD transferred, void* iocp) override;
-	~RecvExecutable() override = default;
-
-private:
-	void recvNormal(Session& session, void* iocp);
-	void recvEncrypt(Session& session, void* iocp);
 
 
 
-};
-
-class PostSendExecutable : public Executable
-{
-public:
-	PostSendExecutable()
-	{
-		_type = ioType::POSTRECV;
-	}
-	void Execute(ULONG_PTR key, DWORD transferred, void* iocp) override;
-	~PostSendExecutable() override = default;
-
-	chrono::system_clock::time_point lastSend;
-};
-
-class SendExecutable : public Executable
-{
-public:
-	SendExecutable()
-	{
-		_type = ioType::SEND;
-	}
-	void Execute(ULONG_PTR key, DWORD transferred, void* iocp) override;
-	~SendExecutable() override = default;
-
-};
-
-class ReleaseExecutable : public Executable
-{
-public:
-	ReleaseExecutable() 
-	{
-		_type = ioType::RELEASE;
-	}
-	void Execute(ULONG_PTR key, DWORD transferred, void* iocp) override;
-	~ReleaseExecutable() override = default;
-
-};

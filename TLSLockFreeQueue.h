@@ -1,8 +1,7 @@
 ﻿#pragma once
 #include "Memorypool.h"
 #include "TLSPool.h"
-#include <thread>
-
+#include "Types.h"
 
 template <typename T>
 class TLSLockFreeQueue
@@ -28,7 +27,6 @@ public:
 	void Enqueue(const T& data)
 	{
 		Node* allocNode; {
-			PRO_BEGIN("GET_NODE")
 			allocNode = _tlsLFQNodePool.Alloc();
 		}
 		 
@@ -39,7 +37,6 @@ public:
 		auto headCount = InterlockedIncrement16(&tailCount);
 		Node* newTail = ( Node* ) ( ( unsigned long long )newNode | ( ( unsigned long long )( headCount ) ) << 47 );
 		{
-			PRO_BEGIN("Enqueue_Loop")
 			while ( true )
 			{
 				Node* tail = _tail;
@@ -142,13 +139,17 @@ public:
 	long Size() const { return _size; }
 
 private:
-	long _size = 0;
 	Node* _head = nullptr;
-	Node* _tail = nullptr;
+
+	long _size = 0;
+
+
 
 	const unsigned long long pointerMask = 0x000'7FFF'FFFF'FFFF;
 
-	inline static TLSPool<Node, 0, false> _tlsLFQNodePool;
+	int initSize = 5000;
+	int multiplier = 10;
+	static TLSPool<Node, 0, false> _tlsLFQNodePool;
 
 
 	short tailCount = 0;
@@ -162,7 +163,10 @@ private:
 
 
 	long tryEnqueueCount = 0;
-
+	Node* _tail = nullptr;
 };
+template <typename T>
+TLSPool<typename TLSLockFreeQueue<T>::Node, 0, false> typename TLSLockFreeQueue<T>::_tlsLFQNodePool(100, 1000);
+
 template <typename T>
 int64 TLSLockFreeQueue<T>::GID = 0;

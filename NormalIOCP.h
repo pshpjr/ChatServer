@@ -1,9 +1,20 @@
 ﻿#pragma once
-#include "Container.h"
-#include "Socket.h"
-#include "Types.h"
-#include "LockFreeStack.h"
+#include <MemoryUsage.h>
+#include <CCpuUsage.h>
 #include "Session.h"
+#include "LockFreeStack.h"
+#include "Socket.h"
+#include "GroupManager.h"
+
+class SettingParser;
+class CSendBuffer;
+
+namespace
+{
+	const int MAX_SESSIONS = 24000;
+	const long releaseFlag = 0x0010'0000;
+}
+
 
 class NormalIOCP
 {
@@ -11,16 +22,18 @@ class NormalIOCP
 	friend class RecvExecutable;
 	friend class SendExecutable;
 	friend class PostSendExecutable;
-public:
-
+	friend class GroupExecutable;
+	friend class GroupManager;
 protected:
+	NormalIOCP();
 
-	Session* FindSession(uint64 id,  LPCWSTR content);
+	inline Session* FindSession(SessionID id, LPCWSTR content);
 
-	unsigned short GetSessionIndex(uint64 sessionID) const { return (unsigned short)(sessionID >> 47); }
+	unsigned short GetSessionIndex(SessionID sessionID) const { return sessionID.index; }
 
-	void _processBuffer(Session& session, CSerializeBuffer& buffer);
+	inline void _processBuffer(Session& session, CSendBuffer& buffer);
 	void waitStart();
+
 protected:
 	virtual ~NormalIOCP();
 
@@ -28,12 +41,14 @@ protected:
 	HANDLE _iocp = INVALID_HANDLE_VALUE;
 	Socket _listenSocket;
 	char _isRunning = false;
-	vector<HANDLE> _threadArray;
+	std::vector<HANDLE> _threadArray;
 	uint16 _maxNetThread = 0;
-	String _ip;
-	uint16 _port;
+	String _ip {};
+	uint16 _port {};
+	int _backlog = 0;
 	bool _checkTiemout = true;
-	
+	void* _this = nullptr;
+
 	//MONITOR
 	uint64 _acceptCount = 0;
 	uint64 _oldAccepCount = 0;
@@ -41,6 +56,7 @@ protected:
 	int64 _sendCount = 0;
 	uint64 _oldDisconnect = 0;
 	int64 _disconnectCount = 0;
+	uint32 _tcpSegmenTimeout = 0;
 	uint64 _acceptTps = 0;
 	uint64 _recvTps = 0;
 	uint64 _sendTps = 0;
@@ -49,20 +65,26 @@ protected:
 	uint64 _packetPoolSize = 0;
 	uint32 _packetPoolEmpty = 0;
 	uint64 _timeoutSessions = 0;
+	uint32 _acceptErrorCount = 0;
 
+	//Memory
 
-// SESSION_MANAGER
-	int g_id = 0;
-	static const int MAX_SESSIONS = 16000;
-	Session sessions[MAX_SESSIONS];
+	MemoryUsage _memMonitor;
+	CCpuUsage _cpuMonitor;
+
+	// SESSION_MANAGER
+
+	Session _sessions[MAX_SESSIONS];
 	LockFreeStack<unsigned short> freeIndex;
-	const unsigned long long idMask = 0x000'7FFF'FFFF'FFFF;
-	const unsigned long long indexMask = 0x7FFF'8000'0000'0000;
-	const long releaseFlag = 0x0010'0000;
 
 	uint64 g_sessionId = 0;
-	char _staticKey;
+	char _staticKey = 0;
 
 	bool gracefulEnd = false;
+
+	//GROUP_MANAGER
+
+	GroupManager* _groupManager;
+	SettingParser& _settingParser;
 };
 

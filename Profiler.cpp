@@ -2,14 +2,13 @@
 #include "Profiler.h"
 #include <algorithm>
 #include <chrono>
-#include <Windows.h>
+#include <winnt.h>
 #include <fstream>
 #include <ctime>
 #include <string>
 #include <thread>
 #include <vector>
 
-ProfileManager GProfiler;
 /*
  * 	TCHAR errBuffer[MAXERRLEN];
 
@@ -104,14 +103,14 @@ void Profiler::applyProfile(const int& item_number, std::chrono::microseconds ti
 
 ProfileItem::ProfileItem(LPCWSTR name)
 {
-	_itemNumber = GProfiler.Get().getItemNumber(name);
+	_itemNumber = ProfileManager::Get().GetLocalProfiler().getItemNumber(name);
 	_start = std::chrono::steady_clock::now();
 }
 
 ProfileItem::~ProfileItem()
 {
 	_end = std::chrono::steady_clock::now();
-	GProfiler.Get().applyProfile(_itemNumber, std::chrono::duration_cast<std::chrono::microseconds>(_end - _start));
+	ProfileManager::Get().GetLocalProfiler().applyProfile(_itemNumber, std::chrono::duration_cast<std::chrono::microseconds>(_end - _start));
 }
 
 bool cmp(PROFILE_SAMPLE& lhs, PROFILE_SAMPLE& rhs)
@@ -127,6 +126,12 @@ std::wstring pad_string(const std::wstring& str, size_t length) {
 	else {
 		return str + std::wstring(length - str.length(), L' ');
 	}
+}
+
+int callProfileManagerDtor()
+{
+	ProfileManager::Get().~ProfileManager();
+	return 0;
 }
 
 void ProfileManager::ProfileDataOutText(LPWSTR szFileName)

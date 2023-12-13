@@ -1,16 +1,49 @@
 ﻿#pragma once
+#include <optional>
+
 #include "CRingBuffer.h"
-#include "Executable.h"
-#include "LockFreeQueue.h"
 #include "Socket.h"
 #include "TLSLockFreeQueue.h"
-#include "CoreGlobal.h"
-#include "CLogger.h"
 
+
+class CSendBuffer;
+class CRecvBuffer;
 class IOCP;
-class SessionManager;
-class CSerializeBuffer;
 
+class RecvExecutable;
+class SendExecutable;
+class PostSendExecutable;
+class ReleaseExecutable;
+
+namespace SessionInfo
+{
+	struct SessionIDHash
+	{
+		std::size_t operator()(const SessionID& s) const
+		{
+			return std::hash<unsigned long long>()( s.id );
+		}
+	};
+
+	struct SessionIDEqual
+	{
+		bool operator()(const SessionID& lhs, const SessionID& rhs) const
+		{
+			return lhs.id == rhs.id;
+		}
+	};
+}
+
+namespace
+{
+	const unsigned long long ID_MASK = 0x000'7FFF'FFFF'FFFF;
+	const unsigned long long INDEX_MASK = 0x7FFF'8000'0000'0000;
+	const int MAX_SEND_COUNT = 128;
+
+	const long RELEASE_FLAG = 0x0010'0000;
+}
+
+//#define SESSION_DEBUG
 class Session
 {
 	friend class Executable;
@@ -20,105 +53,89 @@ class Session
 	friend class ReleaseExecutable;
 	friend class IOCP;
 	friend class NormalIOCP;
+	friend class Group;
 public:
+	int ioCount = 0;
+
 	Session();
-	Session(Socket socket, uint64 sessionId, IOCP& owner);
-	void Enqueue(CSerializeBuffer* buffer);
+	Session(Socket socket, SessionID sessionId, IOCP& owner);
 	void Close();
-	bool Release(LPCWSTR content,int type = 0);
-	void trySend();
-	void registerRecv();
-	void RecvNotIncrease();
-	void RegisterIOCP(HANDLE iocpHandle);
-	uint64 GetSessionID() { return _sessionID; }
-	void SetSocket(Socket socket) { _socket = socket; };
-	void SetSessionID(uint64 sessionID) { _sessionID = sessionID; }
-	void SetOwner(IOCP& owner) { _owner = &owner; }
 	void Reset();
-	void SetNetSession(char staticKey) { _staticKey = staticKey; }
-	void TimeoutReset()
+	bool Release(LPCWSTR content, int type = 0);
+
+	long IncreaseRef(LPCWSTR content)
 	{
-		auto now = chrono::system_clock::now();
-		lastRecv = now;
-		_postSendExecute.lastSend = now;
-	}
-	String GetIP() { return _socket.GetIP(); }
-	uint16 GetPort() { return _socket.GetPort(); }
-
-
-	void SetDefaultTimeout(int timoutMillisecond) {
-		_defaultTimeout = timoutMillisecond;
-	}
-	void SetTimeout(int timoutMillisecond) {
-		_timeout = timoutMillisecond;
-	}
-
-	bool CheckTimeout(chrono::system_clock::time_point now) {
-		IncreaseRef(L"timeoutInc");
-		if (_refCount >= releaseFlag) {
-			Release(L"TimeoutRelease");
-			return false;
-		}
-		
-		auto recvWait = chrono::duration_cast<chrono::milliseconds>(now - lastRecv);
-		auto sendWait = chrono::duration_cast<chrono::milliseconds>(now - _postSendExecute.lastSend);
-
-		bool isTimeouted = false;
-
-		if (needCheckSendTimeout && sendWait.count() > _timeout) {
-			isTimeouted = true;
-		}
-
-		if (recvWait.count() > _timeout) {
-			isTimeouted = true;
-		}
-
-		/*if ( isTimeouted ) 
-			GLogger->write(L"Timeout", LogLevel::Debug, L"Timeouted %s %d",_socket.GetIP().c_str(), _socket.GetPort());*/
-
-
-		Release(L"TimeoutRelease");
-		return isTimeouted;
-	}
-
-	long IncreaseRef(LPCWSTR content) {
-		auto result =  InterlockedIncrement(&_refCount);
+		auto result = InterlockedIncrement(&_refCount);
 
 #ifdef SESSION_DEBUG
 		auto index = InterlockedIncrement(&debugIndex);
-		release_D[index%debugSize] = { result,content,0 };
+		release_D[index % debugSize] = { result,content,0 };
 #endif
 		return result;
 	}
-	void OffReleaseFlag() { auto result = InterlockedBitTestAndReset(&_refCount, 20); }
 
+	void EnqueueSendData(CSendBuffer* buffer);
+	void registerRecv();
+	void RecvNotIncrease();
+	void trySend();
+
+	void RegisterIOCP(HANDLE iocpHandle);
+
+	SessionID GetSessionID() const { return _sessionID; }
+	String GetIP() const { return _socket.GetIP(); }
+	uint16 GetPort() const { return _socket.GetPort(); }
+
+	void SetSocket(Socket socket) { _socket = socket; };
+	void SetSessionID(SessionID sessionID) { _sessionID = sessionID; }
+	void SetOwner(IOCP& owner) { _owner = &owner; }
+	void SetNetSession(char staticKey) { _staticKey = staticKey; }
+	void SetDefaultTimeout(int timoutMillisecond);
+	void SetTimeout(int timoutMillisecond);
+	void OffReleaseFlag() { auto result = InterlockedBitTestAndReset(&_refCount, 20); }
 	void SetMaxPacketLen(int size) { _maxPacketLen = size; }
+	void ResetTimeoutwait();
+	void SetConnect() { _connect = true; }
+	//GROUP
+
+	GroupID GetGroupID() const { return _groupID; }
+
+	void SetGroupID(GroupID id)
+	{
+		InterlockedExchange(( long* ) &_groupID, id);
+	}
+
+
 
 private:
-	const unsigned long long idMask = 0x000'7FFF'FFFF'FFFF;
-	const unsigned long long indexMask = 0x7FFF'8000'0000'0000;
+	bool CheckTimeout(chrono::system_clock::time_point now);
 
+private:
 	//Network
-	uint64 _sessionID = 0;
+	SessionID _sessionID = { 0 };
 	Socket _socket;
 	CRingBuffer _recvQ;
-	TLSLockFreeQueue<CSerializeBuffer*> _sendQ;
-	TLSLockFreeQueue<CSerializeBuffer*> _sendingQ;
+	char _recvTempBuffer[300];
+
+	TLSLockFreeQueue<CSendBuffer*> _sendQ;
+	CSendBuffer* _sendingQ[MAX_SEND_COUNT];
+
+	//Group
+	GroupID _groupID = 0;
+	TLSLockFreeQueue<CRecvBuffer*> _groupRecvQ;
+
+
 	IOCP* _owner;
-	long dataNotSend = 0;
+
 
 	//Executable
-	RecvExecutable _recvExecute;
-	PostSendExecutable _postSendExecute;
-	SendExecutable _sendExecute;
-	ReleaseExecutable _releaseExecutable;
-
-
+	RecvExecutable& _recvExecute;
+	PostSendExecutable& _postSendExecute;
+	SendExecutable& _sendExecute;
+	ReleaseExecutable& _releaseExecutable;
 
 
 	//Reference
-	static const long releaseFlag = 0x0010'0000;
-	long _refCount = releaseFlag;
+	long _refCount = RELEASE_FLAG;
 	long _isSending = false;
 
 	//Timeout
@@ -126,6 +143,7 @@ private:
 	char _connect = false;
 	int _defaultTimeout = 5000;
 	int _timeout = 5000;
+
 	chrono::system_clock::time_point lastRecv;
 
 	//Encrypt
@@ -133,7 +151,11 @@ private:
 	unsigned int _maxPacketLen = 20000;
 
 	//DEBUG
-	struct RelastinReleaseEncrypt_D {
+	long debugCount = 0;
+#ifdef SESSION_DEBUG
+
+	struct RelastinReleaseEncrypt_D
+	{
 		long refCount;
 		LPCWSTR location;
 		long long contentType;
@@ -142,17 +164,20 @@ private:
 
 	long debugIndex = 0;
 	RelastinReleaseEncrypt_D release_D[debugSize];
-	
-	void writeContentLog(unsigned int type) {
-#ifdef DEBUG
 
-		release_D[InterlockedIncrement(&debugIndex)%debugSize] = { _refCount,L"SendContent",type};
+#endif
+
+
+	void writeContentLog(unsigned int type)
+	{
+#ifdef SESSION_DEBUG
+
+		release_D[InterlockedIncrement(&debugIndex) % debugSize] = { _refCount,L"SendContent",type };
 #endif
 	}
 
 
 
-	//dData Debug[1000];
-	//int debugIndex;
-	
+
+
 };

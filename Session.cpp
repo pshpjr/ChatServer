@@ -2,86 +2,66 @@
 #include "Session.h"
 
 #include "Container.h"
-#include "CSerializeBuffer.h"
+#include "CSendBuffer.h"
 #include "IOCP.h"
 #include "Protocol.h"
-#include <cstdio>
-Session::Session(): _owner(nullptr)
+#include <optional>
+#include "Executables.h"
+#include "CRecvBuffer.h"
+Session::Session() : _owner(nullptr), _socket({}), _sessionID(), _sendingQ(), _recvTempBuffer()
+,_recvExecute(*new RecvExecutable),_sendExecute(*new SendExecutable),_postSendExecute(*new PostSendExecutable), _releaseExecutable(*new ReleaseExecutable)
 {
 
 }
 
-Session::Session(Socket socket, uint64 sessionId, IOCP& owner) : _socket(socket), _sessionID(sessionId), _owner(&owner)
-{ 
+Session::Session(Socket socket, SessionID sessionId, IOCP& owner) : _socket(socket), _sessionID(sessionId), _owner(&owner), _sendingQ(), _recvTempBuffer()
+, _recvExecute(*new RecvExecutable), _sendExecute(*new SendExecutable), _postSendExecute(*new PostSendExecutable), _releaseExecutable(*new ReleaseExecutable)
+{
 
 }
 
-void Session::Enqueue(CSerializeBuffer* buffer)
+void Session::EnqueueSendData(CSendBuffer* buffer)
 {
+
+
 	_sendQ.Enqueue(buffer);
 }
 
 void Session::Close()
 {
-	InterlockedExchange8(&_connect,0);
-
+	InterlockedExchange8(&_connect, 0);
 	_socket.CancleIO();
 }
 
-bool Session::Release(LPCWSTR content, int type)
-{
-	int refDecResult = InterlockedDecrement(&_refCount);
-
-#ifdef SESSION_DEBUG
-
-	auto index = InterlockedIncrement(&debugIndex);
-	release_D[index % debugSize] = { refDecResult,content,type };
-#endif
-
-	if (refDecResult == 0)
-	{
-		if (InterlockedCompareExchange(&_refCount, releaseFlag, 0) == 0)
-		{
-
-			PostQueuedCompletionStatus(_owner->_iocp, -1, (ULONG_PTR)this, &_releaseExecutable._overlapped);
-
-			return true;
-		}
-	}
-	return false;
-}
-
-
-const int MAX_SEND_COUNT = 50;
 
 
 
 void Session::trySend()
 {
-	if (_connect == false) 
+	if ( _connect == false )
 	{
 		return;
 	}
-	while (true)
+	while ( true )
 	{
 		//이걸로 disconnect시 전송 을 방지할 수 있을까?
-		if(_refCount & releaseFlag)
+		if ( _refCount & RELEASE_FLAG )
 		{
 			return;
 		}
 
-		if (_sendQ.Size() == 0)
+		if ( _sendQ.Size() == 0 )
 		{
 
 			return;
 		}
-		if (InterlockedExchange(&_isSending, true) == 1)
+		if ( InterlockedExchange(&_isSending, true) == 1 )
 		{
 
 			return;
 		}
 
-		if (_sendQ.Size() == 0)
+		if ( _sendQ.Size() == 0 )
 		{
 
 			InterlockedExchange(&_isSending, false);
@@ -90,77 +70,80 @@ void Session::trySend()
 		}
 		break;
 	}
-	
+	PRO_BEGIN("TrySend");
 	auto refIncResult = IncreaseRef(L"realSendInc");
-	if (refIncResult >= releaseFlag) 
+	if ( refIncResult >= RELEASE_FLAG )
 	{
 		Release(L"realSendSessionisRelease");
 		return;
 	}
 
-
-
 	int sendPackets = 0;
 	WSABUF sendWsaBuf[MAX_SEND_COUNT] = {};
-	for (int i = 0; i < MAX_SEND_COUNT; i++)
+	for ( int i = 0; i < MAX_SEND_COUNT; i++ )
 	{
-		CSerializeBuffer* buffer;
-		if (!_sendQ.Dequeue(buffer))
+		CSendBuffer* buffer;
+		if ( !_sendQ.Dequeue(buffer) )
 		{
 			break;
 		}
 		sendPackets++;
-		_sendingQ.Enqueue(buffer);
 
-		if (_staticKey) 
+		_sendingQ[i] = buffer;
+
+
+
+		if ( _staticKey )
 		{
 			buffer->Encode(_staticKey);
 		}
-		else 
+		else
 		{
 			buffer->writeLanHeader();
 		}
-		
 
 		sendWsaBuf[i].buf = buffer->GetHead();
-		sendWsaBuf[i].len = buffer->GetFullSize();
+		sendWsaBuf[i].len = buffer->SendDataSize();
 
 		ASSERT_CRASH(sendWsaBuf[i].len > 0, "Out of Case");
 	}
 
 
 
-	if (sendPackets == 0)
+	if ( sendPackets == 0 )
 	{
 		InterlockedExchange(&_isSending, false);
 		Release(L"realSendPacket0Release");
 		return;
 	}
 
-
 	needCheckSendTimeout = true;
-	_postSendExecute.lastSend = chrono::system_clock::now();
+	_postSendExecute._lastSend = chrono::system_clock::now();
 
 	DWORD flags = 0;
 	_postSendExecute.Clear();
 
-	int sendResult = _socket.Send(sendWsaBuf, sendPackets, flags ,&_postSendExecute._overlapped);
-	if (sendResult == SOCKET_ERROR)
+	_postSendExecute.dataNotSend = sendPackets;
+
+
+	int sendResult = _socket.Send(sendWsaBuf, sendPackets, flags, &_postSendExecute._overlapped);
+	if ( sendResult == SOCKET_ERROR )
 	{
 		int error = WSAGetLastError();
-		if (error == WSA_IO_PENDING) 
+		if ( error == WSA_IO_PENDING )
 		{
 			return;
 		}
 
-		switch (error) {
-		case WSAECONNABORTED:
-			__fallthrough;
-		case WSAECONNRESET:
-			__fallthrough;
-			break;
-		default:
-			DebugBreak();
+		switch ( error )
+		{
+			case WSAECONNABORTED:
+				__fallthrough;
+			case WSAECONNRESET:
+				__fallthrough;
+				break;
+			default:
+				DebugBreak();
 		}
 		Close();
 		Release(L"SendErrorRelease");
@@ -176,55 +159,53 @@ void Session::registerRecv()
 
 void Session::RecvNotIncrease()
 {
-	if (_connect == false) {
+	if ( _connect == false )
+	{
 		Release(L"tryRecvReleaseIOCancled");
 		return;
 	}
 
-
-	_recvExecute.Clear();
-	WSABUF recvWsaBuf[2] {};
+	int bufferCount = 1;
+	WSABUF recvWsaBuf[2] = {};
 	DWORD flags = 0;
-	char bufferCount = 1;
 
+	recvWsaBuf[0].buf = _recvQ.GetRear();
+	recvWsaBuf[0].len = _recvQ.DirectEnqueueSize();
 
-	recvWsaBuf[0].buf = _recvQ.GetRear(); //recv 1회시 불변
-	recvWsaBuf[0].len = _recvQ.DirectEnqueueSize();// 스레드 상황에 따라 변경 가능. 늘어나기만 함. 
-
-	//넣을 수 있는 공간이 잘린 상황이 front가 rear보다 항상 앞에 있다고 생각해도 되는가?
-	//그런 듯 함
-	//getFront 함수를 써도 문제 없는 이유는 지금 한 세션에 한 스레드만 접근한다고 가정하고 있기 때문. 
-	if (_recvQ.FreeSize() > recvWsaBuf[0].len)
+	if ( _recvQ.FreeSize() > recvWsaBuf[0].len )
 	{
 		recvWsaBuf[1].buf = _recvQ.GetBuffer();
 		recvWsaBuf[1].len = _recvQ.FreeSize() - recvWsaBuf[0].len;
 
 		bufferCount = 2;
 	}
+	_recvExecute.Clear();
+
 
 	lastRecv = chrono::system_clock::now();
 
 	int recvResult = _socket.Recv(recvWsaBuf, bufferCount, &flags, &_recvExecute._overlapped);
-	if (recvResult == SOCKET_ERROR)
+	if ( recvResult == SOCKET_ERROR )
 	{
 		int error = WSAGetLastError();
-		if (error == WSA_IO_PENDING)
+		if ( error == WSA_IO_PENDING )
 		{
 			return;
 		}
 
-		switch (error) {
-		case WSAECONNABORTED:
-			__fallthrough;
-
-		case WSAECONNRESET:
-			__fallthrough;
-			break;
-		default:
+		switch ( error )
 		{
-			DebugBreak();
-			int i = 0;
-		}
+			case WSAECONNABORTED:
+				__fallthrough;
+
+			case WSAECONNRESET:
+				__fallthrough;
+				break;
+			default:
+			{
+				DebugBreak();
+				int i = 0;
+			}
 		}
 		Release(L"RecvErrorRelease");
 	}
@@ -233,8 +214,58 @@ void Session::RecvNotIncrease()
 
 void Session::RegisterIOCP(HANDLE iocpHandle)
 {
-	CreateIoCompletionPort((HANDLE)_socket._socket, iocpHandle, (ULONG_PTR)this, 0);
+	CreateIoCompletionPort(( HANDLE ) _socket._socket, iocpHandle, ( ULONG_PTR ) this, 0);
 }
+
+void Session::SetDefaultTimeout(int timoutMillisecond)
+{
+	_defaultTimeout = timoutMillisecond;
+}
+
+void Session::SetTimeout(int timoutMillisecond)
+{
+	_timeout = timoutMillisecond;
+}
+
+void Session::ResetTimeoutwait()
+{
+	auto now = chrono::system_clock::now();
+	lastRecv = now;
+	_postSendExecute._lastSend = now;
+}
+
+bool Session::CheckTimeout(chrono::system_clock::time_point now)
+{
+	IncreaseRef(L"timeoutInc");
+	if ( _refCount >= RELEASE_FLAG )
+	{
+		Release(L"TimeoutRelease");
+		return false;
+	}
+
+	auto recvWait = chrono::duration_cast< chrono::milliseconds >( now - lastRecv );
+	auto sendWait = chrono::duration_cast< chrono::milliseconds >( now - _postSendExecute._lastSend );
+
+	bool isTimeouted = false;
+
+	if ( needCheckSendTimeout && sendWait.count() > _timeout )
+	{
+		isTimeouted = true;
+	}
+
+	if ( recvWait.count() > _timeout )
+	{
+		isTimeouted = true;
+	}
+
+	/*if ( isTimeouted )
+		GLogger->write(L"Timeout", LogLevel::Debug, L"Timeouted %s %d",_socket.GetIP().c_str(), _socket.GetPort());*/
+
+
+	Release(L"TimeoutRelease");
+	return isTimeouted;
+}
+
 
 void Session::Reset()
 {
@@ -242,22 +273,56 @@ void Session::Reset()
 	_sendExecute.Clear();
 	_recvExecute.Clear();
 	_postSendExecute.Clear();
+	_recvQ.Clear();
 	_isSending = false;
 	needCheckSendTimeout = false;
 	_timeout = _defaultTimeout;
 
+	
+	//GroupID _groupID = 0;
 
+	CRecvBuffer* recvBuffer;
+	while ( _groupRecvQ.Dequeue(recvBuffer) )
+	{
+		recvBuffer->Release(L"ResetRecvRelease");
+	}
 
-	CSerializeBuffer* sendBuffer;
-	while (_sendQ.Dequeue(sendBuffer))
+	CSendBuffer* sendBuffer;
+	while ( _sendQ.Dequeue(sendBuffer) )
 	{
 		sendBuffer->Release(L"ResetSendRelease");
 	}
 	_recvQ.Clear();
-	while (_sendingQ.Dequeue(sendBuffer))
+
+	for ( int i = 0; i < _postSendExecute.dataNotSend; i++ )
 	{
-		sendBuffer->Release(L"ResetSendingRelease");
+		_sendingQ[i]->Release(L"ResetSendingRelease");
+		_sendingQ[i] = nullptr;
 	}
+
 	_socket.Close();
+}
+
+bool Session::Release(LPCWSTR content, int type /*= 0*/)
+{
+	int refDecResult = InterlockedDecrement(&_refCount);
+
+#ifdef SESSION_DEBUG
+
+	auto index = InterlockedIncrement(&debugIndex);
+	release_D[index % debugSize] = { refDecResult,content,type };
+#endif
+
+	if ( refDecResult == 0 )
+	{
+		if ( InterlockedCompareExchange(&_refCount, RELEASE_FLAG, 0) == 0 )
+		{
+
+			PostQueuedCompletionStatus(_owner->_iocp, -1, ( ULONG_PTR ) this, &_releaseExecutable._overlapped);
+
+			return true;
+		}
+	}
+	return false;
 }
 

@@ -29,9 +29,8 @@ void CLogger::write(LPCWSTR type, LogLevel level, LPCWSTR format, ...)
 	}
 
 
-	FILE* stream;
-	auto openRet = _wfopen_s(&stream, fileName, L"a+");
-	if(openRet != 0)
+	FILE* stream = _wfsopen(fileName, L"a+", _SH_DENYNO );
+	if(stream ==nullptr)
 	{
 		printf("Cannot Open File!\n");
 		return;
@@ -51,11 +50,11 @@ void CLogger::write(LPCWSTR type, LogLevel level, LPCWSTR format, ...)
 		write(L"SYSTEM", LogLevel::Error, L"LOGGER : 헤더 버퍼보다 헤더가 큽니다.\n");
 	}
 
-	WCHAR logBuffer[256];
+	WCHAR logBuffer[2048];
 	va_list va;
 	va_start(va, format);
 	
-	auto logWriteResult = StringCchVPrintfW(logBuffer, 256, format,va);
+	auto logWriteResult = StringCchVPrintfW(logBuffer, 2048, format,va);
 	if(logWriteResult != S_OK)
 	{
 		write(L"SYSTEM", LogLevel::Error, L"로그 버퍼보다 로그가 큽니다.\n");

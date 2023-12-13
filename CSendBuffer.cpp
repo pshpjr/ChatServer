@@ -1,7 +1,5 @@
 ﻿#include "stdafx.h"
-#include "Profiler.h"
 #include "CSendBuffer.h"
-
 #include "Protocol.h"
 
 int SERIAL_INIT_SIZE = 1000;
@@ -17,21 +15,25 @@ void CSendBuffer::writeLanHeader()
 
 void CSendBuffer::writeNetHeader(int code)
 {
-	NetHeader* head = (NetHeader*)GetHead();
-	head->len = GetDataSize();
-	head->checkSum = 0;
-
+	PRO_BEGIN("WriteNetHeader");
 	char* checksumIndex = GetDataPtr();
-	int checkLen = GetDataSize();
+
+	NetHeader tmpHeader;
+	tmpHeader.len = GetDataSize();
+	int checkLen = tmpHeader.len;
+	int checkSum = 0;
+
 	for (int i = 0; i < checkLen; i++)
 	{
-		head->checkSum += *checksumIndex;
-		checksumIndex++;
+		checkSum += checksumIndex[i];
 	}
-	head->code = code;
 
+	tmpHeader.checkSum = checkSum;
+	tmpHeader.code = code;
+	tmpHeader.randomKey = 0x31;
 	//head->randomKey = rand()%256;
-	head->randomKey = 0x31;
+
+	*( NetHeader* ) GetHead() = tmpHeader;
 }
 
 void CSendBuffer::Encode(char staticKey)
@@ -69,21 +71,22 @@ void CSendBuffer::encode(char staticKey)
 	using Header = NetHeader;
 
 	Header* head = (Header*)GetHead();
-	
+	unsigned char randomKey = head->randomKey;
 
-	char* encodeData = GetDataPtr() - 1;
-	int encodeLen = GetDataSize() + 1;
+	unsigned char* encodeData = &head->checkSum;
+	int encodeLen = head->len + 1;
 
 	char p = 0;
 	char e = 0;
 
-	for (int i = 1; i <= encodeLen; i++)
+	for ( int i = 1; i <= encodeLen; i++ )
 	{
-		p = (*encodeData) ^ (p + head->randomKey + i);
-		e = p ^ (e + staticKey + i);
+		p = ( *encodeData ) ^ ( p + randomKey + i );
+		e = p ^ ( e + staticKey + i );
 		*encodeData = e;
 		encodeData++;
 	}
+
 	isEncrypt++;
 }
 

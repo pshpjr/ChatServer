@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "Memorypool.h"
 #include "TLSPool.h"
-
+#include "Types.h"
 
 template <typename T>
 class TLSLockFreeQueue

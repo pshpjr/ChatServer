@@ -16,8 +16,20 @@ using uint64 = unsigned  __int64;
 using String = std::wstring;
 
 //소켓 관련
-using SessionID = uint64;
+union SessionID
+{
+	struct
+	{
+		short tmp1;
+		short tmp2;
+		short tmp3;
+		unsigned short index;
+	};
+	unsigned long long id;
+};
+
 using SocketID = uint64;
+using GroupID = long;
 #include <WinSock2.h>
 using SockAddr_in = SOCKADDR_IN;
 using Port = uint16;

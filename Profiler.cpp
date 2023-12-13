@@ -2,7 +2,7 @@
 #include "Profiler.h"
 #include <algorithm>
 #include <chrono>
-#include <Windows.h>
+#include <winnt.h>
 #include <fstream>
 #include <ctime>
 #include <string>
@@ -126,6 +126,12 @@ std::wstring pad_string(const std::wstring& str, size_t length) {
 	else {
 		return str + std::wstring(length - str.length(), L' ');
 	}
+}
+
+int callProfileManagerDtor()
+{
+	ProfileManager::Get().~ProfileManager();
+	return 0;
 }
 
 void ProfileManager::ProfileDataOutText(LPWSTR szFileName)

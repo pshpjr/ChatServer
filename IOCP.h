@@ -1,16 +1,23 @@
 ﻿#pragma once
 #include "BuildOption.h"
-#include "types.h"
+#include IOCP_HEADER
 
-class CSendbuffer;
+class CSendBuffer;
 class CRecvBuffer;
+class Executable;
+class Client;
 
+template <typename T>
+class SingleThreadQ;
 class IOCP : public IOCP_CLASS
 {
 	friend class RecvExecutable;
 	friend class PostSendExecutable;
 	friend class ReleaseExecutable;
 	friend class Session;
+	friend class Group;
+	friend class GroupManager;
+	friend class Client;
 public:
 	IOCP();
 
@@ -19,16 +26,24 @@ public:
 	void Stop();
 	inline bool SendPacket(SessionID sessionId, CSendBuffer* buffer, int type);
 	bool SendPacket(SessionID sessionId, CSendBuffer* buffer);
-	bool SendPackets(SessionID sessionId, list<CSendBuffer*>& bufArr);
+	//deprecate
+	bool SendPackets(SessionID sessionId, SingleThreadQ<CSendBuffer*>& bufArr);
+	
 	bool DisconnectSession(SessionID sessionId);
 	bool isEnd() const;
 	void SetMaxPacketSize(int size);
 	void SetTimeout(SessionID sessionId, int timeoutMillisecond);
 	void SetDefaultTimeout(unsigned int timeoutMillisecond);
 	void PostExecutable(Executable* exe, ULONG_PTR arg);
-	
 
-	void PrintLibMonitorInfo() const;
+	template <typename ClientType> 
+	ClientType GetClient(const String ip, Port port);
+
+	//GROUP
+
+
+	//CONTENT VIRTUAL
+
 	virtual void OnWorkerThreadBegin() {}; 
 	virtual void OnWorkerThreadEnd() {};
 	virtual bool OnAccept(SockAddr_in) { return true; };
@@ -66,12 +81,21 @@ public:
 	size_t GetPagedPoolUsage() const;
 	size_t GetNonPagedPoolUsage() const;
 
+	String GetLibMonitorString() const;
+	void PrintMonitorString() const;
 
+	template<typename GroupType>
+	short CreateGroup();
+	void MoveSession(SessionID target, GroupID dst);
 private:
+	SessionID createClientSession(String ip, Port port);
+	
 	//MONITOR
-	void increaseRecvCount();
+	void increaseRecvCount(int value);
+	void increaseSendCount(int value);
 
 	void _onDisconnect(SessionID sessionId);
+	void onRecvPacket(Session& session, CRecvBuffer& buffer);
 
 	//WorkerThreadFunc
 	void WorkerThread(LPVOID arg);
@@ -89,3 +113,15 @@ private:
 
 };
 
+template <typename ClientType>
+ClientType IOCP::GetClient(String ip, Port port)
+{
+	static_assert( is_base_of_v<Client, ClientType> );
+	return _groupManager->CreateClient<ClientType>(ip,port);
+}
+
+template<typename GroupType>
+inline short IOCP::CreateGroup()
+{
+	return _groupManager->CreateGroup<GroupType>();
+}

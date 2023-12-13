@@ -1,7 +1,6 @@
 ﻿#pragma once
 #include <cstdlib>
-#include <Windows.h>
-#include "Profiler.h"
+#include <winnt.h>
 
 namespace _multiPool {
 	namespace detail {
@@ -49,7 +48,7 @@ public:
 
 	long Size() const { return _count; }
 
-	T* Alloc()
+	inline T* Alloc()
 	{
 		Node* retNode;
 
@@ -79,7 +78,7 @@ public:
 		return &retNode->data;
 	}
 
-	void Free(T* data)
+	inline void Free(T* data)
 	{
 		
 		if(usePlacement)

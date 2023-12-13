@@ -3,7 +3,7 @@
 #include "Socket.h"
 
 
-Socket::Socket() : NormalSocket(INVALID_SOCKET, {0})
+Socket::Socket() : NormalSocket(INVALID_SOCKET, { 0 })
 {
 }
 
@@ -16,7 +16,7 @@ bool Socket::isSameSubnet(const String& comp, char subnetMaskBits)
 	IN_ADDR compAddr;
 	InetPtonW(AF_INET, comp.c_str(), &compAddr);
 
-	return isSameSubnet(compAddr, _sockAddr.sin_addr,subnetMaskBits);
+	return isSameSubnet(compAddr, _sockAddr.sin_addr, subnetMaskBits);
 }
 
 bool Socket::isSameSubnet(const IN_ADDR& a, const IN_ADDR& b, char subnetMaskBits)
@@ -34,13 +34,13 @@ bool Socket::isSameSubnet(const IN_ADDR& a, const IN_ADDR& b, char subnetMaskBit
 void Socket::CancleIO()
 {
 
-	auto result = CancelIoEx((HANDLE)_socket, nullptr);
-	if(result == 0)
+	auto result = CancelIoEx(( HANDLE ) _socket, nullptr);
+	if ( result == 0 )
 	{
 		auto error = GetLastError();
 
 		//소켓 닫혀서 gqcs에러 받은 상황에서 send 실패하면 io 자체가 없음. 에러 아님. 
-		if(error == ERROR_NOT_FOUND)
+		if ( error == ERROR_NOT_FOUND )
 		{
 		}
 		else
@@ -57,8 +57,8 @@ void Socket::CancleIO()
 void Socket::Close()
 {
 	_beforeSocket = _socket;
-_socket = INVALID_SOCKET;
-closesocket(_beforeSocket);
+	_socket = INVALID_SOCKET;
+	closesocket(_beforeSocket);
 }
 
 int Socket::Send(LPWSABUF buf, DWORD bufCount, DWORD flag, LPWSAOVERLAPPED lpOverlapped)
@@ -79,15 +79,15 @@ int Socket::lastError() const
 	return WSAGetLastError();
 }
 
-void Socket::setLinger( bool on)
+void Socket::setLinger(bool on)
 {
-	linger l = {on,0};
-	setsockopt(_socket, SOL_SOCKET, SO_LINGER, (char*)&l, sizeof(l));
+	linger l = { on,0 };
+	setsockopt(_socket, SOL_SOCKET, SO_LINGER, ( char* ) &l, sizeof(l));
 }
 
-void Socket::setNoDelay( bool on)
+void Socket::setNoDelay(bool on)
 {
-	setsockopt(_socket, IPPROTO_TCP, TCP_NODELAY, (char*)&on, sizeof(on));
+	setsockopt(_socket, IPPROTO_TCP, TCP_NODELAY, ( char* ) &on, sizeof(on));
 }
 
 
@@ -114,7 +114,7 @@ uint16 Socket::GetPort() const
 bool Socket::Init()
 {
 	_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if(_socket == INVALID_SOCKET)
+	if ( _socket == INVALID_SOCKET )
 	{
 		return false;
 	}
@@ -132,8 +132,8 @@ bool Socket::Bind(String ip, uint16 port)
 	_sockAddr.sin_family = AF_INET;
 	_sockAddr.sin_addr = ip2Address(ip.c_str());
 	_sockAddr.sin_port = htons(port);
-	
-	return SOCKET_ERROR != bind(_socket, (SOCKADDR*)&_sockAddr, sizeof(_sockAddr));
+
+	return SOCKET_ERROR != bind(_socket, ( SOCKADDR* ) &_sockAddr, sizeof(_sockAddr));
 }
 
 bool Socket::Listen(int backlog)
@@ -146,7 +146,7 @@ Socket Socket::Accept()
 	SOCKADDR_IN clientAddr = {};
 	int len = sizeof(SOCKADDR);
 
-	SOCKET clientSocket = accept(_socket, (SOCKADDR*)&clientAddr, &len);
+	SOCKET clientSocket = accept(_socket, ( SOCKADDR* ) &clientAddr, &len);
 
 
 	return { clientSocket, clientAddr };
@@ -159,14 +159,20 @@ bool Socket::Connect(String ip, uint16 port)
 	_sockAddr.sin_addr = ip2Address(ip.c_str());
 	_sockAddr.sin_port = htons(port);
 
-	return SOCKET_ERROR != connect(_socket, (SOCKADDR*)&_sockAddr, sizeof(_sockAddr));
-
+	int result = 0;
+	if ( SOCKET_ERROR == connect(_socket, ( SOCKADDR* ) &_sockAddr, sizeof(_sockAddr)))
+	{
+		result = WSAGetLastError();
+		throw exception(to_string(result).c_str());
+	}
+	  
+	return true;
 }
 
 
 IN_ADDR Socket::ip2Address(const WCHAR* ip)
 {
-	IN_ADDR address = {0};
+	IN_ADDR address = { 0 };
 	InetPtonW(AF_INET, ip, &address);
 	return address;
 }

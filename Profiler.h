@@ -2,7 +2,6 @@
 
 #include <chrono>
 #include <list>
-#include <Windows.h>
 #include <thread>
 #include <mutex>
 class ProfileManager;
@@ -63,10 +62,11 @@ private:
 	std::chrono::steady_clock::time_point  _end;
 };
 
+
+int callProfileManagerDtor();
 class ProfileManager
 {
-
-	ProfileManager() { InitializeSRWLock(&_profileListLock); setTLSNum(); }
+	ProfileManager() { InitializeSRWLock(&_profileListLock); setTLSNum(); _onexit(callProfileManagerDtor); }
 public:
 	~ProfileManager()
 	{
@@ -142,7 +142,7 @@ public:
 	}
 private:
 	
-	inline static once_flag _flag;
+	inline static std::once_flag _flag;
 	inline static ProfileManager* _instance;
 
 	std::list<Profiler*> _profilerList;
@@ -152,7 +152,7 @@ private:
 };
 
 
-#define PROFILE
+//#define PROFILE
 
 #ifdef PROFILE
 

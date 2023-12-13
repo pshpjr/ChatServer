@@ -1,17 +1,20 @@
 ﻿#pragma once
-#include "Container.h"
-#include "Socket.h"
-#include "Types.h"
-#include "LockFreeStack.h"
+#include <MemoryUsage.h>
+#include <CCpuUsage.h>
 #include "Session.h"
-#include "CCpuUsage.h"
-#include "MemoryUsage.h"
-class SendBuffer;
-namespace 
+#include "LockFreeStack.h"
+#include "Socket.h"
+#include "GroupManager.h"
+
+class SettingParser;
+class CSendBuffer;
+
+namespace
 {
 	const int MAX_SESSIONS = 24000;
 	const long releaseFlag = 0x0010'0000;
 }
+
 
 class NormalIOCP
 {
@@ -19,15 +22,18 @@ class NormalIOCP
 	friend class RecvExecutable;
 	friend class SendExecutable;
 	friend class PostSendExecutable;
+	friend class GroupExecutable;
+	friend class GroupManager;
 protected:
+	NormalIOCP();
 
-	inline Session* FindSession(uint64 id,  LPCWSTR content);
+	inline Session* FindSession(SessionID id, LPCWSTR content);
 
-	unsigned short GetSessionIndex(uint64 sessionID) const { return (unsigned short)(sessionID >> 47); }
+	unsigned short GetSessionIndex(SessionID sessionID) const { return sessionID.index; }
 
 	inline void _processBuffer(Session& session, CSendBuffer& buffer);
 	void waitStart();
-	
+
 protected:
 	virtual ~NormalIOCP();
 
@@ -35,13 +41,15 @@ protected:
 	HANDLE _iocp = INVALID_HANDLE_VALUE;
 	Socket _listenSocket;
 	char _isRunning = false;
-	vector<HANDLE> _threadArray;
+	std::vector<HANDLE> _threadArray;
 	uint16 _maxNetThread = 0;
-	String _ip;
-	uint16 _port;
+	String _ip {};
+	uint16 _port {};
+	int _backlog = 0;
 	bool _checkTiemout = true;
-	
-//MONITOR
+	void* _this = nullptr;
+
+	//MONITOR
 	uint64 _acceptCount = 0;
 	uint64 _oldAccepCount = 0;
 	int64 _recvCount = 0;
@@ -64,7 +72,7 @@ protected:
 	MemoryUsage _memMonitor;
 	CCpuUsage _cpuMonitor;
 
-// SESSION_MANAGER
+	// SESSION_MANAGER
 
 	Session _sessions[MAX_SESSIONS];
 	LockFreeStack<unsigned short> freeIndex;
@@ -73,7 +81,10 @@ protected:
 	char _staticKey = 0;
 
 	bool gracefulEnd = false;
-public:
 
+	//GROUP_MANAGER
+
+	GroupManager* _groupManager;
+	SettingParser& _settingParser;
 };
 

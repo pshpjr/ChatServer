@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "Windows.h"
+#include <winnt.h>
 
 template <typename T>
 class LockStack

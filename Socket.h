@@ -1,11 +1,11 @@
 ﻿#pragma once
-#include "BuildOption.h"
+#include "NormalSocket.h"
 
 class Address;
 
-class Socket : public SOCKET_CLASS
+class Socket : public NormalSocket
 {
-	friend class Session; 
+	friend class Session;
 public:
 	/**
 	 * \brief 빈 소켓 만들기
@@ -31,7 +31,7 @@ public:
 	/// </summary>
 	/// <returns>이상 없으면 0, 아니면 에러코드</returns>
 	bool isValid() const;
-	int Send(LPWSABUF buf, DWORD bufCount, DWORD flag,  LPWSAOVERLAPPED lpOverlapped);
+	int Send(LPWSABUF buf, DWORD bufCount, DWORD flag, LPWSAOVERLAPPED lpOverlapped);
 	int Recv(LPWSABUF buf, DWORD bufCount, LPDWORD flag, LPWSAOVERLAPPED lpOverlapped);
 
 	int lastError() const;
@@ -41,7 +41,6 @@ public:
 	SOCKADDR_IN GetSockAddr() const;
 	String GetIP() const;
 	uint16 GetPort() const;
-
 
 private:
 

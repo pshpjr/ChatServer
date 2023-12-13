@@ -1,16 +1,45 @@
 ﻿#pragma once
+#include <optional>
+
 #include "CRingBuffer.h"
 #include "Socket.h"
 #include "TLSLockFreeQueue.h"
-#include "Executable.h"
+
 
 class CSendBuffer;
+class CRecvBuffer;
 class IOCP;
-namespace 
+
+class RecvExecutable;
+class SendExecutable;
+class PostSendExecutable;
+class ReleaseExecutable;
+
+namespace SessionInfo
+{
+	struct SessionIDHash
+	{
+		std::size_t operator()(const SessionID& s) const
+		{
+			return std::hash<unsigned long long>()( s.id );
+		}
+	};
+
+	struct SessionIDEqual
+	{
+		bool operator()(const SessionID& lhs, const SessionID& rhs) const
+		{
+			return lhs.id == rhs.id;
+		}
+	};
+}
+
+namespace
 {
 	const unsigned long long ID_MASK = 0x000'7FFF'FFFF'FFFF;
 	const unsigned long long INDEX_MASK = 0x7FFF'8000'0000'0000;
 	const int MAX_SEND_COUNT = 128;
+
 	const long RELEASE_FLAG = 0x0010'0000;
 }
 
@@ -24,13 +53,12 @@ class Session
 	friend class ReleaseExecutable;
 	friend class IOCP;
 	friend class NormalIOCP;
-
+	friend class Group;
 public:
-
-	char* _debugRecvPtr = nullptr;
+	int ioCount = 0;
 
 	Session();
-	Session(Socket socket, uint64 sessionId, IOCP& owner);
+	Session(Socket socket, SessionID sessionId, IOCP& owner);
 	void Close();
 	void Reset();
 	bool Release(LPCWSTR content, int type = 0);
@@ -53,12 +81,12 @@ public:
 
 	void RegisterIOCP(HANDLE iocpHandle);
 
-	uint64 GetSessionID() const { return _sessionID; }
+	SessionID GetSessionID() const { return _sessionID; }
 	String GetIP() const { return _socket.GetIP(); }
 	uint16 GetPort() const { return _socket.GetPort(); }
 
 	void SetSocket(Socket socket) { _socket = socket; };
-	void SetSessionID(uint64 sessionID) { _sessionID = sessionID; }
+	void SetSessionID(SessionID sessionID) { _sessionID = sessionID; }
 	void SetOwner(IOCP& owner) { _owner = &owner; }
 	void SetNetSession(char staticKey) { _staticKey = staticKey; }
 	void SetDefaultTimeout(int timoutMillisecond);
@@ -66,30 +94,44 @@ public:
 	void OffReleaseFlag() { auto result = InterlockedBitTestAndReset(&_refCount, 20); }
 	void SetMaxPacketLen(int size) { _maxPacketLen = size; }
 	void ResetTimeoutwait();
+	void SetConnect() { _connect = true; }
+	//GROUP
+
+	GroupID GetGroupID() const { return _groupID; }
+
+	void SetGroupID(GroupID id)
+	{
+		InterlockedExchange(( long* ) &_groupID, id);
+	}
+
+
 
 private:
 	bool CheckTimeout(chrono::system_clock::time_point now);
 
-
-
 private:
 	//Network
-	uint64 _sessionID = 0;
+	SessionID _sessionID = { 0 };
 	Socket _socket;
 	CRingBuffer _recvQ;
+	char _recvTempBuffer[300];
 
 	TLSLockFreeQueue<CSendBuffer*> _sendQ;
 	CSendBuffer* _sendingQ[MAX_SEND_COUNT];
-	long dataNotSend = 0;
+
+	//Group
+	GroupID _groupID = 0;
+	TLSLockFreeQueue<CRecvBuffer*> _groupRecvQ;
+
 
 	IOCP* _owner;
 
 
 	//Executable
-	RecvExecutable _recvExecute;
-	PostSendExecutable _postSendExecute;
-	SendExecutable _sendExecute;
-	ReleaseExecutable _releaseExecutable;
+	RecvExecutable& _recvExecute;
+	PostSendExecutable& _postSendExecute;
+	SendExecutable& _sendExecute;
+	ReleaseExecutable& _releaseExecutable;
 
 
 	//Reference
@@ -109,9 +151,11 @@ private:
 	unsigned int _maxPacketLen = 20000;
 
 	//DEBUG
+	long debugCount = 0;
 #ifdef SESSION_DEBUG
 
-	struct RelastinReleaseEncrypt_D {
+	struct RelastinReleaseEncrypt_D
+	{
 		long refCount;
 		LPCWSTR location;
 		long long contentType;
@@ -124,15 +168,16 @@ private:
 #endif
 
 
-	void writeContentLog(unsigned int type) {
+	void writeContentLog(unsigned int type)
+	{
 #ifdef SESSION_DEBUG
 
-		release_D[InterlockedIncrement(&debugIndex)%debugSize] = { _refCount,L"SendContent",type};
+		release_D[InterlockedIncrement(&debugIndex) % debugSize] = { _refCount,L"SendContent",type };
 #endif
 	}
 
 
 
 
-	
+
 };

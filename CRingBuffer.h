@@ -27,6 +27,8 @@ public:
 	 */
 	int DirectDequeueSize() const;
 
+	int Peek(char* dst, int size) const;
+
 	/**
 	 * \brief deqSize만큼 버퍼에서 제거한다.
 	 * \param deqSize 제거할 크기

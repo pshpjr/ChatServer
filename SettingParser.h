@@ -28,7 +28,6 @@ public:
 
 	void Init(LPCWSTR location = L"serverSetting.txt");
 
-
 	template <typename T>
 	void GetValue(String name, T& value)
 	{
@@ -48,9 +47,13 @@ public:
 		}
 		else if constexpr ( is_same_v<T, std::string> )
 		{
-			std::string s(result.begin(), result.end());
-
-			value = move(s);
+			std::string str(result.length(), 0);
+			std::transform(result.begin(), result.end(), str.begin(), 
+						   [](wchar_t c)
+						   {
+							   return ( char ) c;
+						   });
+			value = move(str);
 		}
 		else if constexpr ( is_same_v<T, LPCWSTR> )
 		{

@@ -1,7 +1,6 @@
 ﻿#pragma once
 #include "TLSPool.h"
-
-//#define SERIAL_DEBUG
+//#define SEND_DEBUG
 
 class Player;
 struct NetHeader;
@@ -38,7 +37,7 @@ public:
 	{
 		auto refIncResult = InterlockedIncrement(&_refCount);
 
-#ifdef SERIAL_DEBUG
+#ifdef SEND_DEBUG
 		auto index = InterlockedIncrement(&debugIndex);
 		release_D[index % debugSize] = { refIncResult,content,0 };
 #endif
@@ -50,7 +49,7 @@ public:
 	{
 		auto refResult = InterlockedDecrement(&_refCount);
 
-#ifdef SERIAL_DEBUG
+#ifdef SEND_DEBUG
 		auto index = InterlockedIncrement(&debugIndex);
 		release_D[index % debugSize] = { refResult,content,0 };
 #endif
@@ -61,7 +60,7 @@ public:
 		}
 	}
 
-	int	GetDataSize() const { return static_cast< int >( _rear - _data ); }
+	inline int	GetDataSize() const { return static_cast< int >( _rear - _data ); }
 
 	template<typename T>
 	CSendBuffer& operator << (const T& value);
@@ -100,24 +99,24 @@ private:
 		isEncrypt = 0;
 	}
 
-	ULONG SendDataSize() const { return ULONG(_rear - _head); }
-	char* GetFront() const { return _front; }
-	char* GetRear() const { return _rear; }
-	char* GetHead() const { return _head; }
-	char* GetDataPtr(void) const { return _data; }
-	void MoveWritePos(int size) { _rear += size; }
-	int canPushSize() const
+	inline ULONG SendDataSize() const { return ULONG(_rear - _head); }
+	inline char* GetFront() const { return _front; }
+	inline char* GetRear() const { return _rear; }
+	inline char* GetHead() const { return _head; }
+	inline char* GetDataPtr(void) const { return _data; }
+	inline void MoveWritePos(int size) { _rear += size; }
+	inline int canPushSize() const
 	{
 		return ( int ) ( BUFFER_SIZE - distance(_data, _rear) );
 	}
 
 
-	int CanPopSize() const
+	inline int CanPopSize() const
 	{
 		return ( int ) ( distance(_front, _rear) );
 	}
 
-	void canPush(int64 size)
+	inline void canPush(int64 size)
 	{
 		if ( canPushSize() < size )
 			throw std::invalid_argument { "size is bigger than free space in buffer" };
@@ -149,6 +148,31 @@ private:
 	SRWLOCK _encodeLock;
 
 
+	//DEBUG
+#ifdef SEND_DEBUG
+
+	struct RelastinReleaseEncrypt_D
+	{
+		long refCount;
+		LPCWSTR location;
+		long long contentType;
+	};
+	static const int debugSize = 1000;
+
+	long debugIndex = 0;
+	RelastinReleaseEncrypt_D release_D[debugSize];
+
+	static void PoolDebug()
+	{
+		for ( auto node : _pool.allocked )
+		{
+			if ( node->_data._refCount == 1 )
+				DebugBreak();
+			int a = 0;
+		}
+	}
+
+#endif
 };
 
 template<typename T>

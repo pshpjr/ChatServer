@@ -1,20 +1,30 @@
 ﻿#pragma once
-#include "Windows.h"
 #include "SingleThreadObjectPool.h"
 #include "Profiler.h"
+#include "LockFreeStack.h"
+
 const int TLS_POOL_INITIAL_SIZE = 5'000;
 const int GLOBAL_POOL_MULTIPLIER = 10;
+
+//#define TLS_LEAK_DEBUG
+//#define TLS_DEBUG
+
 
 template <typename T, int dataId, bool usePlacement = false>
 class TLSPool
 {
 
-
-public:
 	using poolType = SingleThreadObjectPool<T, dataId, usePlacement>;
 	using Node = typename poolType::Node;
+public:
 
-		struct controlData
+
+
+	std::list<Node*> allocked;
+
+
+
+	struct controlData
 	{
 		Node* front;
 		Node* end;
@@ -25,6 +35,9 @@ public:
 		_localPoolSize(localPoolSize),
 		_globalPoolMultiplier(globalPoolMultiplier)
 	{
+#ifdef TLS_LEAK_DEBUG
+		InitializeCriticalSection(&_debugLock);
+#endif
 
 		InitializeCriticalSection(&_cs);
 		localPoolTlsIndex = TlsAlloc();
@@ -50,9 +63,12 @@ public:
 		__analysis_assume(newNode != nullptr);
 		newNode->_tail = nullptr; 
 
-#ifdef TLSPoolDebug
+#ifdef TLS_LEAK_DEBUG
+		EnterCriticalSection(&_debugLock);
 		allocked.push_back(newNode);
+		LeaveCriticalSection(&_debugLock);
 #endif
+
 		if constexpr (!usePlacement)
 			new (&newNode->_data) T();
 		return newNode;
@@ -75,19 +91,21 @@ public:
 			auto cb1 = makeControl();
 			auto retCb = makeControl();
 
-			data = retCb;
 			_nextBucket.Push(cb1);
+
+			InterlockedIncrement(&_poolEmptyCount);
 			InterlockedAdd(&_pooledNodeSize, size);
 			return retCb;
 		}
 		InterlockedAdd(&_pooledNodeSize, -size);
+
 		return data;
 	}
 
 
 	void ReleaseNode(Node* Head,Node* tail,int size)
 	{
-		controlData cb;
+		controlData cb {};
 		cb.front = Head;
 		cb.end = tail;
 
@@ -98,7 +116,7 @@ public:
 	}
 
 
-	T* Alloc()
+	inline T* Alloc()
 	{
 		poolType* pool = (poolType*)TlsGetValue(localPoolTlsIndex);
 
@@ -110,7 +128,7 @@ public:
 
 		if(pool->GetObjectCount() == 0)
 		{
-			auto cb = AcquireNode(_localPoolSize);
+			auto cb = AcquireNode(1);
 
 			pool->_top = cb.front;
 			pool->_objectCount = _localPoolSize;
@@ -118,7 +136,7 @@ public:
 		return pool->Alloc();
 	}
 
-	void Free(T* data)
+	inline void Free(T* data)
 	{
 		//PRO_BEGIN("FREE")
 		poolType* pool = (poolType*)TlsGetValue(localPoolTlsIndex);
@@ -148,7 +166,7 @@ public:
 
 			pool->_top = newHead;
 
-			ReleaseNode(releaseHead, releaseTail, _localPoolSize);
+			ReleaseNode(releaseHead, releaseTail, 1);
 
 			pool->_objectCount -= _localPoolSize;
 
@@ -159,7 +177,7 @@ public:
 	{
 		Node* newTop = createNode();
 
-		controlData data;
+		controlData data = {};
 		data.end = newTop;
 
 		for ( int i = 0; i < _localPoolSize -1; ++i )
@@ -192,7 +210,7 @@ private:
 	long _releaseCount = 0;
 
 	unsigned int _poolEmptyCount = 0;
-#ifdef TLSPoolDebug
+#ifdef TLS_DEBUG
 	struct Debug
 	{
 		int threadID;
@@ -204,7 +222,13 @@ private:
 	};
 	long debugIndex = 0;
 	Debug debug[1000];
-	list<Node*> allocked;
+
+#endif
+
+#ifdef TLS_LEAK_DEBUG
+
+	CRITICAL_SECTION _debugLock;
+
 #endif
 };
 

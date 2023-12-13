@@ -1,4 +1,19 @@
 ﻿#pragma once
+#include "Container.h"
+
+
+namespace executable {
+	enum ExecutableTransfer
+	{
+		BASE = 1,
+		POST,
+		RECV,
+		SEND,
+		RELEASE,
+		WAIT,
+		GROUP
+	};
+}
 
 class Executable
 {
@@ -13,7 +28,7 @@ public:
 		RELEASE,
 		CUSTOM
 	};
-	Executable() :_type(BASE), _overlapped{0} { }
+	Executable() :_type(CUSTOM), _overlapped{0} { }
 	virtual void Execute(ULONG_PTR arg, DWORD transferred,void* iocp) = 0;
 	virtual ~Executable() = default;
 
@@ -27,65 +42,6 @@ public:
 	ioType _type;
 	OVERLAPPED _overlapped;
 };
-
-class PostSendExecutable : public Executable
-{
-public:
-	PostSendExecutable()
-	{
-		_type = ioType::POSTRECV;
-	}
-	void Execute(ULONG_PTR key, DWORD transferred, void* iocp) override;
-	~PostSendExecutable() override = default;
-
-	std::chrono::system_clock::time_point lastSend;
-};
-
-class RecvExecutable : public Executable
-{
-public:
-	RecvExecutable()
-	{
-		_type = ioType::RECV;
-	}
-	void Execute(ULONG_PTR key, DWORD transferred, void* iocp) override;
-	~RecvExecutable() override = default;
-
-private:
-	void recvNormal(Session& session, void* iocp);
-	void recvEncrypt(Session& session, void* iocp);
-
-	template <typename Header>
-	void recvHandler(Session& session, void* iocp);
-};
-
-
-class SendExecutable : public Executable
-{
-public:
-	SendExecutable()
-	{
-		_type = ioType::SEND;
-	}
-	void Execute(ULONG_PTR key, DWORD transferred, void* iocp) override;
-	~SendExecutable() override = default;
-
-};
-
-class ReleaseExecutable : public Executable
-{
-public:
-	ReleaseExecutable()
-	{
-		_type = ioType::RELEASE;
-	}
-	void Execute(ULONG_PTR key, DWORD transferred, void* iocp) override;
-	~ReleaseExecutable() override = default;
-
-};
-
-
-
 
 class WaitExecutable :public Executable
 {
@@ -112,7 +68,6 @@ protected:
 private:
 	char isDone = false;
 };
-
 
 template <typename T>
 class ExecutableManager

@@ -13,16 +13,16 @@ class TLSPool;
 
 
 template<int size>
- int getBucketSize()
+int getBucketSize()
 {
 	int bucketSize = 8;
 	int blockSize = 256;
 
 	int index = 0;
 
-	for (int i = 0; i < 7; i++)
+	for ( int i = 0; i < 7; i++ )
 	{
-		if (blockSize <= size)
+		if ( blockSize <= size )
 		{
 			bucketSize *= 2;
 			blockSize *= 2;
@@ -158,16 +158,17 @@ SingleThreadObjectPool<data, dataId, usePlacement>::~SingleThreadObjectPool()
 template <typename data, int dataId, bool usePlacement>
 data* SingleThreadObjectPool<data, dataId, usePlacement>::Alloc()
 {
-	if (_top != nullptr)
+	Node* top = _top;
+	Node* retNode = top;
+	if ( top != nullptr)
 	{
-		Node* retNode = _top;
-		_top = _top->_tail;
-		_objectCount--;
-
+		_top = top->_tail;
+		--_objectCount;
 		if constexpr (usePlacement)
 		{
 			retNode = (Node*)new(&retNode->_data)data();
 		}
+
 		return &retNode->_data;
 	}
 

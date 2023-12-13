@@ -1,15 +1,19 @@
 ﻿#pragma once
 #define dfPACKET_CODE		0x77
 
+#pragma pack(1)
 struct LANHeader
 {
 	uint16 len;
 };
+#pragma pack( )
 
+#pragma pack(1)
 struct NetHeader
 {
-	char code;
+	unsigned char code;
 	unsigned short len;
-	char randomKey;
+	unsigned char randomKey;
 	unsigned char checkSum;
-};
+}; 
+#pragma pack( )

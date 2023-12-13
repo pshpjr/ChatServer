@@ -9,10 +9,7 @@ public:
 
 	}
 
-
 protected:
-	
 	SOCKADDR_IN _sockAddr;
 	SOCKET _socket;
-
 };

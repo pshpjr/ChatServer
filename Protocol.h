@@ -1,4 +1,5 @@
 ﻿#pragma once
+//#define dfPACKET_CODE		109
 #define dfPACKET_CODE		0x77
 
 #pragma pack(1)

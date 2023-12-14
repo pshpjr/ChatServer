@@ -159,6 +159,8 @@ void IOCP::Start()
 	InterlockedExchange8(&_isRunning , true);
 	WakeByAddressAll(&_isRunning);
 
+
+	
 }
 
 void IOCP::Stop()
@@ -275,7 +277,7 @@ void NormalIOCP::_processBuffer(Session& session, CSendBuffer& buffer)
 }
 
 
-SessionID IOCP::createClientSession(String ip, Port port)
+SessionID IOCP::Connect(String ip, Port port)
 {
 	unsigned short index;
 	freeIndex.Pop(index);
@@ -308,6 +310,7 @@ SessionID IOCP::createClientSession(String ip, Port port)
 	_sessions[index].SetSessionID(sessionID);
 	_sessions[index].OffReleaseFlag();
 	_sessions[index].SetConnect();
+	_sessions[index].SetLanSession();
 
 	_sessions[index].RecvNotIncrease();
 
@@ -778,9 +781,9 @@ void IOCP::increaseRecvCount(int value)
 	for ( int i = 0; i < value; i++ )
 	{
 		++localRecvCount;
-		if ( localRecvCount == 1000 )
+		if ( localRecvCount == 100 )
 		{
-			InterlockedAdd64(&_recvCount, 1000);
+			InterlockedAdd64(&_recvCount, 100);
 			localRecvCount = 0;
 		}
 
@@ -794,9 +797,9 @@ void IOCP::increaseSendCount(int value)
 	for ( int i = 0; i < value; i++ )
 	{
 		++localSendCount;
-		if ( localSendCount == 1000 )
+		if ( localSendCount == 100 )
 		{
-			InterlockedAdd64(&_sendCount, 1000);
+			InterlockedAdd64(&_sendCount, 100);
 			localSendCount = 0;
 		}
 	}

@@ -36,8 +36,8 @@ public:
 	void SetDefaultTimeout(unsigned int timeoutMillisecond);
 	void PostExecutable(Executable* exe, ULONG_PTR arg);
 
-	template <typename ClientType> 
-	ClientType GetClient(const String ip, Port port);
+	//connect
+	SessionID Connect(String ip, Port port);
 
 	//GROUP
 
@@ -88,7 +88,7 @@ public:
 	short CreateGroup();
 	void MoveSession(SessionID target, GroupID dst);
 private:
-	SessionID createClientSession(String ip, Port port);
+
 	
 	//MONITOR
 	void increaseRecvCount(int value);
@@ -113,12 +113,6 @@ private:
 
 };
 
-template <typename ClientType>
-ClientType IOCP::GetClient(String ip, Port port)
-{
-	static_assert( is_base_of_v<Client, ClientType> );
-	return _groupManager->CreateClient<ClientType>(ip,port);
-}
 
 template<typename GroupType>
 inline short IOCP::CreateGroup()

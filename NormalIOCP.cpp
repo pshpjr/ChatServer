@@ -159,6 +159,8 @@ void IOCP::Start()
 	InterlockedExchange8(&_isRunning , true);
 	WakeByAddressAll(&_isRunning);
 
+
+	
 }
 
 void IOCP::Stop()

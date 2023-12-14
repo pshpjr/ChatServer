@@ -12,6 +12,16 @@
 #include <unordered_set>
 
 
+namespace SessionInfo
+{
+    struct SessionIDEqual;
+}
+
+namespace SessionInfo
+{
+    struct SessionIDHash;
+}
+
 using namespace std;
 
 
@@ -51,3 +61,7 @@ using HashMap = unordered_map<Key, Type, Hasher, KeyEq>;
 template<typename Key, typename Hasher = hash<Key>, typename KeyEq = equal_to<Key>>
 using HashSet = unordered_set<Key, Hasher, KeyEq>;
 
+template <typename data>
+using SessionMap = unordered_map<SessionID,data,SessionInfo::SessionIDHash,SessionInfo::SessionIDEqual>;
+
+using SessionSet = unordered_set<SessionID,SessionInfo::SessionIDHash,SessionInfo::SessionIDEqual>;

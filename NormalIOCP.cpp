@@ -68,11 +68,6 @@ bool IOCP::Init(String ip, Port port, uint16 backlog, uint16 maxNetThread, uint1
 	_ip = ip;
 	_port = port;
 	
-	if (staticKey) {
-		for (auto& session : _sessions) {
-			session.SetNetSession(staticKey);
-		}
-	}		
 	for ( auto& session : _sessions )
 	{
 		session.SetOwner(*this);
@@ -277,7 +272,7 @@ void NormalIOCP::_processBuffer(Session& session, CSendBuffer& buffer)
 }
 
 
-SessionID IOCP::Connect(String ip, Port port)
+WSAResult<SessionID>  IOCP::GetClientSession(String ip, Port port)
 {
 	unsigned short index;
 	freeIndex.Pop(index);
@@ -286,15 +281,14 @@ SessionID IOCP::Connect(String ip, Port port)
 	s.Init();
 
 	if ( !s.isValid() )
-		throw exception();
+		return s.lastError();
 
 	s.setLinger(true);
 	s.setNoDelay(true);
 	int connectResult;
 	if ( !s.Connect(ip, port) )
 	{
-		connectResult = s.lastError();
-		throw exception();
+		return s.lastError();
 	}
 
 	_sessions[index].SetSocket(s);
@@ -313,8 +307,7 @@ SessionID IOCP::Connect(String ip, Port port)
 	_sessions[index].SetLanSession();
 
 	_sessions[index].RecvNotIncrease();
-
-
+	
 	return sessionID;
 }
 
@@ -681,7 +674,6 @@ void IOCP::AcceptThread(LPVOID arg)
 		clientSocket.setLinger(true);
 		clientSocket.setNoDelay(true);
 
-
 		unsigned short sessionIndex;
 		if (freeIndex.Pop(sessionIndex) == false) 
 		{
@@ -701,7 +693,7 @@ void IOCP::AcceptThread(LPVOID arg)
 		session.SetSessionID(sessionID);
 		session.SetSocket(clientSocket);
 		session.RegisterIOCP(_iocp);
-
+		session.SetNetSession(_staticKey);
 		session.OffReleaseFlag();
 		session._connect = true;
 		

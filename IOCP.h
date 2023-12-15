@@ -37,7 +37,7 @@ public:
 	void PostExecutable(Executable* exe, ULONG_PTR arg);
 
 	//connect
-	SessionID Connect(String ip, Port port);
+	WSAResult<SessionID> GetClientSession(String ip, Port port);
 	bool isValidSession(SessionID id);
 	//GROUP
 

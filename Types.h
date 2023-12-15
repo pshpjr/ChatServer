@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include <string>
 
+#include "Result.h"
 
 
 using BYTE = unsigned char;
@@ -33,3 +34,6 @@ using GroupID = long;
 #include <WinSock2.h>
 using SockAddr_in = SOCKADDR_IN;
 using Port = uint16;
+
+template <typename T>
+using WSAResult = Result<T,int>

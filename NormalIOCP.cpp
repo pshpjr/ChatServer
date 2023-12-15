@@ -281,14 +281,20 @@ WSAResult<SessionID>  IOCP::GetClientSession(String ip, Port port)
 	s.Init();
 
 	if ( !s.isValid() )
+	{
 		return s.lastError();
+	}
 
 	s.setLinger(true);
 	s.setNoDelay(true);
-	int connectResult;
-	if ( !s.Connect(ip, port) )
+
+	auto connectionResult = s.Connect(ip, port);
+	if ( !connectionResult.HasValue() )
 	{
-		return s.lastError();
+		s.Close();
+		freeIndex.Push(index);
+		
+		return connectionResult.Error();
 	}
 
 	_sessions[index].SetSocket(s);

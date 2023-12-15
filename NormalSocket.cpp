@@ -152,7 +152,7 @@ Socket Socket::Accept()
 	return { clientSocket, clientAddr };
 }
 
-bool Socket::Connect(String ip, uint16 port)
+WSAResult<bool> Socket::Connect(String ip, uint16 port)
 {
 	memset(&_sockAddr, 0, sizeof(_sockAddr));
 	_sockAddr.sin_family = AF_INET;
@@ -163,7 +163,7 @@ bool Socket::Connect(String ip, uint16 port)
 	if ( SOCKET_ERROR == connect(_socket, ( SOCKADDR* ) &_sockAddr, sizeof(_sockAddr)))
 	{
 		result = WSAGetLastError();
-		throw exception(to_string(result).c_str());
+		return result;
 	}
 	  
 	return true;

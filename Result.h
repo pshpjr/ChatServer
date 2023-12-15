@@ -31,7 +31,7 @@ public:
         if (state_ == State::HasValue) {
             return std::get<valueType>(variant_);
         } else {
-            throw std::runtime_error("Error: Result does not contain a value");
+            throw std::exception("Error: Result does not contain a value");
         }
     }
 
@@ -43,7 +43,7 @@ public:
         if (state_ == State::HasError) {
             return std::get<errorType>(variant_);
         } else {
-            throw std::runtime_error("Error: Result does not contain an error");
+            throw std::exception("Error: Result does not contain an error");
         }
     }
 

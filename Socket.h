@@ -21,7 +21,7 @@ public:
 	bool Bind(String ip, uint16 port);
 	bool Listen(int backlog);
 	Socket Accept();
-	bool Connect(String ip, uint16 port);
+	WSAResult<bool> Connect(String ip, uint16 port);
 	void CancleIO();
 	void Close();
 	static IN_ADDR ip2Address(const WCHAR* ip);

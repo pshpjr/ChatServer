@@ -598,12 +598,12 @@ void IOCP::WorkerThread(LPVOID arg)
 	while (true)
 	{
 		DWORD transferred = 0;
-		Executable* overlapped = nullptr;
+		LPOVERLAPPED overlap = nullptr;
 		Session* session = nullptr;
 
-		auto ret = GetQueuedCompletionStatus(_iocp, &transferred, ( PULONG_PTR ) &session, ( LPOVERLAPPED* ) &overlapped, INFINITE);
-
-		overlapped = (Executable*)((char*)overlapped - offsetof(Executable, _overlapped));
+		auto ret = GetQueuedCompletionStatus(_iocp, &transferred, ( PULONG_PTR ) &session, &overlap, INFINITE);
+	
+		Executable* overlapped = Executable::GetExecutable(overlap);
 		if(transferred==0&&session== nullptr)
 		{
 			PostQueuedCompletionStatus(_iocp, 0, 0, nullptr);
@@ -613,9 +613,10 @@ void IOCP::WorkerThread(LPVOID arg)
 		if(transferred == 0 && session != nullptr)
 		{
 			auto errNo = WSAGetLastError();
-
 			switch (errNo) {
-
+			//정상종료됨. 
+			case 0:
+				break;
 			case ERROR_NETNAME_DELETED:
 				break;
 			//ERROR_SEM_TIMEOUT. 장치에서 끊은 경우 (5회 재전송 실패 등..)
@@ -640,7 +641,7 @@ void IOCP::WorkerThread(LPVOID arg)
 
 			auto sessionID =session->GetSessionID();
 		
-			session->Release(L"GQCSerrorRelease", errNo);
+			session->Release(L"GQCSErrorRelease", errNo);
 		}
 		else
 		{
@@ -828,10 +829,9 @@ NormalIOCP::~NormalIOCP()
 }
 
 
-NormalIOCP::NormalIOCP() :_groupManager(nullptr), _port(0), _settingParser(*new SettingParser()) {};
+NormalIOCP::NormalIOCP() :_groupManager(nullptr), _port(0), _settingParser(*new SettingParser()) {}
 
-
-Session* NormalIOCP::FindSession(SessionID id, LPCWSTR content)
+optional<Session*> NormalIOCP::findSession(SessionID id, LPCWSTR content)
 {
 	auto& session = _sessions[id.index];
 	auto result = session.IncreaseRef(content);
@@ -841,10 +841,22 @@ Session* NormalIOCP::FindSession(SessionID id, LPCWSTR content)
 	{
 		//세션 릴리즈 해도 문제 없음. 플레그 서 있을거라 내가 올린 만큼 내려감. 
 		session.Release(L"sessionChangedRelease");
-		return nullptr;
+		return {};
 	}
 
 	return &session;
+};
+
+
+Session* NormalIOCP::FindSession(SessionID id, LPCWSTR content)
+{
+	const auto findResult = findSession(id,content);
+	if(findResult.has_value())
+	{
+		return findResult.value();
+	}
+	
+	return nullptr;
 }
 
 void NormalIOCP::waitStart()

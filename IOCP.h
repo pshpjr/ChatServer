@@ -36,6 +36,8 @@ public:
 	void SetDefaultTimeout(unsigned int timeoutMillisecond);
 	void PostExecutable(Executable* exe, ULONG_PTR arg);
 
+	void SetSessionStaticKey(SessionID id, char staticKey);
+	
 	//connect
 	WSAResult<SessionID> GetClientSession(String ip, Port port);
 	bool isValidSession(SessionID id);
@@ -44,18 +46,17 @@ public:
 
 	//CONTENT VIRTUAL
 
-	virtual void OnWorkerThreadBegin() {}; 
-	virtual void OnWorkerThreadEnd() {};
-	virtual bool OnAccept(SockAddr_in) { return true; };
-	virtual void OnConnect(SessionID sessionId, const SockAddr_in& info) {};
-	virtual void OnDisconnect(SessionID sessionId) {};
-	virtual void OnRecvPacket(SessionID sessionId, CRecvBuffer& buffer) {};
-	virtual void OnInit() {};
-	virtual void OnStart() {};
-	virtual void OnEnd() {};
-	virtual void OnSessionTimeout(SessionID sessionId,String ip, Port port) {};
-	virtual void OnMonitorRun() {};
-
+	virtual void OnWorkerThreadBegin() {}
+	virtual void OnWorkerThreadEnd() {}
+	virtual bool OnAccept(SockAddr_in) { return true; }
+	virtual void OnConnect(SessionID sessionId, const SockAddr_in& info) {}
+	virtual void OnDisconnect(SessionID sessionId) {}
+	virtual void OnRecvPacket(SessionID sessionId, CRecvBuffer& buffer) {}
+	virtual void OnInit() {}
+	virtual void OnStart() {}
+	virtual void OnEnd() {}
+	virtual void OnSessionTimeout(SessionID sessionId,String ip, Port port) {}
+	virtual void OnMonitorRun() {}
 	//MONITOR
 	uint64 GetAcceptCount() const;
 	uint64 GetAcceptTps() const;

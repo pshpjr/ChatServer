@@ -71,7 +71,6 @@ public:
 
 	~SettingParser()
 	{
-		free(_buffer);
 	}
 
 private:

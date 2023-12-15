@@ -384,7 +384,10 @@ void IOCP::PostExecutable(Executable* exe, ULONG_PTR arg)
 	PostQueuedCompletionStatus(_iocp, transfered, arg, exe->GetOverlapped());
 }
 
-
+void IOCP::SetSessionStaticKey(SessionID id, char staticKey)
+{
+	FindSession(id);
+}
 
 
 /*****************************

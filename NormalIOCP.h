@@ -27,6 +27,9 @@ class NormalIOCP
 protected:
 	NormalIOCP();
 
+	inline optional<Session*> findSession(SessionID id, LPCWSTR content = L"");
+
+	//deprecated
 	inline Session* FindSession(SessionID id, LPCWSTR content = L"");
 
 	static unsigned short GetSessionIndex(SessionID sessionID) { return sessionID.index; }

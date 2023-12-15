@@ -27,9 +27,9 @@ class NormalIOCP
 protected:
 	NormalIOCP();
 
-	inline Session* FindSession(SessionID id, LPCWSTR content);
+	inline Session* FindSession(SessionID id, LPCWSTR content = L"");
 
-	unsigned short GetSessionIndex(SessionID sessionID) const { return sessionID.index; }
+	static unsigned short GetSessionIndex(SessionID sessionID) { return sessionID.index; }
 
 	inline void _processBuffer(Session& session, CSendBuffer& buffer);
 	void waitStart();

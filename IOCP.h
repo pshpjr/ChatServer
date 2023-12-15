@@ -38,7 +38,7 @@ public:
 
 	//connect
 	SessionID Connect(String ip, Port port);
-
+	bool isValidSession(SessionID id);
 	//GROUP
 
 

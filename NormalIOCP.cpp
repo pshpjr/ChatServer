@@ -318,11 +318,14 @@ SessionID IOCP::Connect(String ip, Port port)
 	return sessionID;
 }
 
+bool IOCP::isValidSession(SessionID id)
+{
+	return nullptr == FindSession(id);
+}
 
 
 bool IOCP::DisconnectSession(SessionID sessionId)
 {
-
 	auto result = FindSession(sessionId, L"DisconnectInc");
 	if (result == nullptr)
 		return false;

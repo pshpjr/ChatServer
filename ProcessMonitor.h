@@ -20,18 +20,43 @@ public:
 
 
 	}
-	void Update();
 
+	void Update();
+	
+	double TotalProcessorTime() const
+	{
+		return _totalProcessorTime;
+	}
+
+	double KernelProcessorTime() const 
+	{
+		return _kernelProcessorTime;
+	}
+
+	double UserProcessorTime() const 
+	{
+		return _userProcessorTime;
+	}
+
+	long PageFault() const
+	{
+		return _pageFault;
+	}
+    
+	double UseMemoryMB() const
+	{
+		return _useMemoryMB;
+	}
 
 private:
 	PDH_HQUERY _swQuery;
 
-	double _totalProcessorTime;
-	double _kernelProcessorTime;
-	double _userProcessorTime;
+	double _totalProcessorTime = 0;
+	double _kernelProcessorTime = 0;
+	double _userProcessorTime = 0;
 
-	long _pageFault;
-	double _useMemoryMB;
+	long _pageFault = 0;
+	double _useMemoryMB = 0;
 
 	PDH_HQUERY pCpuTotal;
 	PDH_HQUERY pCpuKernel;

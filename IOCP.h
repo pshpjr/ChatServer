@@ -24,8 +24,8 @@ public:
 	bool Init(String ip, Port port, uint16 backlog, uint16 maxRunningThread,uint16 workerThread, char staticKey);
 	void Start();
 	void Stop();
-	inline bool SendPacket(SessionID sessionId, CSendBuffer* buffer, int type);
-	bool SendPacket(SessionID sessionId, CSendBuffer* buffer);
+	void Wait();
+	bool SendPacket(SessionID sessionId, CSendBuffer* buffer, int type = 0);
 	//deprecate
 	bool SendPackets(SessionID sessionId, SingleThreadQ<CSendBuffer*>& bufArr);
 	
@@ -55,7 +55,7 @@ public:
 	virtual void OnInit() {}
 	virtual void OnStart() {}
 	virtual void OnEnd() {}
-	virtual void OnSessionTimeout(SessionID sessionId,String ip, Port port) {}
+	virtual void OnSessionTimeout(SessionID sessionId) {}
 	virtual void OnMonitorRun() {}
 	//MONITOR
 	uint64 GetAcceptCount() const;

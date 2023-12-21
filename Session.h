@@ -57,13 +57,16 @@ class Session
 public:
 	int ioCount = 0;
 
+
 	Session();
 	Session(Socket socket, SessionID sessionId, IOCP& owner);
+	bool CanSend();
 	void Close();
 	void Reset();
 	bool Release(LPCWSTR content, int type = 0);
+	void RealSend();
 
-	long IncreaseRef(LPCWSTR content)
+	inline long IncreaseRef(LPCWSTR content)
 	{
 		auto result = InterlockedIncrement(&_refCount);
 
@@ -138,7 +141,7 @@ private:
 
 	//Reference
 	long _refCount = RELEASE_FLAG;
-	long _isSending = false;
+	char _isSending = false;
 
 	//Timeout
 	bool needCheckSendTimeout = false;

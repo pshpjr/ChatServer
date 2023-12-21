@@ -2,7 +2,7 @@
 #include "CSendBuffer.h"
 #include "Protocol.h"
 
-int SERIAL_INIT_SIZE = 1000;
+int SERIAL_INIT_SIZE = 5000;
 int SERIAL_INIT_MULTIPLIER = 3;
 
 TLSPool<CSendBuffer, 0, false> CSendBuffer::_pool(SERIAL_INIT_SIZE, SERIAL_INIT_MULTIPLIER);
@@ -15,7 +15,6 @@ void CSendBuffer::writeLanHeader()
 
 void CSendBuffer::writeNetHeader(int code)
 {
-	PRO_BEGIN("WriteNetHeader");
 	char* checksumIndex = GetDataPtr();
 
 	NetHeader tmpHeader;

@@ -24,7 +24,7 @@ public:
 		_tail = dummy;
 	}
 
-	void Enqueue(const T& data)
+	inline void Enqueue(const T& data)
 	{
 		Node* allocNode; {
 			allocNode = _tlsLFQNodePool.Alloc();
@@ -79,7 +79,7 @@ public:
 		//debug[index].data = newNode->data;
 	}
 
-	bool Dequeue(T& data)
+	inline bool Dequeue(T& data)
 	{
 		if (_size == 0)
 		{
@@ -166,7 +166,7 @@ private:
 	Node* _tail = nullptr;
 };
 template <typename T>
-TLSPool<typename TLSLockFreeQueue<T>::Node, 0, false> typename TLSLockFreeQueue<T>::_tlsLFQNodePool(100, 1000);
+TLSPool<typename TLSLockFreeQueue<T>::Node, 0, false> typename TLSLockFreeQueue<T>::_tlsLFQNodePool(10000, 10);
 
 template <typename T>
 int64 TLSLockFreeQueue<T>::GID = 0;

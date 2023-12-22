@@ -7,7 +7,6 @@
 
 void RecvExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 {
-	PRO_BEGIN("RecvExecute");
 	Session& session = *( Session* ) key;
 	session.ioCount++;
 

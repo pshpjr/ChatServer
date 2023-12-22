@@ -78,7 +78,33 @@ public:
 	virtual	~SingleThreadObjectPool();
 
 
-	data* Alloc(void);
+	inline data* Alloc(void)
+	{
+		Node* top = _top;
+		Node* retNode = top;
+		if ( top != nullptr )
+		{
+			_top = top->_tail;
+			--_objectCount;
+			if constexpr ( usePlacement )
+			{
+				retNode = ( Node* )new( &retNode->_data )data();
+			}
+
+			return &retNode->_data;
+		}
+
+		_allocCount++;
+		return &( new Node )->_data;
+
+#ifdef MYDEBUG
+		retNode->_tail = ( Node* ) 0x3412;
+		retNode->_head = ( Node* ) 0x3412;
+#endif
+
+
+
+	}
 
 
 	bool Free(data* pdata);
@@ -153,35 +179,6 @@ SingleThreadObjectPool<data, dataId, usePlacement>::~SingleThreadObjectPool()
 			delete tar;
 		}
 	}
-}
-
-template <typename data, int dataId, bool usePlacement>
-data* SingleThreadObjectPool<data, dataId, usePlacement>::Alloc()
-{
-	Node* top = _top;
-	Node* retNode = top;
-	if ( top != nullptr)
-	{
-		_top = top->_tail;
-		--_objectCount;
-		if constexpr (usePlacement)
-		{
-			retNode = (Node*)new(&retNode->_data)data();
-		}
-
-		return &retNode->_data;
-	}
-
-	_allocCount++;
-	return &(new Node)->_data;
-	
-#ifdef MYDEBUG
-	retNode->_tail = (Node*)0x3412;
-	retNode->_head = (Node*)0x3412;
-#endif
-
-
-
 }
 
 template <typename data, int dataId, bool usePlacement>

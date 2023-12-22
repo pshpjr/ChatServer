@@ -40,8 +40,8 @@ public:
 	double AvailableMb() const { return _availableMb; }
 
 	long HardFault() const { return _hardFault; }
-	double SendBytes() const { return _sendBytes; }
-	double RecvBytes() const { return _recvBytes; }
+	double SendKBytes() const { return _sendKBytes; }
+	double RecvKBytes() const { return _recvKBytes; }
 
 	//Monitor items
 private:
@@ -56,8 +56,8 @@ private:
 	double _availableMb = 0;
 	long _hardFault = 0;
 
-	double _sendBytes = 0;
-	double _recvBytes = 0;
+	double _sendKBytes = 0;
+	double _recvKBytes = 0;
 
 
 
@@ -65,17 +65,17 @@ private:
 private:
 	PDH_HQUERY _hwQuery;
 
-	PDH_HCOUNTER pCpuTotal;
-	PDH_HCOUNTER pCpuKernel;
-	PDH_HCOUNTER pCpuUser;
+	PDH_HCOUNTER pCpuTotal = 0;
+	PDH_HCOUNTER pCpuKernel = 0;
+	PDH_HCOUNTER pCpuUser = 0;
 
-	PDH_HCOUNTER pInterrupt;
-	PDH_HCOUNTER pInterruptPercent;
-	PDH_HCOUNTER pContextSwitch;
-	PDH_HCOUNTER pPageFault;
-	PDH_HCOUNTER pNonPaged;
-	PDH_HCOUNTER pAvailableBytes;
-	PDH_HCOUNTER pHardFault;
+	PDH_HCOUNTER pInterrupt = 0;
+	PDH_HCOUNTER pInterruptPercent = 0;
+	PDH_HCOUNTER pContextSwitch = 0;
+	PDH_HCOUNTER pPageFault = 0;
+	PDH_HCOUNTER pNonPaged = 0;
+	PDH_HCOUNTER pAvailableBytes = 0;
+	PDH_HCOUNTER pHardFault = 0;
 
 
 	PDH_HCOUNTER pSendBytes;

@@ -153,7 +153,7 @@ void ProfileManager::ProfileDataOutText(LPWSTR szFileName)
 	{
 		return;
 	}
-
+	ReleaseSRWLockShared(&_profileListLock);
 
 
 	FILE* fout;
@@ -220,7 +220,7 @@ void ProfileManager::ProfileDataOutText(LPWSTR szFileName)
 	fclose(fout);
 
 
-	ReleaseSRWLockShared(&_profileListLock);
+
 }
 
 void ProfileManager::SetOptional(std::wstring optional)

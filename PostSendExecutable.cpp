@@ -6,11 +6,14 @@
 
 void PostSendExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 {
+	EASY_FUNCTION();
+
 	IOCP& server = *reinterpret_cast< IOCP* >( iocp );
 	Session* session = ( Session* ) key;
 	auto& sendingQ = session->_sendingQ;
 
 	CSendBuffer* buffer = nullptr;
+
 
 	for ( int i = 0; i < dataNotSend; i++ )
 	{
@@ -22,12 +25,9 @@ void PostSendExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 
 	session->needCheckSendTimeout = false;
 
-	int oldSending = InterlockedExchange(&session->_isSending, 0);
-	if ( oldSending != 1 )
-	{
-		DebugBreak();
-	}
+	session->_isSending = 0;
 
 	session->trySend();
+
 	session->Release(L"PostSendRelease");
 }

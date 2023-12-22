@@ -36,4 +36,4 @@ using SockAddr_in = SOCKADDR_IN;
 using Port = uint16;
 
 template <typename T>
-using WSAResult = Result<T,int>
+using WSAResult = Result<T,int>;

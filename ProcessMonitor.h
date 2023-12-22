@@ -10,14 +10,13 @@ class ProcessMonitor
 public:
 	ProcessMonitor(String ProcessName)
 	{
-		PdhOpenQuery(NULL, NULL, &_swQuery);
+		auto openRet = PdhOpenQuery(NULL, NULL, &_swQuery);
 
 		PdhAddCounter(_swQuery, std::format(L"\\Process({:s})\\% Processor Time", ProcessName).c_str(), NULL, &pCpuTotal);
 		PdhAddCounter(_swQuery, std::format(L"\\Process({:s})\\% Privileged Time", ProcessName).c_str(), NULL, &pCpuKernel);
 		PdhAddCounter(_swQuery, std::format(L"\\Process({:s})\\% User Time", ProcessName).c_str(), NULL, &pCpuUser);
-		PdhAddCounter(_swQuery, std::format(L"\\Process({:s})\\% Processor Time", ProcessName).c_str(), NULL, &pPageFault);
-		PdhAddCounter(_swQuery, std::format(L"\\Process({:s})\\% Processor Time", ProcessName).c_str(), NULL, &pUseMemory);
-
+		PdhAddCounter(_swQuery, std::format(L"\\Process({:s})\\Page Faults/sec", ProcessName).c_str(), NULL, &pPageFault);
+		PdhAddCounter(_swQuery, std::format(L"\\Process({:s})\\Private Bytes", ProcessName).c_str(), NULL, &pUseMemory);
 
 	}
 

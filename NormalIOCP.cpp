@@ -802,7 +802,7 @@ void IOCP::AcceptThread(LPVOID arg)
 
 		
 		clientSocket.setLinger(true);
-		clientSocket.setNoDelay(true);
+		//clientSocket.setNoDelay(true);
 		//clientSocket.setSendbuffer(0);
 
 		unsigned short sessionIndex;

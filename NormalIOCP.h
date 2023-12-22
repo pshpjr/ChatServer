@@ -15,8 +15,6 @@ namespace
 	const long releaseFlag = 0x0010'0000;
 }
 
-
-
 class threadMonitor
 {
 public:

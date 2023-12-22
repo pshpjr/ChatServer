@@ -19,7 +19,7 @@ private:
 class ExclusiveLockGuard
 {
 public:
-	ExclusiveLockGuard(SRWLOCK lock) : _cs(lock)
+	ExclusiveLockGuard(SRWLOCK& lock) : _cs(lock)
 	{
 		AcquireSRWLockExclusive(&_cs);
 	}

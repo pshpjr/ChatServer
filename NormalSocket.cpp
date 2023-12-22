@@ -90,6 +90,12 @@ void Socket::setNoDelay(bool on)
 	setsockopt(_socket, IPPROTO_TCP, TCP_NODELAY, ( char* ) &on, sizeof(on));
 }
 
+void Socket::setSendbuffer(int size)
+{
+	int bufSize = size;
+	setsockopt(_socket, SOL_SOCKET, SO_SNDBUF, ( char* ) &bufSize, sizeof(bufSize));
+}
+
 
 SOCKADDR_IN Socket::GetSockAddr() const
 {

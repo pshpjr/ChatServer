@@ -37,6 +37,7 @@ public:
 	int lastError() const;
 	void setLinger(bool on);
 	void setNoDelay(bool on);
+	void setSendbuffer(int size);
 
 	SOCKADDR_IN GetSockAddr() const;
 	String GetIP() const;

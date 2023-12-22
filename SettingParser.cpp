@@ -15,6 +15,7 @@ void SettingParser::Init(LPCWSTR location )
 {
 	loadSetting(location);
 	parse();
+	free(_buffer);
 }
 
 void SettingParser::loadSetting(LPCTSTR location)

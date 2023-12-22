@@ -32,6 +32,10 @@ public:
 	virtual void Execute(ULONG_PTR arg, DWORD transferred,void* iocp) = 0;
 	virtual ~Executable() = default;
 
+	static Executable* GetExecutable(OVERLAPPED* overlap)
+	{
+		return (Executable*)((char*)overlap - offsetof(Executable,_overlapped));
+	}
 	void Clear() { memset(&_overlapped, 0, sizeof(_overlapped)); }
 	LPOVERLAPPED GetOverlapped() { return &_overlapped; }
 

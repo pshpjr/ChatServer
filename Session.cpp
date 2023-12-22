@@ -20,10 +20,43 @@ Session::Session(Socket socket, SessionID sessionId, IOCP& owner) : _socket(sock
 
 }
 
+bool Session::CanSend()
+{
+	if ( _connect == false )
+	{
+		return false;
+	}
+	while ( true )
+	{
+		//이걸로 disconnect시 전송 을 방지할 수 있을까?
+		if ( _refCount >= RELEASE_FLAG )
+		{
+			return false;
+		}
+
+		if ( _sendQ.Size() == 0 )
+		{
+			return false;
+		}
+		if ( InterlockedExchange8(&_isSending, true) == 1 )
+		{
+			return false;
+		}
+
+		if ( _sendQ.Size() == 0 )
+		{
+
+			InterlockedExchange8(&_isSending, false);
+
+			continue;
+		}
+		break;
+	}
+	return true;
+}
+
 void Session::EnqueueSendData(CSendBuffer* buffer)
 {
-
-
 	_sendQ.Enqueue(buffer);
 }
 
@@ -38,116 +71,13 @@ void Session::Close()
 
 void Session::trySend()
 {
-	if ( _connect == false )
+	if ( !CanSend() )
 	{
-		return;
-	}
-	while ( true )
-	{
-		//이걸로 disconnect시 전송 을 방지할 수 있을까?
-		if ( _refCount & RELEASE_FLAG )
-		{
-			return;
-		}
-
-		if ( _sendQ.Size() == 0 )
-		{
-
-			return;
-		}
-		if ( InterlockedExchange(&_isSending, true) == 1 )
-		{
-
-			return;
-		}
-
-		if ( _sendQ.Size() == 0 )
-		{
-
-			InterlockedExchange(&_isSending, false);
-
-			continue;
-		}
-		break;
-	}
-	PRO_BEGIN("TrySend");
-	auto refIncResult = IncreaseRef(L"realSendInc");
-	if ( refIncResult >= RELEASE_FLAG )
-	{
-		Release(L"realSendSessionisRelease");
+		EASY_BLOCK("CANSEND")
 		return;
 	}
 
-	int sendPackets = 0;
-	WSABUF sendWsaBuf[MAX_SEND_COUNT] = {};
-	for ( int i = 0; i < MAX_SEND_COUNT; i++ )
-	{
-		CSendBuffer* buffer;
-		if ( !_sendQ.Dequeue(buffer) )
-		{
-			break;
-		}
-		sendPackets++;
-
-		_sendingQ[i] = buffer;
-
-
-
-		if ( _staticKey )
-		{
-			buffer->Encode(_staticKey);
-		}
-		else
-		{
-			buffer->writeLanHeader();
-		}
-
-		sendWsaBuf[i].buf = buffer->GetHead();
-		sendWsaBuf[i].len = buffer->SendDataSize();
-
-		ASSERT_CRASH(sendWsaBuf[i].len > 0, "Out of Case");
-	}
-
-
-
-	if ( sendPackets == 0 )
-	{
-		InterlockedExchange(&_isSending, false);
-		Release(L"realSendPacket0Release");
-		return;
-	}
-
-	needCheckSendTimeout = true;
-	_postSendExecute._lastSend = chrono::system_clock::now();
-
-	DWORD flags = 0;
-	_postSendExecute.Clear();
-
-	_postSendExecute.dataNotSend = sendPackets;
-
-
-	int sendResult = _socket.Send(sendWsaBuf, sendPackets, flags, &_postSendExecute._overlapped);
-	if ( sendResult == SOCKET_ERROR )
-	{
-		int error = WSAGetLastError();
-		if ( error == WSA_IO_PENDING )
-		{
-			return;
-		}
-
-		switch ( error )
-		{
-			case WSAECONNABORTED:
-				__fallthrough;
-			case WSAECONNRESET:
-				__fallthrough;
-				break;
-			default:
-				DebugBreak();
-		}
-		Close();
-		Release(L"SendErrorRelease");
-	}
+	RealSend();
 }
 
 void Session::registerRecv()
@@ -164,7 +94,7 @@ void Session::RecvNotIncrease()
 		Release(L"tryRecvReleaseIOCancled");
 		return;
 	}
-
+	EASY_BLOCK("RECV")
 	int bufferCount = 1;
 	WSABUF recvWsaBuf[2] = {};
 	DWORD flags = 0;
@@ -236,10 +166,18 @@ void Session::ResetTimeoutwait()
 
 bool Session::CheckTimeout(chrono::system_clock::time_point now)
 {
-	IncreaseRef(L"timeoutInc");
+	if ( _timeout == 0 )
+	{
+		return false;
+	}
 	if ( _refCount >= RELEASE_FLAG )
 	{
-		Release(L"TimeoutRelease");
+		return false;
+	}
+
+	if ( IncreaseRef(L"timeoutInc") >= RELEASE_FLAG )
+	{
+		Release(L"TimeoutAlreadyRelease");
 		return false;
 	}
 
@@ -257,10 +195,6 @@ bool Session::CheckTimeout(chrono::system_clock::time_point now)
 	{
 		isTimeouted = true;
 	}
-
-	/*if ( isTimeouted )
-		GLogger->write(L"Timeout", LogLevel::Debug, L"Timeouted %s %d",_socket.GetIP().c_str(), _socket.GetPort());*/
-
 
 	Release(L"TimeoutRelease");
 	return isTimeouted;
@@ -294,7 +228,9 @@ void Session::Reset()
 	}
 	_recvQ.Clear();
 
-	for ( int i = 0; i < _postSendExecute.dataNotSend; i++ )
+	int notSend = InterlockedExchange(&_postSendExecute.dataNotSend, 0);
+
+	for ( int i = 0; i < notSend; i++ )
 	{
 		_sendingQ[i]->Release(L"ResetSendingRelease");
 		_sendingQ[i] = nullptr;
@@ -303,7 +239,7 @@ void Session::Reset()
 	_socket.Close();
 }
 
-bool Session::Release(LPCWSTR content, int type /*= 0*/)
+bool Session::Release(LPCWSTR content, int type)
 {
 	int refDecResult = InterlockedDecrement(&_refCount);
 
@@ -317,7 +253,7 @@ bool Session::Release(LPCWSTR content, int type /*= 0*/)
 	{
 		if ( InterlockedCompareExchange(&_refCount, RELEASE_FLAG, 0) == 0 )
 		{
-
+			InterlockedIncrement(&_owner->_iocpCompBufferSize);
 			PostQueuedCompletionStatus(_owner->_iocp, -1, ( ULONG_PTR ) this, &_releaseExecutable._overlapped);
 
 			return true;
@@ -326,3 +262,82 @@ bool Session::Release(LPCWSTR content, int type /*= 0*/)
 	return false;
 }
 
+void Session::RealSend()
+{
+	EASY_FUNCTION();
+	auto refIncResult = IncreaseRef(L"realSendInc");
+	if ( refIncResult >= RELEASE_FLAG )
+	{
+		Release(L"realSendSessionisRelease");
+		return;
+	}
+
+	int sendPackets = 0;
+	WSABUF sendWsaBuf[MAX_SEND_COUNT] = {};
+	for ( int i = 0; i < MAX_SEND_COUNT; i++ )
+	{
+		CSendBuffer* buffer;
+		if ( !_sendQ.Dequeue(buffer) )
+		{
+			break;
+		}
+		sendPackets++;
+
+		_sendingQ[i] = buffer;
+
+
+
+		if ( _staticKey )
+		{
+			buffer->Encode(_staticKey);
+		}
+		else
+		{
+			buffer->writeLanHeader();
+		}
+
+		sendWsaBuf[i].buf = buffer->GetHead();
+		sendWsaBuf[i].len = buffer->SendDataSize();
+
+		ASSERT_CRASH(sendWsaBuf[i].len > 0, "Out of Case");
+	}
+
+	if ( sendPackets == 0 )
+	{ 
+		InterlockedExchange8(&_isSending, false);
+		Release(L"realSendPacket0Release");
+		return;
+	}
+
+	needCheckSendTimeout = true;
+	_postSendExecute._lastSend = chrono::system_clock::now();
+
+	DWORD flags = 0;
+	_postSendExecute.Clear();
+
+	_postSendExecute.dataNotSend = sendPackets;
+
+	EASY_BLOCK("WSASEND");
+	int sendResult = _socket.Send(sendWsaBuf, sendPackets, flags, &_postSendExecute._overlapped);
+	if ( sendResult == SOCKET_ERROR )
+	{
+		int error = WSAGetLastError();
+		if ( error == WSA_IO_PENDING )
+		{
+			return;
+		}
+
+		switch ( error )
+		{
+			case WSAECONNABORTED:
+				__fallthrough;
+			case WSAECONNRESET:
+				__fallthrough;
+				break;
+			default:
+				DebugBreak();
+		}
+		Close();
+		Release(L"SendErrorRelease");
+	}
+}

@@ -83,6 +83,11 @@ public:
 
 	static ProfileManager& Get()
 	{
+		if ( _instance == nullptr )
+		{
+
+		}
+
 		call_once(_flag, []()
 				  {
 					  _instance = new ProfileManager;
@@ -147,6 +152,7 @@ private:
 
 	std::list<Profiler*> _profilerList;
 	SRWLOCK _profileListLock;
+	CRITICAL_SECTION singletonLock;
 	std::wstring optionalText;
 	DWORD TLSNum;
 };

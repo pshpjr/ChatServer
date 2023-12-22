@@ -35,9 +35,9 @@ void HardwareMonitor::Update()
 	_hardFault = counterVal.longValue;
 
 	PdhGetFormattedCounterValue(pSendBytes, PDH_FMT_DOUBLE, NULL, &counterVal);
-	_sendBytes = counterVal.doubleValue;
+	_sendKBytes = counterVal.doubleValue/1000.;
 
 	PdhGetFormattedCounterValue(pRecvBytes, PDH_FMT_DOUBLE, NULL, &counterVal);
-	_recvBytes = counterVal.doubleValue;
+	_recvKBytes = counterVal.doubleValue/1000.;
 
 }

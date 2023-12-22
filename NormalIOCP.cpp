@@ -426,12 +426,14 @@ void IOCP::PostExecutable(Executable* exe, ULONG_PTR arg)
 
 void IOCP::SetSessionStaticKey(SessionID id, char staticKey)
 {
+
 	auto result = FindSession(id, L"setStaticKey");
 	if ( result == nullptr )
 		return;
 	auto& session = *result;
 
 	session.SetNetSession(staticKey);
+  session.Release();
 }
 
 
@@ -641,9 +643,11 @@ void IOCP::WorkerThread(LPVOID arg)
 	EASY_THREAD("WORKER");
 	while (true)
 	{
+
 		bool end = false;
 		OVERLAPPED_ENTRY arr[50] = { 0, };
 		ULONG size = 0;
+
 		{
 			EASY_BLOCK("GQCS");
 			auto ret = GetQueuedCompletionStatusEx(_iocp, arr, 50, &size, INFINITE, false);
@@ -652,6 +656,7 @@ void IOCP::WorkerThread(LPVOID arg)
 		EASY_BLOCK("EXECUTE");
 		for ( unsigned int i = 0; i < size; i++ )
 		{
+
 			DWORD transferred = arr[i].dwNumberOfBytesTransferred;
 			LPOVERLAPPED overlap = arr[i].lpOverlapped;
 			Session* session = ( Session* )arr[i].lpCompletionKey;
@@ -661,6 +666,7 @@ void IOCP::WorkerThread(LPVOID arg)
 			{
 				PostQueuedCompletionStatus(_iocp, 0, 0, nullptr);
 				end = true;
+
 				break;
 			}
 
@@ -699,6 +705,7 @@ void IOCP::WorkerThread(LPVOID arg)
 					}
 				}
 
+
 				auto sessionID = session->GetSessionID();
 
 				session->Release(L"GQCSErrorRelease", errNo);
@@ -708,6 +715,7 @@ void IOCP::WorkerThread(LPVOID arg)
 				overlapped->Execute(( ULONG_PTR ) session, transferred, this);
 			}
 	
+
 		}
 		if ( end )
 			break;
@@ -976,7 +984,6 @@ optional<Session*> NormalIOCP::findSession(SessionID id, LPCWSTR content)
 
 	return &session;
 };
-
 
 void NormalIOCP::waitStart()
 {

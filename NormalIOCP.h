@@ -79,7 +79,6 @@ class NormalIOCP
 protected:
 	NormalIOCP();
 
-
 	inline optional<Session*> findSession(SessionID id, LPCWSTR content = L"");
 
 	inline Session* FindSession(SessionID id, LPCWSTR content = L"")

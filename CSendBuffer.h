@@ -19,7 +19,7 @@ class CSendBuffer
 public:
 
 #pragma pack()
-
+	static int64 GetPoolAllockedSize() { return _pool.AllockedCount(); }
 	/// <summary>
 	/// Alloc을 받으면 레퍼런스가 1임. 
 	/// </summary>

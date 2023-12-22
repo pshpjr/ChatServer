@@ -19,6 +19,7 @@ class TLSPool
 public:
 
 
+	int AllockedCount() { return ( _acquireCount - _releaseCount ) * 1000; }
 
 	std::list<Node*> allocked;
 

@@ -15,7 +15,59 @@ namespace
 	const long releaseFlag = 0x0010'0000;
 }
 
+class threadMonitor
+{
+public:
+	threadMonitor(HANDLE hThread) : _hThread(hThread)
+	{
+		
+	}
 
+	void Update()
+	{
+		FILETIME ftCreation, ftExit, ftKernel, ftUser;
+		auto result = GetThreadTimes(_hThread, &ftCreation, &ftExit, &ftKernel, &ftUser);
+
+		ULARGE_INTEGER ulKernel = FileTimeToLargeInteger(ftKernel);
+		ULARGE_INTEGER ulUser = FileTimeToLargeInteger(ftUser);
+
+		ULONGLONG kernelTime = ulKernel.QuadPart / 10000;
+		ULONGLONG userTime = ulUser.QuadPart / 10000;
+		
+		if ( lastKernelTime > 0 )
+		{
+			_kernelTime = kernelTime - lastKernelTime;
+			lastKernelTime = kernelTime;
+		}
+
+		if ( lastUserTime > 0 )
+		{
+			_userTime = userTime - lastUserTime;
+			lastUserTime = userTime;
+		}
+	}
+	ULONGLONG kernelTime() const { return _kernelTime; }
+	ULONGLONG userTime() const { return _userTime; }
+	ULONGLONG totTime() const { return kernelTime() + userTime(); }
+
+private:
+		ULARGE_INTEGER FileTimeToLargeInteger(const FILETIME& ft)
+	{
+		ULARGE_INTEGER ul;
+		ul.HighPart = ft.dwHighDateTime;
+		ul.LowPart = ft.dwLowDateTime;
+		return ul;
+	}
+
+
+private:
+	HANDLE _hThread;
+	ULONGLONG lastKernelTime = 0;
+	ULONGLONG lastUserTime = 0;
+
+	ULONGLONG _kernelTime = 0;
+	ULONGLONG _userTime = 0;
+};
 class NormalIOCP
 {
 	friend class Session;
@@ -29,8 +81,24 @@ protected:
 
 	inline optional<Session*> findSession(SessionID id, LPCWSTR content = L"");
 
-	//deprecated
-	inline Session* FindSession(SessionID id, LPCWSTR content = L"");
+	inline Session* FindSession(SessionID id, LPCWSTR content = L"")
+	{
+		if ( id.index > MAX_SESSIONS )
+			return nullptr;
+
+		auto& session = _sessions[id.index];
+		auto result = session.IncreaseRef(content);
+
+		//릴리즈 중이거나 세션 변경되었으면 
+		if ( result > releaseFlag || session.GetSessionID().id != id.id )
+		{
+			//세션 릴리즈 해도 문제 없음. 플레그 서 있을거라 내가 올린 만큼 내려감. 
+			session.Release(L"sessionChangedRelease");
+			return nullptr;
+		}
+
+		return &session;
+	}
 
 	static unsigned short GetSessionIndex(SessionID sessionID) { return sessionID.index; }
 
@@ -70,6 +138,8 @@ protected:
 	uint64 _timeoutSessions = 0;
 	uint32 _acceptErrorCount = 0;
 
+	long _iocpCompBufferSize = 0;
+	vector<threadMonitor> _threadMonitors;
 	//Memory
 
 	MemoryUsage _memMonitor;
@@ -83,7 +153,7 @@ protected:
 	uint64 g_sessionId = 0;
 	char _staticKey = 0;
 
-	bool gracefulEnd = false;
+	char gracefulEnd = false;
 
 	//GROUP_MANAGER
 

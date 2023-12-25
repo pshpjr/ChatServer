@@ -19,7 +19,7 @@ class TLSPool
 public:
 
 
-	int AllockedCount() { return ( _acquireCount - _releaseCount ) * 1000; }
+	int AllockedCount() { return ( _acquireCount - _releaseCount ) * _localPoolSize; }
 
 	std::list<Node*> allocked;
 
@@ -144,7 +144,7 @@ public:
 
 		if (pool == nullptr)
 		{
-			pool = new poolType(_localPoolSize);
+			pool = new poolType(0);
 			TlsSetValue(localPoolTlsIndex, pool);
 		}
 

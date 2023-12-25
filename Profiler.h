@@ -10,6 +10,7 @@ class ProfileItem;
 static const int MAXNAME = 64;
 
 
+
 struct PROFILE_SAMPLE {
 	PROFILE_SAMPLE() :iTotalTime(0), iMin(987654321), iMax(-1) {  }
 	WCHAR			szName[MAXNAME] = L"";
@@ -158,7 +159,7 @@ private:
 };
 
 
-//#define PROFILE
+#define PROFILE
 
 #ifdef PROFILE
 

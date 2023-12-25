@@ -304,7 +304,6 @@ void NormalIOCP::_processBuffer(Session& session, CSendBuffer& buffer)
 	session.EnqueueSendData(&buffer);
 }
 
-
 WSAResult<SessionID>  IOCP::GetClientSession(String ip, Port port)
 {
 	unsigned short index;
@@ -433,7 +432,7 @@ void IOCP::SetSessionStaticKey(SessionID id, char staticKey)
 	auto& session = *result;
 
 	session.SetNetSession(staticKey);
-  session.Release();
+	session.Release();
 }
 
 

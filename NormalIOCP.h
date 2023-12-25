@@ -51,7 +51,7 @@ public:
 	ULONGLONG totTime() const { return kernelTime() + userTime(); }
 
 private:
-		ULARGE_INTEGER FileTimeToLargeInteger(const FILETIME& ft)
+	ULARGE_INTEGER FileTimeToLargeInteger(const FILETIME& ft)
 	{
 		ULARGE_INTEGER ul;
 		ul.HighPart = ft.dwHighDateTime;

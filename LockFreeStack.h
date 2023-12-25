@@ -3,11 +3,13 @@
 #include <cstdio>
 #include <winnt.h>
 #include "MultiThreadObjectPool.h"
-
+#include "LockFreeData.h"
 
 template <typename T>
 class LockFreeStack
 {
+
+
 	struct Node
 	{
 		T data {};
@@ -33,16 +35,14 @@ public:
 
 		node->data = data;
 
-		auto _topCount = InterlockedIncrement16(&topCount);
-		Node* newTop = (Node*)((unsigned long long)(node) | ((unsigned long long)_topCount << 47));
-
-		while (true)
+		for(;;)
 		{
-			Node* t = top;
+			Node* top = _top;
+			node->next = (Node*) ((long long) top & ::pointerMask);
 
-			node->next = t;
+			Node* newTop = ( Node* ) ( ( unsigned long long )( node ) | ( ( long long ) top + ::indexInc & ::indexMask ) );
 
-			if(InterlockedCompareExchange64((__int64*)&top, (__int64)newTop, (__int64)t) == (__int64)t)
+			if(InterlockedCompareExchange64((__int64*)&_top, (__int64)newTop, (__int64) top) == (__int64) top )
 			{
 				InterlockedIncrement(&objectsInPool);
 
@@ -53,21 +53,20 @@ public:
 
 	bool Pop(T& data)
 	{
-		while (true)
+		for( ;; )
 		{
-			Node* t = top;
+			Node* top = _top;
 
-			Node* topNode = (Node*)((unsigned long long)t & pointerMask);
-			if(t == nullptr)
+			Node* topNode = (Node*)((unsigned long long)top & ::pointerMask);
+			if( topNode == nullptr)
 			{
 				return false;
 			}
 
 
-			Node* node = topNode->next;
 
 			data = topNode->data;
-			if (InterlockedCompareExchange64((__int64*)&top, (__int64)node, (__int64)t) == (__int64)t)
+			if (InterlockedCompareExchange64((__int64*)&_top,( long long ) topNode->next | ( long long ) top & ::indexMask, (__int64) top) == (__int64) top )
 			{
 				InterlockedDecrement(&objectsInPool);
 
@@ -85,9 +84,7 @@ public:
 private:
 	long objectsInPool = 0;
 
-	Node* top=nullptr;
+	Node* _top=nullptr;
 
-	short topCount = 0;
-	const unsigned long long pointerMask = 0x000'7FFF'FFFF'FFFF;
 	MultiThreadObjectPool<Node, false> _pool;
 };

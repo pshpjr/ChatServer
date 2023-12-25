@@ -1,16 +1,12 @@
 ﻿#pragma once
 #include <cstdlib>
 #include <winnt.h>
+#include "LockFreeData.h"
 
-namespace _multiPool {
-	namespace detail {
-		const unsigned long long pointerMask = 0x000'7FFF'FFFF'FFFF;
-	}
-}
-
-template <typename T,bool usePlacement = false>
+template <typename T, bool usePlacement = false>
 class MultiThreadObjectPool
 {
+
 	struct Node
 	{
 		Node* head;
@@ -22,9 +18,9 @@ class MultiThreadObjectPool
 
 public:
 
-	MultiThreadObjectPool(int baseAllocSize):_count(baseAllocSize)
+	MultiThreadObjectPool(int baseAllocSize) :_count(baseAllocSize)
 	{
-		for (int i = 0; i < baseAllocSize; ++i)
+		for ( int i = 0; i < baseAllocSize; ++i )
 		{
 			auto newNode = createNode();
 			newNode->next = _top;
@@ -33,11 +29,11 @@ public:
 	}
 	~MultiThreadObjectPool()
 	{
-		for (Node* p = _top; p != nullptr;)
+		Node* p = (Node*)((long long)_top & ::pointerMask);
+		for ( ; p != nullptr;)
 		{
-			p = (Node*)(_multiPool::detail::pointerMask & (long long)p);
 			Node* next = p->next;
-			if constexpr (!usePlacement)
+			if constexpr ( !usePlacement )
 			{
 				p->~Node();
 			}
@@ -52,22 +48,23 @@ public:
 	{
 		Node* retNode;
 
-		for(;;)
+		for ( ;;)
 		{
 			Node* top = _top;
 
-			if (top == nullptr)
+			Node* topNode = ( Node* ) ( ( unsigned long long )top & ::pointerMask );
+			if ( topNode == nullptr )
 			{
 				break;
 			}
 
-			if (InterlockedCompareExchange64((__int64*)&_top, (__int64)((Node*)((unsigned long long)top & _multiPool::detail::pointerMask))->next, (__int64)top) == (__int64)top)
+			if ( InterlockedCompareExchange64(( __int64* ) &_top,  (long long )topNode->next | (long long)top & ::indexMask, ( __int64 ) top) == ( __int64 ) top )
 			{
-				retNode = (Node*)((unsigned long long)top & _multiPool::detail::pointerMask);
+				retNode = ( Node* ) ( ( unsigned long long )top & ::pointerMask );
 
-				if constexpr (usePlacement)
+				if constexpr ( usePlacement )
 				{
-					new(&retNode->data) T();
+					new( &retNode->data ) T();
 				}
 				InterlockedDecrement(&_count);
 				return &retNode->data;
@@ -80,20 +77,22 @@ public:
 
 	inline void Free(T* data)
 	{
-		
-		if(usePlacement)
+
+		if ( usePlacement )
 		{
 			data->~T();
 		}
-		Node* node = (Node*)((unsigned long long)data - offsetof(Node, data));
+		Node* node = ( Node* ) ( ( unsigned long long )data - offsetof(Node, data) );
+		//Node* newTop = ( Node* ) ( ( unsigned long long )( node ) | ( ( unsigned long long )( InterlockedIncrement16(&topCount) ) << 47 ) );
 
-		Node* newTop = (Node*)((unsigned long long)(node) | ((unsigned long long)(InterlockedIncrement16(&topCount)) << 47));
 
-		for (;;)
+		for ( ;;)
 		{
 			auto top = _top;
-			node->next = top;
-			if (InterlockedCompareExchange64((__int64*)&_top, (__int64)newTop, (__int64)top) == (__int64)top)
+			node->next = (Node*) ((long long)top & ::pointerMask);
+			Node* newTop = ( Node* ) ( ( unsigned long long )( node ) | ( ((long long)top + ::indexInc) & ::indexMask  ));
+
+			if ( InterlockedCompareExchange64(( __int64* ) &_top, ( __int64 ) newTop, ( __int64 ) top) == ( __int64 ) top )
 			{
 				InterlockedIncrement(&_count);
 				break;
@@ -106,11 +105,11 @@ public:
 private:
 	inline Node* createNode()
 	{
-		Node* node = (Node*)malloc(sizeof(Node));
+		Node* node = ( Node* ) malloc(sizeof(Node));
 		node->next = nullptr;
-		if constexpr (!usePlacement)
+		if constexpr ( !usePlacement )
 		{
-			new(&node->data) T();
+			new( &node->data ) T();
 		}
 		return node;
 	}
@@ -121,4 +120,3 @@ private:
 	short topCount = 0;
 	long _count = 0;
 };
-

@@ -63,7 +63,7 @@ public:
 	bool CanSend();
 	void Close();
 	void Reset();
-	bool Release(LPCWSTR content, int type = 0);
+	bool Release(LPCWSTR content = L"", int type = 0);
 	void RealSend();
 
 	inline long IncreaseRef(LPCWSTR content)

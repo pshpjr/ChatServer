@@ -72,13 +72,11 @@ public:
 					//debug[index].oldHead = (unsigned long long)tailNode;
 					//debug[index].newHead = (unsigned long long)((Node*)((unsigned long long)newTail &pointerMask));
 
-					if(InterlockedCompareExchangePointer((PVOID*)&_tail, newTail, tail)==tail)
-					{
-
-					}
+					InterlockedCompareExchangePointer(( PVOID* ) &_tail, newTail, tail);
 
 					break;
 				}
+
 			}
 			else
 			{

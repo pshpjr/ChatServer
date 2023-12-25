@@ -18,16 +18,18 @@ public:
 		{
 			err = mysql_error(&conn);
 			auto num = mysql_errno(&conn);
-			throw DBErr(err);
+			throw DBErr(err,num, chrono::milliseconds::zero());
 
 			printf("%d \n", num);
 		}
+		SetReconnect(true);
 	}
 
 	~DBConnection()
 	{
 		Close();
 	}
+
 
 	std::chrono::milliseconds Query(LPCSTR query, ...)
 	{
@@ -51,18 +53,28 @@ public:
 		auto start = system_clock::now();
 		const char* err;
 		
-		query_stat = mysql_query(connection, vec.data());
+		int query_stat = mysql_query(connection, vec.data());
 		if ( query_stat != 0 )
 		{
 			err = mysql_error(&conn);
 
 			auto num = mysql_errno(&conn);
 
-			auto dur = duration_cast< milliseconds >( system_clock::now() - start);
-			
-			throw DBErr(err);
+			switch ( num )
+			{
+				case CR_SERVER_GONE_ERROR:
+				case CR_SERVER_LOST:
+				case CR_CONN_HOST_ERROR:
+				case CR_SERVER_HANDSHAKE_ERR:
+					break;
 
-			printf("%d \n", num);
+				default:
+				{
+					auto dur = duration_cast< milliseconds >( system_clock::now() - start );
+					string errStr = to_string(dur.count()) + err;
+					throw DBErr(errStr.c_str(),num,dur);
+				}
+			}
 		}
 		sql_result = mysql_store_result(connection);
 
@@ -114,6 +126,5 @@ private:
 	MYSQL* connection = NULL;
 	MYSQL_RES* sql_result = {};
 	MYSQL_ROW sql_row = {};
-	int query_stat = {};
 };
 

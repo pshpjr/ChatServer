@@ -123,7 +123,7 @@ public:
 
 		if (pool == nullptr)
 		{
-			pool = new poolType(_localPoolSize);
+			pool = new poolType(0);
 			TlsSetValue(localPoolTlsIndex, pool);
 		}
 

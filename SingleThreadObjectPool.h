@@ -2,45 +2,12 @@
 
 #pragma once
 #include <new.h>
-#include <memory>
-#include <type_traits>
-#include <variant>
 class Node;
 
-template <typename data, int dataId, bool usePlacement>
-class TLSPool;
+template <typename Data, int DataId, bool UsePlacement>
+class TlsPool;
 
 
-
-template<int size>
-int getBucketSize()
-{
-	int bucketSize = 8;
-	int blockSize = 256;
-
-	int index = 0;
-
-	for ( int i = 0; i < 7; i++ )
-	{
-		if ( blockSize <= size )
-		{
-			bucketSize *= 2;
-			blockSize *= 2;
-			continue;
-		}
-		break;
-	}
-	return bucketSize;
-}
-
-template <typename data>
- int getBlockSize() {
-	 int size = sizeof(data) + 8;
-
-	 int bucketoffSet = getBucketSize<sizeof(data) + 8>();
-
-	return (size + bucketoffSet-1)/bucketoffSet * bucketoffSet +16;
-}
 
 /**
  * \brief
@@ -52,7 +19,7 @@ template <typename data, int dataId, bool usePlacement = false>
 class SingleThreadObjectPool
 {
 	
-	friend class TLSPool<data, dataId, usePlacement>;
+	friend class TlsPool<data, dataId, usePlacement>;
 
 	template <bool Condition>
 	struct Padding {
@@ -64,12 +31,10 @@ class SingleThreadObjectPool
 
 public:
 
-	 int bucket() { return getBlockSize<data>(); }
-
 	struct Node
 	{
-		data _data;
-		Node* _tail = nullptr;
+		data data;
+		Node* tail = nullptr;
 		//Padding<(getBucketSize<3>() % 128) == 0)> dummy;
 	};
 
@@ -84,18 +49,18 @@ public:
 		Node* retNode = top;
 		if ( top != nullptr )
 		{
-			_top = top->_tail;
+			_top = top->tail;
 			--_objectCount;
 			if constexpr ( usePlacement )
 			{
-				retNode = ( Node* )new( &retNode->_data )data();
+				retNode = static_cast<Node*>(new(&retNode->data)data());
 			}
 
-			return &retNode->_data;
+			return &retNode->data;
 		}
 
 		_allocCount++;
-		return &( new Node )->_data;
+		return &( new Node )->data;
 
 #ifdef MYDEBUG
 		retNode->_tail = ( Node* ) 0x3412;
@@ -115,9 +80,9 @@ public:
 
 	void SizeCheck() const {
 		int size = 0;
-		Node* _cur = _top;
-		while (_cur != nullptr) {
-			_cur = _cur->_tail;
+		Node* cur = _top;
+		while (cur != nullptr) {
+			cur = cur->tail;
 			size++;
 		
 		}
@@ -134,17 +99,17 @@ private:
 };
 
 
-template <typename data, int dataId, bool usePlacement>
-int SingleThreadObjectPool<data, dataId, usePlacement>::_instanceCount = 0;
+template <typename Data, int DataId, bool UsePlacement>
+int SingleThreadObjectPool<Data, DataId, UsePlacement>::_instanceCount = 0;
 
 //placement가 false일 때 생성 속도가 좀 느려도(루프 두 번) 코드 깔끔한 게 더 좋을 것 같음. 
 template <typename data, int dataId, bool usePlacement>
-SingleThreadObjectPool<data, dataId, usePlacement>::SingleThreadObjectPool(int iBlockNum)
+SingleThreadObjectPool<data, dataId, usePlacement>::SingleThreadObjectPool(const int iBlockNum)
 {
 	auto nodeSize = sizeof(Node);
 	for (int i = 0; i < iBlockNum; ++i)
 	{
-		Node* newNode = (Node*)malloc(sizeof(Node));
+		Node* newNode = static_cast<Node*>(malloc(sizeof(Node)));
 
 		if constexpr (usePlacement == false) 
 		{
@@ -152,7 +117,7 @@ SingleThreadObjectPool<data, dataId, usePlacement>::SingleThreadObjectPool(int i
 		}
 
 
-		newNode->_tail = _top;
+		newNode->tail = _top;
 		_top = newNode;
 	}
 
@@ -168,7 +133,7 @@ SingleThreadObjectPool<data, dataId, usePlacement>::~SingleThreadObjectPool()
 	while (node != nullptr)
 	{
 		Node* tar = node;
-		node = node->_tail;
+		node = node->tail;
 
 		if constexpr (usePlacement)
 		{
@@ -184,7 +149,7 @@ SingleThreadObjectPool<data, dataId, usePlacement>::~SingleThreadObjectPool()
 template <typename data, int dataId, bool usePlacement>
 bool SingleThreadObjectPool<data, dataId, usePlacement>::Free(data* pdata)
 {
-	Node* dataNode = (Node*)((char*)pdata - offsetof(Node, _data));
+	Node* dataNode = reinterpret_cast<Node*>((char*)pdata - offsetof(Node, data));
 	
 	//정상인지 테스트
 #ifdef MYDEBUG
@@ -204,9 +169,11 @@ bool SingleThreadObjectPool<data, dataId, usePlacement>::Free(data* pdata)
 	}
 
 	if ( _top == dataNode )
+	{
 		DebugBreak();
+	}
 
-	dataNode->_tail = _top;
+	dataNode->tail = _top;
 	_top = dataNode;
 
 	_objectCount++;

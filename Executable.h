@@ -52,7 +52,7 @@ class WaitExecutable :public Executable
 public:
 	virtual ~WaitExecutable() = default;
 
-	void Execute(ULONG_PTR key, DWORD transferred, void* iocp)
+	void Execute(const ULONG_PTR key, DWORD transferred, void* iocp)
 	{
 		_execute(key, iocp);
 
@@ -78,12 +78,12 @@ class ExecutableManager
 {
 	static_assert( std::is_base_of_v<WaitExecutable, T> );
 public:
-	ExecutableManager(int count, HANDLE iocp) :_iocp(iocp)
+	ExecutableManager(int count, const HANDLE iocp) :_iocp(iocp)
 	{
 		_executables.resize(count);
 	}
 
-	void Run(ULONG_PTR arg)
+	void Run(const ULONG_PTR arg)
 	{
 
 		for ( auto& exe : _executables )

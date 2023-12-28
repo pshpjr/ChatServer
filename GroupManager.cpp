@@ -4,9 +4,9 @@
 
 
 
-void GroupManager::MoveSession(SessionID target, GroupID dst)
+void GroupManager::MoveSession(const SessionID target, const GroupID dst)
 {
-	auto session = _owner->FindSession(target, L"MoveSession");
+	const auto session = _owner->FindSession(target, L"MoveSession");
 
 	if ( session == nullptr )
 	{
@@ -16,8 +16,8 @@ void GroupManager::MoveSession(SessionID target, GroupID dst)
 
 	session->SetGroupID(dst);
 	AcquireSRWLockShared(&_groupLock);
-	auto dstGroup = _groups.find(dst);
-	dstGroup->second->EnterSession(session->GetSessionID());
+	const auto dstGroup = _groups.find(dst);
+	dstGroup->second->EnterSession(session->GetSessionId());
 	ReleaseSRWLockShared(&_groupLock);
 
 	session->Release(L"MoveSessionRel");

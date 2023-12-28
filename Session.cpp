@@ -4,18 +4,17 @@
 #include "Container.h"
 #include "CSendBuffer.h"
 #include "IOCP.h"
-#include "Protocol.h"
 #include <optional>
 #include "Executables.h"
 #include "CRecvBuffer.h"
-Session::Session() : _owner(nullptr), _socket({}), _sessionID(), _sendingQ(), _recvTempBuffer()
-,_recvExecute(*new RecvExecutable),_sendExecute(*new SendExecutable),_postSendExecute(*new PostSendExecutable), _releaseExecutable(*new ReleaseExecutable)
+Session::Session() : _sessionId(), _socket({}), _recvTempBuffer(), _sendingQ(), _owner(nullptr)
+,_recvExecute(*new RecvExecutable),_postSendExecute(*new PostSendExecutable),_sendExecute(*new SendExecutable), _releaseExecutable(*new ReleaseExecutable)
 {
 
 }
 
-Session::Session(Socket socket, SessionID sessionId, IOCP& owner) : _socket(socket), _sessionID(sessionId), _owner(&owner), _sendingQ(), _recvTempBuffer()
-, _recvExecute(*new RecvExecutable), _sendExecute(*new SendExecutable), _postSendExecute(*new PostSendExecutable), _releaseExecutable(*new ReleaseExecutable)
+Session::Session(Socket socket, SessionID sessionId, IOCP& owner) : _sessionId(sessionId), _socket(socket), _recvTempBuffer(), _sendingQ(), _owner(&owner)
+, _recvExecute(*new RecvExecutable), _postSendExecute(*new PostSendExecutable), _sendExecute(*new SendExecutable), _releaseExecutable(*new ReleaseExecutable)
 {
 
 }
@@ -63,13 +62,13 @@ void Session::EnqueueSendData(CSendBuffer* buffer)
 void Session::Close()
 {
 	InterlockedExchange8(&_connect, 0);
-	_socket.CancleIO();
+	_socket.CancelIO();
 }
 
 
 
 
-void Session::trySend()
+void Session::TrySend()
 {
 	if ( !CanSend() )
 	{
@@ -80,7 +79,7 @@ void Session::trySend()
 	RealSend();
 }
 
-void Session::registerRecv()
+void Session::RegisterRecv()
 {
 	InterlockedIncrement(&_refCount);
 
@@ -91,7 +90,7 @@ void Session::RecvNotIncrease()
 {
 	if ( _connect == false )
 	{
-		Release(L"tryRecvReleaseIOCancled");
+		Release(L"tryRecvReleaseIOCanceled");
 		return;
 	}
 	EASY_BLOCK("RECV")
@@ -114,10 +113,9 @@ void Session::RecvNotIncrease()
 
 	lastRecv = chrono::system_clock::now();
 
-	int recvResult = _socket.Recv(recvWsaBuf, bufferCount, &flags, &_recvExecute._overlapped);
-	if ( recvResult == SOCKET_ERROR )
+	if (const int recvResult = _socket.Recv(recvWsaBuf, bufferCount, &flags, &_recvExecute._overlapped); recvResult == SOCKET_ERROR )
 	{
-		int error = WSAGetLastError();
+		const int error = WSAGetLastError();
 		if ( error == WSA_IO_PENDING )
 		{
 			return;
@@ -142,29 +140,29 @@ void Session::RecvNotIncrease()
 }
 
 
-void Session::RegisterIOCP(HANDLE iocpHandle)
+void Session::RegisterIOCP(const HANDLE iocpHandle)
 {
-	CreateIoCompletionPort(( HANDLE ) _socket._socket, iocpHandle, ( ULONG_PTR ) this, 0);
+	CreateIoCompletionPort(reinterpret_cast<HANDLE>(_socket._socket), iocpHandle, ( ULONG_PTR ) this, 0);
 }
 
-void Session::SetDefaultTimeout(int timoutMillisecond)
+void Session::SetDefaultTimeout(const int timeoutMillisecond)
 {
-	_defaultTimeout = timoutMillisecond;
+	_defaultTimeout = timeoutMillisecond;
 }
 
-void Session::SetTimeout(int timoutMillisecond)
+void Session::SetTimeout(const int timeoutMillisecond)
 {
-	_timeout = timoutMillisecond;
+	_timeout = timeoutMillisecond;
 }
 
-void Session::ResetTimeoutwait()
+void Session::ResetTimeoutWait()
 {
-	auto now = chrono::system_clock::now();
+	const auto now = chrono::system_clock::now();
 	lastRecv = now;
-	_postSendExecute._lastSend = now;
+	_postSendExecute.lastSend = now;
 }
 
-bool Session::CheckTimeout(chrono::system_clock::time_point now)
+bool Session::CheckTimeout(const chrono::system_clock::time_point now)
 {
 	if ( _timeout == 0 )
 	{
@@ -181,23 +179,23 @@ bool Session::CheckTimeout(chrono::system_clock::time_point now)
 		return false;
 	}
 
-	auto recvWait = chrono::duration_cast< chrono::milliseconds >( now - lastRecv );
-	auto sendWait = chrono::duration_cast< chrono::milliseconds >( now - _postSendExecute._lastSend );
+	const auto recvWait = chrono::duration_cast< chrono::milliseconds >( now - lastRecv );
+	const auto sendWait = chrono::duration_cast< chrono::milliseconds >( now - _postSendExecute.lastSend );
 
-	bool isTimeouted = false;
+	bool isTimedOut = false;
 
 	if ( needCheckSendTimeout && sendWait.count() > _timeout )
 	{
-		isTimeouted = true;
+		isTimedOut = true;
 	}
 
 	if ( recvWait.count() > _timeout )
 	{
-		isTimeouted = true;
+		isTimedOut = true;
 	}
 
 	Release(L"TimeoutRelease");
-	return isTimeouted;
+	return isTimedOut;
 }
 
 
@@ -228,7 +226,7 @@ void Session::Reset()
 	}
 	_recvQ.Clear();
 
-	int notSend = InterlockedExchange(&_postSendExecute.dataNotSend, 0);
+	const int notSend = InterlockedExchange(&_postSendExecute.dataNotSend, 0);
 
 	for ( int i = 0; i < notSend; i++ )
 	{
@@ -239,7 +237,7 @@ void Session::Reset()
 	_socket.Close();
 }
 
-bool Session::Release(LPCWSTR content, int type)
+bool Session::Release([[maybe_unused]] LPCWSTR content, [[maybe_unused]] int type)
 {
 	int refDecResult = InterlockedDecrement(&_refCount);
 
@@ -254,7 +252,7 @@ bool Session::Release(LPCWSTR content, int type)
 		if ( InterlockedCompareExchange(&_refCount, RELEASE_FLAG, 0) == 0 )
 		{
 			InterlockedIncrement(&_owner->_iocpCompBufferSize);
-			PostQueuedCompletionStatus(_owner->_iocp, -1, ( ULONG_PTR ) this, &_releaseExecutable._overlapped);
+			PostQueuedCompletionStatus(_owner->_iocp, -1, reinterpret_cast<ULONG_PTR>(this), &_releaseExecutable._overlapped);
 
 			return true;
 		}
@@ -265,10 +263,9 @@ bool Session::Release(LPCWSTR content, int type)
 void Session::RealSend()
 {
 	EASY_FUNCTION();
-	auto refIncResult = IncreaseRef(L"realSendInc");
-	if ( refIncResult >= RELEASE_FLAG )
+	if (const auto refIncResult = IncreaseRef(L"realSendInc"); refIncResult >= RELEASE_FLAG )
 	{
-		Release(L"realSendSessionisRelease");
+		Release(L"realSendSessionIsRelease");
 		return;
 	}
 
@@ -289,11 +286,11 @@ void Session::RealSend()
 
 		if ( _staticKey )
 		{
-			buffer->Encode(_staticKey);
+			buffer->TryEncode(_staticKey);
 		}
 		else
 		{
-			buffer->writeLanHeader();
+			buffer->WriteLanHeader();
 		}
 
 		sendWsaBuf[i].buf = buffer->GetHead();
@@ -310,18 +307,17 @@ void Session::RealSend()
 	}
 
 	needCheckSendTimeout = true;
-	_postSendExecute._lastSend = chrono::system_clock::now();
+	_postSendExecute.lastSend = chrono::system_clock::now();
 
-	DWORD flags = 0;
+	constexpr DWORD flags = 0;
 	_postSendExecute.Clear();
 
 	_postSendExecute.dataNotSend = sendPackets;
 
 	EASY_BLOCK("WSASEND");
-	int sendResult = _socket.Send(sendWsaBuf, sendPackets, flags, &_postSendExecute._overlapped);
-	if ( sendResult == SOCKET_ERROR )
+	if (const int sendResult = _socket.Send(sendWsaBuf, sendPackets, flags, &_postSendExecute._overlapped); sendResult == SOCKET_ERROR )
 	{
-		int error = WSAGetLastError();
+		const int error = WSAGetLastError();
 		if ( error == WSA_IO_PENDING )
 		{
 			return;

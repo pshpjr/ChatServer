@@ -42,7 +42,7 @@
 /*--------------------
 		Util Function
 ---------------------*/
-static void to_str(int num, OUT char* dest, int bufferSize)
+static void to_str(const int num, OUT char* dest, const int bufferSize)
 {
 	sprintf_s(dest, bufferSize, "%d", num);
 }

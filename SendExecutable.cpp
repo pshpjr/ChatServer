@@ -2,11 +2,11 @@
 #include "SendExecutable.h"
 #include "Session.h"
 #include "IOCP.h"
-void SendExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
+void SendExecutable::Execute(const ULONG_PTR key, DWORD transferred, void* iocp)
 {
 	EASY_FUNCTION();
 
-	Session* session = ( Session* ) key;
+	const auto session = reinterpret_cast<Session*>(key);
 	//InterlockedDecrement(&session->_owner->_iocpCompBufferSize);
 	session->RealSend();
 }

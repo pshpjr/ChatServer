@@ -4,7 +4,7 @@
 //----------------------------------------------------------------------
 // 생성자, 확인대상 프로세스 핸들. 미입력시 자기 자신.
 //----------------------------------------------------------------------
-CCpuUsage::CCpuUsage(HANDLE hProcess)
+CCpuUsage::CCpuUsage(const HANDLE hProcess)
 {
 	//------------------------------------------------------------------
 	// 프로세스 핸들 입력이 없다면 자기 자신을 대상으로...
@@ -63,7 +63,7 @@ void CCpuUsage::UpdateCpuTime()
 	// 커널 타임에는 아이들 타임이 포함됨.
 	ULONGLONG KernelDiff = Kernel.QuadPart - _ftProcessor_LastKernel.QuadPart;
 	ULONGLONG UserDiff = User.QuadPart - _ftProcessor_LastUser.QuadPart;
-	ULONGLONG IdleDiff = Idle.QuadPart - _ftProcessor_LastIdle.QuadPart;
+	const ULONGLONG IdleDiff = Idle.QuadPart - _ftProcessor_LastIdle.QuadPart;
 	ULONGLONG Total = KernelDiff + UserDiff;
 	ULONGLONG TimeDiff;
 	if ( Total == 0 )
@@ -75,9 +75,9 @@ void CCpuUsage::UpdateCpuTime()
 	else
 	{
 		// 커널 타임에 아이들 타임이 있으므로 빼서 계산.
-		_fProcessorTotal = ( float ) ( ( double ) ( Total - IdleDiff ) / Total * 100.0f );
-		_fProcessorUser = ( float ) ( ( double ) UserDiff / Total * 100.0f );
-		_fProcessorKernel = ( float ) ( ( double ) ( KernelDiff - IdleDiff ) / Total * 100.0f );
+		_fProcessorTotal = static_cast<float>((double)(Total - IdleDiff) / Total * 100.0f);
+		_fProcessorUser = static_cast<float>((double)UserDiff / Total * 100.0f);
+		_fProcessorKernel = static_cast<float>((double)(KernelDiff - IdleDiff) / Total * 100.0f);
 	}
 	_ftProcessor_LastKernel = Kernel;
 	_ftProcessor_LastUser = User;
@@ -116,9 +116,9 @@ void CCpuUsage::UpdateCpuTime()
 	UserDiff = User.QuadPart - _ftProcess_LastUser.QuadPart;
 	KernelDiff = Kernel.QuadPart - _ftProcess_LastKernel.QuadPart;
 	Total = KernelDiff + UserDiff;
-	_fProcessTotal = ( float ) ( Total / ( double ) _iNumberOfProcessors / ( double ) TimeDiff * 100.0f );
-	_fProcessKernel = ( float ) ( KernelDiff / ( double ) _iNumberOfProcessors / ( double ) TimeDiff * 100.0f );
-	_fProcessUser = ( float ) ( UserDiff / ( double ) _iNumberOfProcessors / ( double ) TimeDiff * 100.0f );
+	_fProcessTotal = static_cast<float>(Total / (double)_iNumberOfProcessors / (double)TimeDiff * 100.0f);
+	_fProcessKernel = static_cast<float>(KernelDiff / (double)_iNumberOfProcessors / (double)TimeDiff * 100.0f);
+	_fProcessUser = static_cast<float>(UserDiff / (double)_iNumberOfProcessors / (double)TimeDiff * 100.0f);
 	_ftProcess_LastTime = NowTime;
 	_ftProcess_LastKernel = Kernel;
 	_ftProcess_LastUser = User;

@@ -4,7 +4,7 @@
 class DBErr : public std::exception
 {
 public:
-	DBErr(const char* errStr, int errNo, chrono::milliseconds dur) : _errString(errStr), _errNo(errNo),_dur(dur)
+	DBErr(const char* errStr, const int errNo, const chrono::milliseconds dur) : _errString(errStr), _errNo(errNo),_dur(dur)
 	{
 
 	}

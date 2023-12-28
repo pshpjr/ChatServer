@@ -18,7 +18,7 @@ class CLogger
 public:
 	CLogger(LPCWCH fileName = L"");
 
-	void write(LPCWSTR type, LogLevel level, LPCWSTR format, ...);
+	void Write(LPCWSTR type, LogLevel level, LPCWSTR format, ...);
 
 private:
 	WCHAR _dic[4][8] = { L"Debug",L"Invalid",L"Error",L"System"};

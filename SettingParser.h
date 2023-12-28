@@ -14,13 +14,15 @@
 	값은 {}로 감싸면 안 된다
 	 
  */
+
+
 class SettingParser
 {
 public:
 
 	enum class ErrType
 	{
-		Succ,
+		Success,
 		FileOpenErr,
 		FileReadErr,
 		OpErr,
@@ -29,9 +31,9 @@ public:
 	void Init(LPCWSTR location = L"serverSetting.txt");
 
 	template <typename T>
-	void GetValue(String name, T& value)
+	void GetValue(const String name, T& value)
 	{
-		auto result = getValue(name);
+		auto result = GetValueImpl(name);
 		
 		if constexpr ( is_integral_v<T>)
 		{
@@ -49,9 +51,9 @@ public:
 		{
 			std::string str(result.length(), 0);
 			std::transform(result.begin(), result.end(), str.begin(), 
-						   [](wchar_t c)
+						   [](const wchar_t c)
 						   {
-							   return ( char ) c;
+							   return static_cast<char>(c);
 						   });
 			value = move(str);
 		}
@@ -61,7 +63,7 @@ public:
 		}
 		else
 		{
-			static_assert( std::is_integral<T>::value || std::is_floating_point<T>::value, "Unsupported type" );
+			static_assert( std::is_integral_v<T> || std::is_floating_point_v<T>, "Unsupported type" );
 		}
 
 	}
@@ -69,25 +71,20 @@ public:
 	//void GetValue(const String name, OUT String& value);
 	//void GetValue(const String name, OUT std::string& value);
 
-	~SettingParser()
-	{
-	}
+	~SettingParser() = default;
 
 private:
-	String getValue(const String name);
-	void loadSetting(LPCTSTR location);
-	void parse();
-	bool getTok(OUT LPTSTR word);
+	String GetValueImpl(const String& name);
+	void LoadSetting(LPCTSTR location);
+	void Parse();
+	bool GetTok(OUT LPTSTR word);
 
-public:
-	enum 
-	{
-		 MAX_WORD_SIZE = 100,
-		 MAXERRLEN = 100,
-		 MAXGROUPSIZE = 10,
-	};
 
 private:
+	static constexpr int MAX_WORD_SIZE = 100;
+	static constexpr int MAXERRLEN = 100;
+	static constexpr int MAXGROUPSIZE = 10;
+	
 	LPWSTR _buffer = nullptr;
 
 	size_t _bufferIndex = 0;

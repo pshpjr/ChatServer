@@ -1,7 +1,8 @@
 ﻿#pragma once
-#include <Pdh.h>
 #include <format>
+#include <Pdh.h>
 #pragma comment(lib,"Pdh.lib")
+
 #include "Types.h"
 
 
@@ -10,14 +11,18 @@ class ProcessMonitor
 public:
 	ProcessMonitor(String ProcessName)
 	{
-		auto openRet = PdhOpenQuery(NULL, NULL, &_swQuery);
+		SYSTEM_INFO SystemInfo;
+		GetSystemInfo(&SystemInfo);
+		_iNumberOfProcessors = SystemInfo.dwNumberOfProcessors;
+		_maxProcessorValue = _iNumberOfProcessors * 100;
 
-		PdhAddCounter(_swQuery, std::format(L"\\Process({:s})\\% Processor Time", ProcessName).c_str(), NULL, &pCpuTotal);
-		PdhAddCounter(_swQuery, std::format(L"\\Process({:s})\\% Privileged Time", ProcessName).c_str(), NULL, &pCpuKernel);
-		PdhAddCounter(_swQuery, std::format(L"\\Process({:s})\\% User Time", ProcessName).c_str(), NULL, &pCpuUser);
-		PdhAddCounter(_swQuery, std::format(L"\\Process({:s})\\Page Faults/sec", ProcessName).c_str(), NULL, &pPageFault);
-		PdhAddCounter(_swQuery, std::format(L"\\Process({:s})\\Private Bytes", ProcessName).c_str(), NULL, &pUseMemory);
+		PdhOpenQuery(nullptr, NULL, &_swQuery);
 
+		//PdhAddCounter(_swQuery, std::format(L"\\Process({:s})\\% Processor Time", ProcessName).c_str(), NULL, &pCpuTotal);
+		PdhAddCounter(_swQuery, std::format(L"\\Process({:s})\\% Privileged Time", ProcessName).c_str(), NULL, &_pCpuKernel);
+		PdhAddCounter(_swQuery, std::format(L"\\Process({:s})\\% User Time", ProcessName).c_str(), NULL, &_pCpuUser);
+		PdhAddCounter(_swQuery, std::format(L"\\Process({:s})\\Page Faults/sec", ProcessName).c_str(), NULL, &_pPageFault);
+		PdhAddCounter(_swQuery, std::format(L"\\Process({:s})\\Private Bytes", ProcessName).c_str(), NULL, &_pUseMemory);
 	}
 
 	void Update();
@@ -50,19 +55,23 @@ public:
 private:
 	PDH_HQUERY _swQuery;
 
+
+	int _iNumberOfProcessors = 0;
+	double _maxProcessorValue = 0;
+
 	double _totalProcessorTime = 0;
 	double _kernelProcessorTime = 0;
 	double _userProcessorTime = 0;
 
-	long _pageFault = 0;
+	double _pageFault = 0;
 	double _useMemoryMB = 0;
 
-	PDH_HQUERY pCpuTotal;
-	PDH_HQUERY pCpuKernel;
-	PDH_HQUERY pCpuUser;
+	//PDH_HQUERY pCpuTotal;
+	PDH_HQUERY _pCpuKernel;
+	PDH_HQUERY _pCpuUser;
 
-	PDH_HQUERY pPageFault;
-	PDH_HQUERY pUseMemory;
+	PDH_HQUERY _pPageFault;
+	PDH_HQUERY _pUseMemory;
 
 };
 

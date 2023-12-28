@@ -4,13 +4,13 @@
 #include "CSendBuffer.h"
 #include "IOCP.h"
 
-void PostSendExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
+void PostSendExecutable::Execute(const ULONG_PTR key, DWORD transferred, void* iocp)
 {
 	EASY_FUNCTION();
 
-	IOCP& server = *reinterpret_cast< IOCP* >( iocp );
-	Session* session = ( Session* ) key;
-	auto& sendingQ = session->_sendingQ;
+	IOCP& server = *static_cast< IOCP* >( iocp );
+	const auto session = reinterpret_cast<Session*>(key);
+	const auto& sendingQ = session->_sendingQ;
 
 	CSendBuffer* buffer = nullptr;
 
@@ -27,7 +27,7 @@ void PostSendExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
 
 	session->_isSending = 0;
 
-	session->trySend();
+	session->TrySend();
 
 	session->Release(L"PostSendRelease");
 }

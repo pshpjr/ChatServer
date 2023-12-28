@@ -5,32 +5,30 @@
 #include "CRecvBuffer.h"
 #include "IOCP.h"
 
-void RecvExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
+void RecvExecutable::Execute(const ULONG_PTR key, const DWORD transferred, void* iocp)
 {
-	Session& session = *( Session* ) key;
+	Session& session = *reinterpret_cast<Session*>(key);
 	session.ioCount++;
 
 	session._recvQ.MoveRear(transferred);
 
-	char sKey = session._staticKey;
-
-	if ( sKey )
+	if ( const char sKey = session._staticKey )
 	{
-		recvHandler<NetHeader>(session, iocp);
+		RecvHandler<NetHeader>(session, iocp);
 	}
 	else
 	{
-		recvHandler<LANHeader>(session, iocp);
+		RecvHandler<LANHeader>(session, iocp);
 	}
 
 	session.RecvNotIncrease();
 }
 
 template <typename Header>
-void RecvExecutable::recvHandler(Session& session, void* iocp)
+void RecvExecutable::RecvHandler(Session& session, void* iocp)
 {
 
-	IOCP& server = *reinterpret_cast< IOCP* >( iocp );
+	IOCP& server = *static_cast< IOCP* >( iocp );
 	int loopCount = 0;
 
 	CRingBuffer& recvQ = session._recvQ;
@@ -60,9 +58,7 @@ void RecvExecutable::recvHandler(Session& session, void* iocp)
 			}
 		}
 
-		int totPacketSize = header->len + sizeof(Header);
-
-		if ( recvQ.Size() < totPacketSize )
+		if (const int totPacketSize = header->len + sizeof(Header); recvQ.Size() < totPacketSize )
 		{
 			break;
 		}
@@ -71,12 +67,10 @@ void RecvExecutable::recvHandler(Session& session, void* iocp)
 
 		char* front;
 		char* rear;
-
-		int branch = 1;
+		
 		//if can pop direct
 		if ( recvQ.DirectDequeueSize() >= header->len + sizeof(Header) )
 		{
-			branch = 2;
 			recvQ.Dequeue(sizeof(Header));
 			front = session._recvQ.GetFront();
 			rear = front + header->len;
@@ -97,7 +91,7 @@ void RecvExecutable::recvHandler(Session& session, void* iocp)
 		{
 			buffer.Decode(session._staticKey, header);
 
-			if ( !buffer.checksumValid(header) )
+			if ( !buffer.ChecksumValid(header) )
 			{
 				//printf("checkSumInvalid %d %p\n", buffer._rear- buffer._front, buffer._front);
 
@@ -107,7 +101,7 @@ void RecvExecutable::recvHandler(Session& session, void* iocp)
 		}
 		loopCount++;
 
-		if ( session._groupID != 0 )
+		if ( session._groupId != 0 )
 		{
 			session._groupRecvQ.Enqueue(&buffer);
 		}
@@ -121,6 +115,7 @@ void RecvExecutable::recvHandler(Session& session, void* iocp)
 	}
 
 	if ( loopCount > 0 )
-		server.increaseRecvCount(loopCount);
-
+	{
+		server.IncreaseRecvCount(loopCount);
+	}
 }

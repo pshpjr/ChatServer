@@ -3,15 +3,15 @@
 #include "Session.h"
 #include "IOCP.h"
 
-void ReleaseExecutable::Execute(ULONG_PTR key, DWORD transferred, void* iocp)
+void ReleaseExecutable::Execute(const ULONG_PTR key, DWORD transferred, void* iocp)
 {
 	EASY_FUNCTION();
-	Session* session = ( Session* ) key;
+	const auto session = reinterpret_cast<Session*>(key);
 	//InterlockedDecrement(&session->_owner->_iocpCompBufferSize);
 
-	session->_owner->_onDisconnect(session->_sessionID);
+	session->_owner->_onDisconnect(session->_sessionId);
 
 	session->Reset();
-	unsigned short index = session->_sessionID.index;
+	const unsigned short index = session->_sessionId.index;
 	session->_owner->freeIndex.Push(index);
 }

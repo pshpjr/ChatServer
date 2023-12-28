@@ -1,12 +1,11 @@
 ﻿#include "stdafx.h"
 #include "RedisConnection.h"
-#include <atlconv.h>
 #include <optional>
 
 bool RedisConnection::Set(const std::string& key, const std::string& value)
 {
-	auto ret = conn.set(key, value);
-	conn.sync_commit();
+	auto ret = _conn.set(key, value);
+	_conn.sync_commit();
 
 	return ret.get().ok();
 }
@@ -15,17 +14,17 @@ bool RedisConnection::Del(const std::string& key)
 {
 	std::string k(key.begin(), key.end());
 
-	auto ret = conn.del({ "DEL",key });
-	conn.sync_commit();
+	auto ret = _conn.del({ "DEL",key });
+	_conn.sync_commit();
 
 	return ret.get().ok();
 }
 
-bool RedisConnection::SetExpired(const std::string& key, const std::string& value, int expireSec)
+bool RedisConnection::SetExpired(const std::string& key, const std::string& value, const int expireSec)
 {
 
-	auto ret = conn.set_advanced(key, value, true, expireSec);
-	conn.sync_commit();
+	auto ret = _conn.set_advanced(key, value, true, expireSec);
+	_conn.sync_commit();
 
 	return ret.get().ok();
 }
@@ -33,10 +32,10 @@ bool RedisConnection::SetExpired(const std::string& key, const std::string& valu
 optional<String> RedisConnection::Get(const string& key)
 {
 
-	auto result = conn.get(key.c_str());
-	conn.sync_commit();
+	auto result = _conn.get(key.c_str());
+	_conn.sync_commit();
 
-	auto rep = result.get();
+	const auto rep = result.get();
 
 	if ( !rep.ok() )
 	{
@@ -51,5 +50,5 @@ optional<String> RedisConnection::Get(const string& key)
 
 	String ret(cRet.begin(), cRet.end());
 
-	return move(ret);
+	return ret;
 }

@@ -8,7 +8,7 @@ class HardwareMonitor
 public:
 	HardwareMonitor()
 	{
-		PdhOpenQuery(NULL, NULL, &_hwQuery);
+		PdhOpenQuery(nullptr, NULL, &_hwQuery);
 		PdhAddCounter(_hwQuery, L"\\Processor(_Total)\\% Processor Time", NULL, &pCpuTotal);
 		PdhAddCounter(_hwQuery, L"\\Processor(_Total)\\% Privileged Time", NULL, &pCpuKernel);
 		PdhAddCounter(_hwQuery, L"\\Processor(_Total)\\% User Time", NULL, &pCpuUser);
@@ -23,7 +23,7 @@ public:
 		PdhAddCounter(_hwQuery, L"\\Memory\\Pages/sec", NULL, &pHardFault);
 
 		PdhAddCounter(_hwQuery, L"\\Network Interface(*)\\Bytes Sent/sec", NULL, &pSendBytes);
-		PdhAddCounter(_hwQuery, L"\\Network Interface(*)\\Bytes Recv/sec", NULL, &pRecvBytes);
+		PdhAddCounter(_hwQuery, L"\\Network Interface(*)\\Bytes Received/sec", NULL, &pRecvBytes);
 
 	}
 
@@ -65,17 +65,17 @@ private:
 private:
 	PDH_HQUERY _hwQuery;
 
-	PDH_HCOUNTER pCpuTotal = 0;
-	PDH_HCOUNTER pCpuKernel = 0;
-	PDH_HCOUNTER pCpuUser = 0;
+	PDH_HCOUNTER pCpuTotal = nullptr;
+	PDH_HCOUNTER pCpuKernel = nullptr;
+	PDH_HCOUNTER pCpuUser = nullptr;
 
-	PDH_HCOUNTER pInterrupt = 0;
-	PDH_HCOUNTER pInterruptPercent = 0;
-	PDH_HCOUNTER pContextSwitch = 0;
-	PDH_HCOUNTER pPageFault = 0;
-	PDH_HCOUNTER pNonPaged = 0;
-	PDH_HCOUNTER pAvailableBytes = 0;
-	PDH_HCOUNTER pHardFault = 0;
+	PDH_HCOUNTER pInterrupt = nullptr;
+	PDH_HCOUNTER pInterruptPercent = nullptr;
+	PDH_HCOUNTER pContextSwitch = nullptr;
+	PDH_HCOUNTER pPageFault = nullptr;
+	PDH_HCOUNTER pNonPaged = nullptr;
+	PDH_HCOUNTER pAvailableBytes = nullptr;
+	PDH_HCOUNTER pHardFault = nullptr;
 
 
 	PDH_HCOUNTER pSendBytes;

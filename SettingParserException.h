@@ -21,7 +21,7 @@ public:
 
 };
 
-class EUnexpectOp : public std::exception
+class EUnExpectOp final : public std::exception
 {
 
 public:
@@ -30,7 +30,7 @@ public:
 		return "operation is invalid";
 	}
 };
-class EInvalidGroup : public std::exception
+class EInvalidGroup final : public std::exception
 {
 
 public:
@@ -41,7 +41,7 @@ public:
 
 };
 
-class EInvalidName: public std::exception
+class EInvalidName final : public std::exception
 {
 
 public:

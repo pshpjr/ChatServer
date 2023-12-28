@@ -15,19 +15,32 @@ using uint32 = unsigned __int32;
 using uint64 = unsigned  __int64;
 
 using String = std::wstring;
-
+using StringView = std::wstring_view;
 //소켓 관련
-union SessionID
+
+class SessionID
 {
-	struct
+public:
+	union 
 	{
-		short tmp1;
-		short tmp2;
-		short tmp3;
-		unsigned short index;
+		struct
+		{
+			short tmp1;
+			short tmp2;
+			short tmp3;
+			unsigned short index;
+		};
+		unsigned long long id;
 	};
-	unsigned long long id;
+
+	friend bool operator==(const SessionID lhs, const SessionID rhs)
+	{
+		return lhs.id == rhs.id;
+	}
 };
+
+
+
 
 using SocketID = uint64;
 using GroupID = long;

@@ -21,26 +21,27 @@ class IOCP : public IOCP_CLASS
 public:
 	IOCP();
 
-	bool Init(String ip, Port port, uint16 backlog, uint16 maxRunningThread,uint16 workerThread, char staticKey);
+	bool Init(const String& ip, Port port, uint16 backlog, uint16 maxRunningThread,uint16 workerThread, char staticKey);
 	void Start();
 	void Stop();
 	void Wait();
 	bool SendPacket(SessionID sessionId, CSendBuffer* buffer, int type = 0);
 	//deprecate
 	bool SendPackets(SessionID sessionId, SingleThreadQ<CSendBuffer*>& bufArr);
-	
+
+	static void SetDisableClickAndClose();
 	bool DisconnectSession(SessionID sessionId);
 	bool isEnd() const;
 	void SetMaxPacketSize(int size);
 	void SetTimeout(SessionID sessionId, int timeoutMillisecond);
 	void SetDefaultTimeout(unsigned int timeoutMillisecond);
-	void PostExecutable(Executable* exe, ULONG_PTR arg);
+	void PostExecutable(Executable* exe, ULONG_PTR arg) const;
 
 	void SetSessionStaticKey(SessionID id, char staticKey);
 	
 	//connect
-	WSAResult<SessionID> GetClientSession(String ip, Port port);
-	bool isValidSession(SessionID id);
+	WSAResult<SessionID> GetClientSession(const String& ip, Port port);
+	bool IsValidSession(SessionID id);
 	//GROUP
 
 
@@ -66,17 +67,17 @@ public:
 	uint64 GetPacketPoolSize() const;
 	uint32 GetPacketPoolEmptyCount() const;
 	uint64 GetTimeoutCount() const;
-	uint32 GetPacketPoolAcquireCount() const;
-	uint32 GetPacketPoolReleaseCount() const;
+	static uint32 GetPacketPoolAcquireCount();
+	static uint32 GetPacketPoolReleaseCount();
 	uint64 GetDisconnectCount() const;
-	uint64 GetDisconnectPersec() const;
+	uint64 GetDisconnectPerSec() const;
 	uint32 GetSegmentTimeout() const;
 
 	size_t GetPageFaultCount() const;
 	size_t GetPeakPMemSize() const;
 	size_t GetPMemSize() const;
-	size_t GetPeakVmemSize() const;
-	size_t GetVMemsize() const;
+	size_t GetPeakVirtualMemSize() const;
+	size_t GetVirtualMemSize() const;
 	size_t GetPeakPagedPoolUsage() const;
 	size_t GetPeakNonPagedPoolUsage() const;
 	size_t GetPagedPoolUsage() const;
@@ -86,17 +87,17 @@ public:
 	void PrintMonitorString() const;
 
 	template<typename GroupType>
-	short CreateGroup();
-	void MoveSession(SessionID target, GroupID dst);
+	short CreateGroup() const;
+	void MoveSession(SessionID target, GroupID dst) const;
 private:
 
 	
 	//MONITOR
-	void increaseRecvCount(int value);
+	void IncreaseRecvCount(int value);
 	void increaseSendCount(int value);
 
 	void _onDisconnect(SessionID sessionId);
-	void onRecvPacket(Session& session, CRecvBuffer& buffer);
+	void onRecvPacket(const Session& session, CRecvBuffer& buffer);
 
 	//WorkerThreadFunc
 	void WorkerThread(LPVOID arg);
@@ -116,7 +117,7 @@ private:
 
 
 template<typename GroupType>
-inline short IOCP::CreateGroup()
+inline short IOCP::CreateGroup() const
 {
 	return _groupManager->CreateGroup<GroupType>();
 }

@@ -28,20 +28,22 @@ public:
 
 	static void Crash()
 	{
-		int* p = nullptr;
-		p = 0;
+		const int* p = nullptr;
+		p = nullptr;
 	}
 
-	static LONG WINAPI ExceptionFilter(__in PEXCEPTION_POINTERS pExceptionPointer)
+	static LONG WINAPI ExceptionFilter(__in const PEXCEPTION_POINTERS pExceptionPointer)
 	{
 		size_t iWorkingMemory = 0;
 		SYSTEMTIME st;
 
-		long DumpCount = InterlockedIncrement(&_dumpCount);
+		const long DumpCount = InterlockedIncrement(&_dumpCount);
 
-		HANDLE hProcess = GetCurrentProcess();
-		if (hProcess == NULL)
+		const HANDLE hProcess = GetCurrentProcess();
+		if (hProcess == nullptr)
+		{
 			return 0;
+		}
 
 		PROCESS_MEMORY_COUNTERS pmc;
 
@@ -59,14 +61,14 @@ public:
 		wprintf(L"\n\n\t\t!!!!!! CRASH DUMP !!!!!  %04d%02d%02d_%02d%02d%02d\n\n", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
 		wprintf(L"Save Dump File : %s\n", szFileName);
 
-		HANDLE hFile = CreateFile(
+		const HANDLE hFile = CreateFile(
 			szFileName,
 			GENERIC_WRITE,
 			FILE_SHARE_WRITE,
-			NULL,
+			nullptr,
 			CREATE_ALWAYS,
 			FILE_ATTRIBUTE_NORMAL,
-			NULL);
+		nullptr);
 
 		if (hFile != INVALID_HANDLE_VALUE)
 		{
@@ -80,8 +82,8 @@ public:
 				hFile,
 				MiniDumpWithFullMemory,
 				&eInfo,
-				NULL,
- NULL);
+				nullptr,
+			nullptr);
 			CloseHandle(hFile);
 
 			wprintf(L"Dump File Saved\n\n\n");

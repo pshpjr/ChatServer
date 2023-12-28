@@ -1,6 +1,5 @@
 ﻿#pragma once
 
-#include <cstdio>
 #include <winnt.h>
 #include "MultiThreadObjectPool.h"
 #include "LockFreeData.h"
@@ -35,30 +34,30 @@ public:
 
 		node->data = data;
 
-		for(;;)
+		for ( ;;)
 		{
 			Node* top = _top;
-			node->next = (Node*) ((long long) top & ::pointerMask);
+			node->next = ( Node* ) ( ( long long ) top & lock_free_data::pointerMask );
 
-			Node* newTop = ( Node* ) ( ( unsigned long long )( node ) | ( ( long long ) top + ::indexInc & ::indexMask ) );
+			Node* newTop = ( Node* ) ( ( unsigned long long )( node ) | ( ( long long ) top + lock_free_data::indexInc & lock_free_data::indexMask ) );
 
-			if(InterlockedCompareExchange64((__int64*)&_top, (__int64)newTop, (__int64) top) == (__int64) top )
+			if ( InterlockedCompareExchange64(( __int64* ) &_top, ( __int64 ) newTop, ( __int64 ) top) == ( __int64 ) top )
 			{
 				InterlockedIncrement(&objectsInPool);
 
-				break;	
+				break;
 			}
 		}
 	}
 
 	bool Pop(T& data)
 	{
-		for( ;; )
+		for ( ;; )
 		{
 			Node* top = _top;
 
-			Node* topNode = (Node*)((unsigned long long)top & ::pointerMask);
-			if( topNode == nullptr)
+			Node* topNode = ( Node* ) ( ( unsigned long long )top & lock_free_data::pointerMask );
+			if ( topNode == nullptr )
 			{
 				return false;
 			}
@@ -66,7 +65,7 @@ public:
 
 
 			data = topNode->data;
-			if (InterlockedCompareExchange64((__int64*)&_top,( long long ) topNode->next | ( long long ) top & ::indexMask, (__int64) top) == (__int64) top )
+			if ( InterlockedCompareExchange64(( __int64* ) &_top, ( long long ) topNode->next | ( long long ) top & lock_free_data::indexMask, ( __int64 ) top) == ( __int64 ) top )
 			{
 				InterlockedDecrement(&objectsInPool);
 

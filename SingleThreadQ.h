@@ -11,9 +11,10 @@ class SingleThreadQ
 	};
 
 public:
-	SingleThreadQ():_pool(10000)
+	SingleThreadQ(): _pool(10000)
+	               , _front(nullptr)
+	               , _rear(nullptr)
 	{
-
 	}
 
 
@@ -64,10 +65,10 @@ public:
 
 	int Size() const { return _size; }
 
-	bool empty() const { return _size == 0; }
+	bool Empty() const { return _size == 0; }
 private:
 	//front 에서 뺌
-	SingleThreadObjectPool<Node,0,false> _pool;
+	SingleThreadObjectPool<Node,0> _pool;
 	int _size = 0;
 	Node* _front;
 	Node* _rear;

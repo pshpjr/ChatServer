@@ -3,7 +3,7 @@
 #include <winnt.h>
 #include "LockFreeData.h"
 
-template <typename T, bool usePlacement = false>
+template <typename T, bool UsePlacement = false>
 class MultiThreadObjectPool
 {
 
@@ -12,13 +12,21 @@ class MultiThreadObjectPool
 		Node* head;
 		T data;
 		Node* next;
-		Node() :next(nullptr) {}
-		Node(const T& data) :next(nullptr), data(data) {}
+		Node() : head(nullptr)
+		       , next(nullptr)
+		{
+		}
+
+		explicit Node(const T& data) : head(nullptr)
+		                             , data(data)
+		                             , next(nullptr)
+		{
+		}
 	};
 
 public:
 
-	MultiThreadObjectPool(int baseAllocSize) :_count(baseAllocSize)
+	MultiThreadObjectPool(const int baseAllocSize) :_count(baseAllocSize)
 	{
 		for ( int i = 0; i < baseAllocSize; ++i )
 		{
@@ -29,11 +37,11 @@ public:
 	}
 	~MultiThreadObjectPool()
 	{
-		Node* p = (Node*)((long long)_top & ::pointerMask);
+		Node* p = ( Node* ) ( ( long long ) _top & lock_free_data::pointerMask );
 		for ( ; p != nullptr;)
 		{
 			Node* next = p->next;
-			if constexpr ( !usePlacement )
+			if constexpr ( !UsePlacement )
 			{
 				p->~Node();
 			}
@@ -52,17 +60,17 @@ public:
 		{
 			Node* top = _top;
 
-			Node* topNode = ( Node* ) ( ( unsigned long long )top & ::pointerMask );
+			Node* topNode = ( Node* ) ( ( unsigned long long )top & lock_free_data::pointerMask );
 			if ( topNode == nullptr )
 			{
 				break;
 			}
 
-			if ( InterlockedCompareExchange64(( __int64* ) &_top,  (long long )topNode->next | (long long)top & ::indexMask, ( __int64 ) top) == ( __int64 ) top )
+			if ( InterlockedCompareExchange64(( __int64* ) &_top, ( long long ) topNode->next | ( long long ) top & lock_free_data::indexMask, ( __int64 ) top) == ( __int64 ) top )
 			{
-				retNode = ( Node* ) ( ( unsigned long long )top & ::pointerMask );
+				retNode = ( Node* ) ( ( unsigned long long )top & lock_free_data::pointerMask );
 
-				if constexpr ( usePlacement )
+				if constexpr ( UsePlacement )
 				{
 					new( &retNode->data ) T();
 				}
@@ -78,7 +86,7 @@ public:
 	inline void Free(T* data)
 	{
 
-		if ( usePlacement )
+		if ( UsePlacement )
 		{
 			data->~T();
 		}
@@ -89,8 +97,8 @@ public:
 		for ( ;;)
 		{
 			auto top = _top;
-			node->next = (Node*) ((long long)top & ::pointerMask);
-			Node* newTop = ( Node* ) ( ( unsigned long long )( node ) | ( ((long long)top + ::indexInc) & ::indexMask  ));
+			node->next = ( Node* ) ( ( long long ) top & lock_free_data::pointerMask );
+			Node* newTop = ( Node* ) ( ( unsigned long long )( node ) | ( ( ( long long ) top + lock_free_data::indexInc ) & lock_free_data::indexMask ) );
 
 			if ( InterlockedCompareExchange64(( __int64* ) &_top, ( __int64 ) newTop, ( __int64 ) top) == ( __int64 ) top )
 			{
@@ -105,9 +113,9 @@ public:
 private:
 	inline Node* createNode()
 	{
-		Node* node = ( Node* ) malloc(sizeof(Node));
+		Node* node = static_cast<Node*>(malloc(sizeof(Node)));
 		node->next = nullptr;
-		if constexpr ( !usePlacement )
+		if constexpr ( !UsePlacement )
 		{
 			new( &node->data ) T();
 		}

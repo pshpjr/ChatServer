@@ -4,7 +4,7 @@
 
 
 
-CRingBuffer::CRingBuffer(int size) :BUFFER_SIZE(size), ALLOC_SIZE(BUFFER_SIZE + 10), _buffer(new char[ALLOC_SIZE]), _front(0), _rear(0)
+CRingBuffer::CRingBuffer(const int size) :BUFFER_SIZE(size), ALLOC_SIZE(BUFFER_SIZE + 10), _buffer(new char[ALLOC_SIZE]), _front(0), _rear(0)
 {
 	memset(_buffer + BUFFER_SIZE, 0, 10);
 }
@@ -17,8 +17,8 @@ CRingBuffer::~CRingBuffer()
 //front가 맨 앞이고 rear가 맨 끝인 상황 처리 해야 함. 
 int CRingBuffer::Size() const
 {
-	int rear = _rear;
-	int front = _front;
+	const int rear = _rear;
+	const int front = _front;
 
 	if (rear >= front)
 	{
@@ -30,8 +30,8 @@ int CRingBuffer::Size() const
 }
 int CRingBuffer::DirectEnqueueSize() const
 {
-	int rear = _rear;
-	int front = _front;
+	const int rear = _rear;
+	const int front = _front;
 
 	//front는 변할 수 있지만 rear는 변하지 않음. 
 	if ((rear + 1) % BUFFER_SIZE == front)
@@ -44,7 +44,7 @@ int CRingBuffer::DirectEnqueueSize() const
 	//이 경우 result가 음수 나올 수 있음.
 	if (rear < front )
 	{
-		int result = front - rear - 1;
+		const int result = front - rear - 1;
 		ASSERT_CRASH(result > 0, "Out of Case");
 		return result;
 	}
@@ -52,9 +52,13 @@ int CRingBuffer::DirectEnqueueSize() const
 	{
 		int result;
 		if (front == 0)
+		{
 			result = BUFFER_SIZE - rear - 1;
+		}
 		else
+		{
 			result = BUFFER_SIZE - rear;
+		}
 
 		ASSERT_CRASH(result > 0, "Out of Case");
 
@@ -105,23 +109,22 @@ int CRingBuffer::DirectEnqueueSize() const
 
 int CRingBuffer::DirectDequeueSize() const
 {
-	int rear = _rear;
-	int front = _front;
+	const int rear = _rear;
+	const int front = _front;
 	if (rear >= front)
 	{
 		return rear - front;
 	}
-	else
-	{
-		return BUFFER_SIZE - front;
-	}
+	return BUFFER_SIZE - front;
 }
 
 
-int CRingBuffer::Dequeue(int deqSize)
+int CRingBuffer::Dequeue(const int deqSize)
 {
 	if (_front == _rear)
+	{
 		return 0;
+	}
 
 	//이후 dequeue 할 내용이 있다고 가정함. 
 
@@ -140,10 +143,12 @@ int CRingBuffer::Dequeue(int deqSize)
 	return size;
 }
 
-int CRingBuffer::Peek(char* dst, int size) const
+int CRingBuffer::Peek(char* dst, const int size) const
 {
 	if ( _front == _rear )
+	{
 		return 0;
+	}
 
 	int peekSize = size;
 	//size는 늘어나기만 함. 
@@ -159,7 +164,7 @@ int CRingBuffer::Peek(char* dst, int size) const
 	}
 	else
 	{
-		int deqSize = DirectDequeueSize();
+		const int deqSize = DirectDequeueSize();
 
 		memcpy_s(dst, deqSize, _buffer + _front, deqSize);
 		memcpy_s(dst + deqSize, peekSize - deqSize, _buffer, peekSize - deqSize);

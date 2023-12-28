@@ -1,36 +1,35 @@
 ﻿#pragma once
 #include <new.h>
-#include <memory>
 class Node;
 
 namespace psh
 {
 	/**
 	 * \brief 
-	 * \tparam data 
-	 * \tparam dataId : short이내의 int 값이어야 함.  
-	 * \tparam usePlacement  : 매번 생성자 호출할건지 여부. 기본값은 false
+	 * \tparam Data 
+	 * \tparam DataId : short이내의 int 값이어야 함.  
+	 * \tparam UsePlacement  : 매번 생성자 호출할건지 여부. 기본값은 false
 	 */
-	template <typename data,int dataId, bool usePlacement = false>
+	template <typename Data,int DataId, bool UsePlacement = false>
 	class CMemoryPool
 	{
 		struct Node
 		{
-			Node* _head = nullptr;
-			data _data;
-			Node* _tail = nullptr;
+			Node* head = nullptr;
+			Data data;
+			Node* tail = nullptr;
 		};
 
 	public:
-		CMemoryPool(int iBlockNum);
+		explicit CMemoryPool(int iBlockNum);
 
 		virtual	~CMemoryPool();
 
 
-		data* Alloc(void);
+		Data* Alloc(void);
 
 
-		bool Free(data* pdata);
+		bool Free(Data* pdata);
 
 		int		GetAllocCount(void) const { return _allocCount; }
 
@@ -41,21 +40,22 @@ namespace psh
 		Node* _pFreeNode = nullptr;
 		int _objectCount = 0;
 		int _allocCount = 0;
-		static constexpr int _identifier = dataId << 16;
+		static constexpr int IDENTIFIER = DataId << 16;
 		static int _instanceCount;
 	};
+	
 	template <typename data, int dataId, bool usePlacement>
 	int CMemoryPool<data, dataId, usePlacement>::_instanceCount = 0;
 
 	//placement가 false일 때 생성 속도가 좀 느려도(루프 두 번) 코드 깔끔한 게 더 좋을 것 같음. 
 	template <typename data, int dataId, bool usePlacement>
-	CMemoryPool<data,dataId, usePlacement>::CMemoryPool(int iBlockNum)
+	CMemoryPool<data,dataId, usePlacement>::CMemoryPool(const int iBlockNum)
 	{
 		for (int i = 0; i < iBlockNum; ++i)
 		{
-			Node* newNode = (Node*)malloc(sizeof(Node));
+			Node* newNode = static_cast<Node*>(malloc(sizeof(Node)));
 
-			newNode->_tail = _pFreeNode;
+			newNode->tail = _pFreeNode;
 			_pFreeNode = newNode;
 		}
 
@@ -66,7 +66,7 @@ namespace psh
 			{
 				new(pNode) Node();
 
-				pNode = pNode->_tail;
+				pNode = pNode->tail;
 			}
 		}
 
@@ -81,7 +81,7 @@ CMemoryPool<data,dataId, usePlacement>::~CMemoryPool()
 		while (node != nullptr)
 		{
 			Node* tar = node;
-			node = node->_tail;
+			node = node->tail;
 
 			if constexpr (usePlacement)
 			{
@@ -100,12 +100,12 @@ CMemoryPool<data,dataId, usePlacement>::~CMemoryPool()
 		Node* retNode = _pFreeNode;
 		if (retNode != nullptr)
 		{
-			_pFreeNode = _pFreeNode->_tail;
+			_pFreeNode = _pFreeNode->tail;
 			_objectCount--;
 
 			if constexpr (usePlacement)
 			{
-				retNode = (Node*)new(&retNode->_data)data();
+				retNode = static_cast<Node*>(new(&retNode->data)data());
 			}
 		}
 		else
@@ -114,17 +114,17 @@ CMemoryPool<data,dataId, usePlacement>::~CMemoryPool()
 			retNode = new Node;
 		}
 #ifdef MYDEBUG
-		retNode->_tail = (Node*)0x3412;
+		retNode->tail = (Node*)0x3412;
 		retNode->_head = (Node*)0x3412;
 #endif
 
-		return (data*)(&(retNode->_data));
+		return static_cast<data*>(&(retNode->data));
 	}
 
 	template <typename data, int dataId, bool usePlacement>
 	bool CMemoryPool<data, dataId, usePlacement>::Free(data* pdata)
 	{
-		Node* dataNode = (Node*)((char*)pdata - offsetof(Node, _data));
+		Node* dataNode = ( Node* ) ( ( char* ) pdata - offsetof(Node, data) );
 
 		//정상인지 테스트
 #ifdef MYDEBUG
@@ -132,7 +132,7 @@ CMemoryPool<data,dataId, usePlacement>::~CMemoryPool()
 		{
 			printf("correct\n");
 		}
-		if (dataNode->_tail == (Node*)0x3412)
+		if (dataNode->tail == (Node*)0x3412)
 		{
 			printf("correct\n");
 		}
@@ -143,7 +143,7 @@ CMemoryPool<data,dataId, usePlacement>::~CMemoryPool()
 			pdata->~data();
 		}
 
-		dataNode->_tail = _pFreeNode;
+		dataNode->tail = _pFreeNode;
 		_pFreeNode = dataNode;
 
 		_objectCount++;

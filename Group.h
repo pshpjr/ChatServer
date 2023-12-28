@@ -47,8 +47,8 @@ public:
 	virtual void OnRecv(SessionID id, CRecvBuffer& recvBuffer) {};
 
 protected:
-	void SendPacket(SessionID id, CSendBuffer& buffer);
-	void MoveSession(SessionID id, GroupID dst);
+	void SendPacket(SessionID id, CSendBuffer& buffer) const;
+	void MoveSession(SessionID id, GroupID dst) const;
 	void LeaveSession(SessionID id);
 	void EnterSession(SessionID id);
 	Group();
@@ -56,18 +56,18 @@ private:
 
 
 	void Update();
-	void handleEnter();
-	void handleLeave();
-	void execute(IOCP* iocp);
-	void handlePacket();
+	void HandleEnter();
+	void HandleLeave();
+	void Execute(IOCP* iocp) const;
+	void HandlePacket();
 private:
 
 	GroupID _groupId = -1;
 	GroupExecutable& _executable;
 	std::chrono::system_clock::time_point _lastUpdate;
-	HashSet<SessionID, SessionInfo::SessionIDHash, SessionInfo::SessionIDEqual> _sessions;
-	TLSLockFreeQueue<SessionID> _enterSessions;
-	TLSLockFreeQueue<SessionID> _leaveSessions;
+	HashSet<SessionID, SessionInfo::SessionIdHash, SessionInfo::SessionIdEqual> _sessions;
+	TlsLockFreeQueue<SessionID> _enterSessions;
+	TlsLockFreeQueue<SessionID> _leaveSessions;
 	
 	IOCP* _iocp;
 	GroupManager* _owner;

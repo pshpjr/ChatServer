@@ -1,7 +1,6 @@
 ﻿#include "stdafx.h"
 #include "MemoryUsage.h"
 #include <Psapi.h>
-#include <process.h>
 
 #pragma comment (lib, "Psapi.lib")
 
@@ -44,12 +43,12 @@ size_t MemoryUsage::GetPMemSize() const
 	return _pMemSize;
 }
 
-size_t MemoryUsage::GetPeakVmemSize() const
+size_t MemoryUsage::GetPeakVirtualMemSize() const
 {
 	return _peakVmemSize;
 }
 
-size_t MemoryUsage::GetVMemsize() const
+size_t MemoryUsage::GetVirtualMemSize() const
 {
 	return _vMemsize;
 }

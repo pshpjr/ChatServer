@@ -3,7 +3,12 @@
 class SharedLockGuard
 {
 public:
-	SharedLockGuard(SRWLOCK& lock) : _cs(lock)
+	SharedLockGuard(const SharedLockGuard& other) = delete;
+	SharedLockGuard(SharedLockGuard&& other) = delete;
+	SharedLockGuard& operator=(const SharedLockGuard& other) = delete;
+	SharedLockGuard& operator=(SharedLockGuard&& other) = delete;
+
+	explicit SharedLockGuard(SRWLOCK& lock) : _cs(lock)
 	{
 		AcquireSRWLockShared(&_cs);
 	}
@@ -19,6 +24,11 @@ private:
 class ExclusiveLockGuard
 {
 public:
+	ExclusiveLockGuard(const ExclusiveLockGuard& other) = delete;
+	ExclusiveLockGuard(ExclusiveLockGuard&& other) = delete;
+	ExclusiveLockGuard& operator=(const ExclusiveLockGuard& other) = delete;
+	ExclusiveLockGuard& operator=(ExclusiveLockGuard&& other) = delete;
+
 	ExclusiveLockGuard(SRWLOCK& lock) : _cs(lock)
 	{
 		AcquireSRWLockExclusive(&_cs);
@@ -31,28 +41,3 @@ private:
 	SRWLOCK& _cs;
 };
 
-
-template <typename T>
-class LockGuard
-{
-public:
-	LockGuard(T& cs) : _cs(cs) { _cs.Lock(); }
-	~LockGuard() { _cs.Unlock(); }
-
-	T& operator *() { return _cs; }
-
-private:
-	T& _cs;
-};
-
-template <typename T>
-class UnlockGuard
-{
-public:
-	UnlockGuard(T& cs) : _cs(cs) {}
-	~UnlockGuard() { _cs.Unlock(); }
-
-private:
-	T& _cs;
-
-};

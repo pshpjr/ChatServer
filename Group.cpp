@@ -5,17 +5,17 @@
 #include "GroupExecutable.h"
 #include "GroupManager.h"
 
-Group::Group() :_executable(*new GroupExecutable(this)), _enterSessions(), _leaveSessions(),_owner(nullptr),_iocp(nullptr) {};
+Group::Group() :_executable(*new GroupExecutable(this)),_iocp(nullptr),_owner(nullptr) {};
 
 void Group::Update()
 {
-	handleEnter();
-	handlePacket();
+	HandleEnter();
+	HandlePacket();
 	OnUpdate();
-	handleLeave();
+	HandleLeave();
 }
 
-void Group::handleEnter()
+void Group::HandleEnter()
 {
 	SessionID id;
 
@@ -26,23 +26,25 @@ void Group::handleEnter()
 		OnEnter(id);
 	}
 }
-void Group::handleLeave()
+void Group::HandleLeave()
 {
 	SessionID id;
 	while ( _leaveSessions.Dequeue(id) )
 	{
 		if ( _sessions.erase(id) == 0 )
+		{
 			DebugBreak();
+		}
 
 		OnLeave(id);
 	}
 }
 //onDisconnect랑 OnSessionLeave랑 순서가 안 맞을 수 있다. 
-void Group::handlePacket()
+void Group::HandlePacket()
 {
-	for ( auto sessionId : _sessions )
+	for (const auto sessionId : _sessions )
 	{
-		auto session = _iocp->FindSession(sessionId,L"HandlePacket");
+		const auto session = _iocp->FindSession(sessionId,L"HandlePacket");
 		if ( session == nullptr )
 		{
 			LeaveSession(sessionId);
@@ -77,27 +79,27 @@ void Group::handlePacket()
 
 //해당 세션이 언제 나갈지 모르는데 상관 없나?
 //어짜피 동시에 처리되는 건 아니니까 상관 x.
-void Group::LeaveSession(SessionID id)
+void Group::LeaveSession(const SessionID id)
 {
 	_leaveSessions.Enqueue(id);
 }
 
-void Group::EnterSession(SessionID id)
+void Group::EnterSession(const SessionID id)
 {
 	_enterSessions.Enqueue(id);
 }
 
-void Group::SendPacket(SessionID id, CSendBuffer& buffer)
+void Group::SendPacket(const SessionID id, CSendBuffer& buffer) const
 {
 	_iocp->SendPacket(id, &buffer);
 }
 
-void Group::MoveSession(SessionID id, GroupID dst)
+void Group::MoveSession(const SessionID id, const GroupID dst) const
 {
 	_owner->MoveSession(id, dst);
 }
 
-void Group::execute(IOCP* iocp)
+void Group::Execute(IOCP* iocp) const
 {
 	_executable.Execute(0, executable::ExecutableTransfer::GROUP, iocp);
 }

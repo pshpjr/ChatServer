@@ -17,21 +17,21 @@ public:
 	CRecvBuffer& operator >>(LPWSTR value);
 	CRecvBuffer& operator >>(String& value);
 
-	void GetWSTR(LPWSTR arr, int size);
-	void GetCSTR(LPSTR arr, int size);
+	void GetWstr(LPWSTR arr, int size);
+	void GetCstr(LPSTR arr, int size);
 
 	static void Decode(char staticKey, NetHeader* head);
-	static bool checksumValid(NetHeader* head);
+	static bool ChecksumValid(NetHeader* head);
 //private:
-	CRecvBuffer();
+	CRecvBuffer() = default;
 
-	~CRecvBuffer();
+	~CRecvBuffer() = default;
 
-	void canPop(int64 size);
+	void CanPop(int64 size) const;
 
 	static CRecvBuffer* Alloc(char* front, char* rear)
 	{
-		auto ret = _pool.Alloc();
+		const auto ret = _pool.Alloc();
 		ret->Clear();
 		ret->IncreaseRef(L"AllocInc");
 		ret->_front = front;
@@ -74,11 +74,12 @@ public:
 	void MoveReadPos(int size);
 	int	CanPopSize(void) const;
 
+private:
 	char* _front = nullptr;
 	char* _rear = nullptr;
 	long _refCount = 0;
 
-	static TLSPool<CRecvBuffer, 0, false> _pool;
+	static TlsPool<CRecvBuffer, 0, false> _pool;
 
 #ifdef SERIAL_DEBUG
 	//DEBUG
@@ -100,9 +101,9 @@ template<typename T>
 inline CRecvBuffer& CRecvBuffer::operator>>(T& value)
 {
 	static_assert( is_scalar_v<T> );
-	canPop(sizeof(T));
+	CanPop(sizeof(T));
 
-	value = *( T* ) ( _front );
+	value = *reinterpret_cast<T*>(_front);
 	_front += sizeof(T);
 
 	return *this;

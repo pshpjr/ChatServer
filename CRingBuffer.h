@@ -74,7 +74,7 @@ public:
 	 * \brief size만큼 front를 이동시킨다.
 	 * \param size 이동시킬 front의 크기
 	 */
-	void MoveFront(int size)
+	void MoveFront(const int size)
 	{
 		_front = (_front + size) % BUFFER_SIZE;
 	}
@@ -83,7 +83,7 @@ public:
 	 * \brief size만큼 rear를 이동시킨다.
 	 * \param size
 	 */
-	void MoveRear(int size)
+	void MoveRear(const int size)
 	{
 		_rear = (_rear + size) % BUFFER_SIZE;
 	}

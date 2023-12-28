@@ -4,7 +4,7 @@
 class NormalSocket
 {
 public:
-	NormalSocket(SOCKET socket, SOCKADDR_IN addr) : _socket(socket), _sockAddr(addr)
+	NormalSocket(const SOCKET socket, const SOCKADDR_IN addr) : _sockAddr(addr), _socket(socket)
 	{
 
 	}

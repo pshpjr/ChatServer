@@ -2,24 +2,24 @@
 #include "CSendBuffer.h"
 #include "Protocol.h"
 
-int SERIAL_INIT_SIZE = 5000;
-int SERIAL_INIT_MULTIPLIER = 3;
+constexpr int SERIAL_INIT_SIZE = 5000;
+constexpr int SERIAL_INIT_MULTIPLIER = 3;
 
-TLSPool<CSendBuffer, 0, false> CSendBuffer::_pool(SERIAL_INIT_SIZE, SERIAL_INIT_MULTIPLIER);
+TlsPool<CSendBuffer, 0> CSendBuffer::_pool(SERIAL_INIT_SIZE, SERIAL_INIT_MULTIPLIER);
 
-void CSendBuffer::writeLanHeader()
+void CSendBuffer::WriteLanHeader()
 {
-	*(((uint16*)_front)-1) = GetDataSize();
-	_head = (char*)(((uint16*)_front) - 1);
+	*(reinterpret_cast<uint16*>(_front) - 1) = GetDataSize();
+	_head = (char*)(reinterpret_cast<uint16*>(_front) - 1);
 }
 
-void CSendBuffer::writeNetHeader(int code)
+void CSendBuffer::WriteNetHeader(const int code) const
 {
-	char* checksumIndex = GetDataPtr();
+	const char* checksumIndex = GetDataPtr();
 
 	NetHeader tmpHeader;
 	tmpHeader.len = GetDataSize();
-	int checkLen = tmpHeader.len;
+	const int checkLen = tmpHeader.len;
 	int checkSum = 0;
 
 	for (int i = 0; i < checkLen; i++)
@@ -32,55 +32,59 @@ void CSendBuffer::writeNetHeader(int code)
 	tmpHeader.randomKey = 0x31;
 	//head->randomKey = rand()%256;
 
-	*( NetHeader* ) GetHead() = tmpHeader;
+	*reinterpret_cast<NetHeader*>(GetHead()) = tmpHeader;
 }
 
-void CSendBuffer::Encode(char staticKey)
+void CSendBuffer::TryEncode(const char staticKey)
 {
 	if (!isEncrypt)
 	{
 		AcquireSRWLockExclusive(&_encodeLock);
 		if(!isEncrypt)
 		{
-			writeNetHeader(dfPACKET_CODE);
+			WriteNetHeader(dfPACKET_CODE);
 
-			encode(staticKey);
+			Encode(staticKey);
 		}
 
 		ReleaseSRWLockExclusive(&_encodeLock);
 	}
 }
 
-CSendBuffer::CSendBuffer() :_buffer(new char[BUFFER_SIZE + sizeof(NetHeader)]), _head(_buffer), _data(_buffer + sizeof(NetHeader)), _front(_data), _rear(_data)
+CSendBuffer::CSendBuffer() : _buffer(new char[BUFFER_SIZE + sizeof(NetHeader)])
+                           , _data(_buffer + sizeof(NetHeader))
+                           , _head(_buffer)
+                           , _front(_data)
+                           , _rear(_data)
 {
 	InitializeSRWLock(&_encodeLock);
 }
 
-bool CSendBuffer::CopyData(CSendBuffer& dst)
+bool CSendBuffer::CopyData(CSendBuffer& dst) const
 {
-	memcpy_s(dst.GetDataPtr(), dst.canPushSize(), GetFront(), CanPopSize());
+	memcpy_s(dst.GetDataPtr(), dst.CanPushSize(), GetFront(), CanPopSize());
 
 	dst.MoveWritePos(CanPopSize());
 
 	return true;
 }
 
-void CSendBuffer::encode(char staticKey)
+void CSendBuffer::Encode(const char staticKey)
 {
 	using Header = NetHeader;
 
-	Header* head = (Header*)GetHead();
-	unsigned char randomKey = head->randomKey;
+	const auto head = (Header*)GetHead();
+	const unsigned char randomKey = head->randomKey;
 
 	unsigned char* encodeData = &head->checkSum;
-	int encodeLen = head->len + 1;
+	const int encodeLen = head->len + 1;
 
 	char p = 0;
 	char e = 0;
 
 	for ( int i = 1; i <= encodeLen; i++ )
 	{
-		p = ( *encodeData ) ^ ( p + randomKey + i );
+		p =  *encodeData  ^  p + randomKey + i ;
 		e = p ^ ( e + staticKey + i );
 		*encodeData = e;
 		encodeData++;
@@ -90,32 +94,32 @@ void CSendBuffer::encode(char staticKey)
 }
 
 
-CSendBuffer& CSendBuffer::operator<<(LPWSTR value)
+CSendBuffer& CSendBuffer::operator<<(const LPWSTR value)
 {
 
 	//insert null terminated string to buffer
-	size_t strlen = wcslen(value)+1;
-	canPush(strlen);
-	wcscpy_s((wchar_t*)_rear, strlen, value);
+	const size_t strlen = wcslen(value)+1;
+	CanPush(strlen);
+	wcscpy_s(reinterpret_cast<wchar_t*>(_rear), strlen, value);
 	_rear += strlen * sizeof(WCHAR);
 	return *this;
 }
 
-CSendBuffer& CSendBuffer::operator<<(LPCWSTR value)
+CSendBuffer& CSendBuffer::operator<<(const LPCWSTR value)
 {
 	//insert null terminated string to buffer
-	size_t strlen = wcslen(value)+1;
-	canPush(strlen);
+	const size_t strlen = wcslen(value)+1;
+	CanPush(strlen);
 	wcscpy_s((wchar_t*)_rear, strlen, value);
 
 	_rear += strlen * sizeof(WCHAR);
 	return *this;
 }
 
-CSendBuffer& CSendBuffer::operator<<(String& value)
+CSendBuffer& CSendBuffer::operator<<(const String& value)
 {
-	canPush(value.size());
-	operator<<((uint16)(value.size() * sizeof(WCHAR)));
+	CanPush(value.size());
+	operator<<(static_cast<uint16>(value.size() * sizeof(WCHAR)));
 
 	value.copy((LPWCH)_rear, value.size());
 	_rear += value.size() * sizeof(WCHAR);
@@ -123,16 +127,16 @@ CSendBuffer& CSendBuffer::operator<<(String& value)
 	return *this;
 }
 
-void CSendBuffer::SetWSTR(LPCWSTR arr, int size)
+void CSendBuffer::SetWstr(const LPCWSTR arr, const int size)
 {
-	canPush(size);
+	CanPush(size);
 	wcscpy_s(( LPWSTR ) _rear, size, ( wchar_t* ) arr);
 	_rear += size * sizeof(WCHAR);
 }
 
-void CSendBuffer::SetCSTR(LPCSTR arr, int size)
+void CSendBuffer::SetCstr(const LPCSTR arr, const int size)
 {
-	canPush(size);
+	CanPush(size);
 	memcpy_s(_rear, size, arr, size);
 	_rear += size;
 }

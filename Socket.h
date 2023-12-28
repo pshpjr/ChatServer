@@ -12,35 +12,35 @@ public:
 	 */
 	Socket();
 
-	Socket(SOCKET socket, SOCKADDR_IN addr);
+	Socket(SOCKET socket, SOCKADDR_IN address);
 
-	bool isSameSubnet(const String& comp, char subnetMaskBits);
-	static bool isSameSubnet(const IN_ADDR& a, const IN_ADDR& b, char subnetMaskBits);
+	bool IsSameSubnet(const String& comp, char subnetMaskBits) const;
+	static bool IsSameSubnet(const IN_ADDR& a, const IN_ADDR& b, char subnetMaskBits);
 
 	bool Init();
-	bool Bind(String ip, uint16 port);
-	bool Listen(int backlog);
-	Socket Accept();
-	WSAResult<bool> Connect(String ip, uint16 port);
-	void CancleIO();
+	bool Bind(const String& ip, uint16 port);
+	bool Listen(int backlog) const;
+	Socket Accept() const;
+	WSAResult<bool> Connect(const String& ip, uint16 port);
+	void CancelIO() const;
 	void Close();
-	static IN_ADDR ip2Address(const WCHAR* ip);
+	static IN_ADDR Ip2Address(const WCHAR* ip);
 
 	/// <summary>
 	/// 
 	/// </summary>
 	/// <returns>이상 없으면 0, 아니면 에러코드</returns>
-	bool isValid() const;
-	int Send(LPWSABUF buf, DWORD bufCount, DWORD flag, LPWSAOVERLAPPED lpOverlapped);
-	int Recv(LPWSABUF buf, DWORD bufCount, LPDWORD flag, LPWSAOVERLAPPED lpOverlapped);
+	bool IsValid() const;
+	int Send(LPWSABUF buf, DWORD bufCount, DWORD flag, LPWSAOVERLAPPED lpOverlapped) const;
+	int Recv(LPWSABUF buf, DWORD bufCount, LPDWORD flag, LPWSAOVERLAPPED lpOverlapped) const;
 
-	int lastError() const;
-	void setLinger(bool on);
-	void setNoDelay(bool on);
-	void setSendbuffer(int size);
+	static int LastError();
+	void SetLinger(bool on) const;
+	void SetNoDelay(bool on) const;
+	void SetSendBuffer(int size) const;
 
-	SOCKADDR_IN GetSockAddr() const;
-	String GetIP() const;
+	SOCKADDR_IN GetSockAddress() const;
+	String GetIp() const;
 	uint16 GetPort() const;
 
 private:

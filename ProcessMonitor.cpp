@@ -3,23 +3,38 @@
 
 void ProcessMonitor::Update()
 {
-	auto result = PdhCollectQueryData(_swQuery);
+	PdhCollectQueryData(_swQuery);
 
 	
 	PDH_FMT_COUNTERVALUE counterVal;
+	//double tot = 0;
+	//if ( PdhGetFormattedCounterValue(pCpuTotal, PDH_FMT_DOUBLE, NULL, &counterVal) == ERROR_SUCCESS )
+	//{
+	//	tot = counterVal.doubleValue;
+	//	_totalProcessorTime = counterVal.doubleValue / _maxProcessorValue * 100;
+	//}
 
-	if ( PdhGetFormattedCounterValue(pCpuTotal, PDH_FMT_DOUBLE, NULL, &counterVal) == ERROR_SUCCESS )
-		_totalProcessorTime = counterVal.doubleValue;
 
-	if( PdhGetFormattedCounterValue(pCpuKernel, PDH_FMT_DOUBLE, NULL, &counterVal) == ERROR_SUCCESS )
-		_kernelProcessorTime = counterVal.doubleValue;
+	if ( PdhGetFormattedCounterValue(_pCpuKernel, PDH_FMT_DOUBLE, nullptr, &counterVal) == ERROR_SUCCESS )
+	{
+		_kernelProcessorTime = counterVal.doubleValue / _maxProcessorValue * 100;
+	}
 
-	if( PdhGetFormattedCounterValue(pCpuUser, PDH_FMT_DOUBLE, NULL, &counterVal) == ERROR_SUCCESS )
-		_userProcessorTime = counterVal.doubleValue;
+	if ( PdhGetFormattedCounterValue(_pCpuUser, PDH_FMT_DOUBLE, nullptr, &counterVal) == ERROR_SUCCESS )
+	{
+		_userProcessorTime = counterVal.doubleValue / _maxProcessorValue * 100;
+	}
 
-	if( PdhGetFormattedCounterValue(pPageFault, PDH_FMT_LONG, NULL, &counterVal) == ERROR_SUCCESS )
+	_totalProcessorTime = _kernelProcessorTime + _userProcessorTime;
+
+
+	if( PdhGetFormattedCounterValue(_pPageFault, PDH_FMT_LONG, nullptr, &counterVal) == ERROR_SUCCESS )
+	{
 		_pageFault = counterVal.doubleValue;
+	}
 
-	if( PdhGetFormattedCounterValue(pUseMemory, PDH_FMT_DOUBLE, NULL, &counterVal) == ERROR_SUCCESS )
+	if( PdhGetFormattedCounterValue(_pUseMemory, PDH_FMT_DOUBLE, nullptr, &counterVal) == ERROR_SUCCESS )
+	{
 		_useMemoryMB = counterVal.doubleValue/1000'000;
+	}
 }

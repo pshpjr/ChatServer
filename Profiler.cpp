@@ -9,24 +9,11 @@
 #include <thread>
 #include <vector>
 
-/*
- * 	TCHAR errBuffer[MAXERRLEN];
-
-	//텍스트 모드로 열 경우 ftell의 값과 파일 크기가 다를 수 있다. 
-	const auto openRet = _tfopen_s(&_settingStream, location, TEXT("rb"));
-	if (openRet != 0 || _settingStream == nullptr)
-	{
-		_stprintf_s(errBuffer, TEXT("errNo : %d | SettingParser::loadSetting, fopen "), openRet);
-		GLogger->write(errBuffer);
-		return false;
-	}
- */
-void Profiler::ProfileDataOutText(LPWSTR szFileName)
+void Profiler::ProfileDataOutText(const LPWSTR szFileName)
 {
-	FILE* fout;
+	FILE* fOut;
 
-	const auto openRet = _wfopen_s(&fout, szFileName, L"wb");
-	if(openRet != 0 || fout == nullptr)
+	if(const auto openRet = _wfopen_s(&fOut, szFileName, L"wb"); openRet != 0 || fOut == nullptr)
 	{
 		WCHAR errBuffer[100];
 		WCHAR buffer[100];
@@ -34,12 +21,14 @@ void Profiler::ProfileDataOutText(LPWSTR szFileName)
 		swprintf_s(errBuffer, TEXT("errNo : %d | SettingParser::loadSetting, fopen %s"), openRet, buffer );
 		return;
 	}
-	fwprintf_s(fout, L"\t%10s\t\t\t\t%16s\t\t\t\t%10s\t\t\t%10s\t\t\t%10s\t\t\n",L"Name",L"Avg",L"Call",L"Min",L"Max");
+	fwprintf_s(fOut, L"\t%10s\t\t\t\t%16s\t\t\t\t%10s\t\t\t%10s\t\t\t%10s\t\t\n",L"Name",L"Avg",L"Call",L"Min",L"Max");
 	
 	for (auto& sample : Profile_Samples)
 	{
 		if (sample.lFlag == false)
+		{
 			break;
+		}
 
 		auto tot = sample.iTotalTime;
 		auto cnt = sample.iCall;
@@ -51,16 +40,17 @@ void Profiler::ProfileDataOutText(LPWSTR szFileName)
 		}
 
 
-		auto avg = tot / ((double)cnt); // 평균 틱에 1000을 곱해 ms 단위로 변경
+		auto avg = tot / static_cast<double>(cnt); // 평균 틱에 1000을 곱해 ms 단위로 변경
 
-		fwprintf_s(fout, L"\t%10s\t\t\t\t%10.6fus\t\t\t\t%10lld\t\t\t%10lld\t\t\t%10lld\t\t\n", sample.szName, avg.count(), sample.iCall, sample.iMin.count() , sample.iMax.count());
+		fwprintf_s(fOut, L"\t%10s\t\t\t\t%10.6fus\t\t\t\t%10lld\t\t\t%10lld\t\t\t%10lld\t\t\n", sample.szName
+		           , avg.count(), sample.iCall, sample.iMin.count(), sample.iMax.count());
 	}
 
-	fclose(fout);
+	fclose(fOut);
 }
 
 
-int Profiler::getItemNumber(LPCWSTR name)
+int Profiler::GetItemNumber(const LPCWSTR name)
 {
 
 	for (int i = 0; i < MAXITEM; i++)
@@ -82,18 +72,18 @@ int Profiler::getItemNumber(LPCWSTR name)
 }
 
 #define ITEM Profile_Samples[item_number]
-void Profiler::applyProfile(const int& item_number, std::chrono::microseconds time)
+void Profiler::ApplyProfile(const int& itemNumber, const std::chrono::microseconds time)
 {
-	Profile_Samples[item_number].iCall++;
-	Profile_Samples[item_number].iTotalTime += time;
+	Profile_Samples[itemNumber].iCall++;
+	Profile_Samples[itemNumber].iTotalTime += time;
 
-	if (time > Profile_Samples[item_number].iMax)
+	if (time > Profile_Samples[itemNumber].iMax)
 	{
-		Profile_Samples[item_number].iMax = time;
+		Profile_Samples[itemNumber].iMax = time;
 	}
-	if (time < Profile_Samples[item_number].iMin)
+	if (time < Profile_Samples[itemNumber].iMin)
 	{
-		Profile_Samples[item_number].iMin = time;
+		Profile_Samples[itemNumber].iMin = time;
 	}
 }
 #undef ITEM
@@ -101,50 +91,50 @@ void Profiler::applyProfile(const int& item_number, std::chrono::microseconds ti
 
 
 
-ProfileItem::ProfileItem(LPCWSTR name)
+ProfileItem::ProfileItem(const LPCWSTR name)
 {
-	_itemNumber = ProfileManager::Get().GetLocalProfiler().getItemNumber(name);
+	_itemNumber = ProfileManager::Get().GetLocalProfiler().GetItemNumber(name);
 	_start = std::chrono::steady_clock::now();
 }
 
 ProfileItem::~ProfileItem()
 {
 	_end = std::chrono::steady_clock::now();
-	ProfileManager::Get().GetLocalProfiler().applyProfile(_itemNumber, std::chrono::duration_cast<std::chrono::microseconds>(_end - _start));
+	ProfileManager::Get().GetLocalProfiler().ApplyProfile(_itemNumber, std::chrono::duration_cast<std::chrono::microseconds>(_end - _start));
 }
 
-bool cmp(PROFILE_SAMPLE& lhs, PROFILE_SAMPLE& rhs)
+bool cmp(const PROFILE_SAMPLE& lhs, const PROFILE_SAMPLE& rhs)
 {
 	return wcscmp(lhs.szName, rhs.szName) == -1;
 }
 
 
-std::wstring pad_string(const std::wstring& str, size_t length) {
+std::wstring pad_string(const std::wstring& str, const size_t length) {
 	if ( str.length() >= length ) {
 		return str;
 	}
-	else {
-		return str + std::wstring(length - str.length(), L' ');
-	}
+	return str + std::wstring(length - str.length(), L' ');
 }
 
-int callProfileManagerDtor()
+int call_profile_manager_destructor()
 {
 	ProfileManager::Get().~ProfileManager();
 	return 0;
 }
 
-void ProfileManager::ProfileDataOutText(LPWSTR szFileName)
+void ProfileManager::ProfileDataOutText(const LPWSTR szFileName)
 {
 	AcquireSRWLockShared(&_profileListLock);
 
 	std::vector<PROFILE_SAMPLE> samples;
-	for (auto profiler : _profilerList)
+	for (const auto profiler : _profilerList)
 	{
 		for (int i = 0; i < profiler->_size; i++)
 		{
 			if ( profiler->Profile_Samples[i].lFlag == false )
+			{
 				continue;
+			}
 
 			samples.push_back(profiler->Profile_Samples[i]);
 		}
@@ -156,10 +146,9 @@ void ProfileManager::ProfileDataOutText(LPWSTR szFileName)
 	ReleaseSRWLockShared(&_profileListLock);
 
 
-	FILE* fout;
+	FILE* fOut;
 
-	const auto openRet = _wfopen_s(&fout, szFileName, L"wb");
-	if (openRet != 0 || fout == nullptr)
+	if (const auto openRet = _wfopen_s(&fOut, szFileName, L"wb"); openRet != 0 || fOut == nullptr)
 	{
 		WCHAR errBuffer[100];
 		WCHAR buffer[100];
@@ -169,26 +158,26 @@ void ProfileManager::ProfileDataOutText(LPWSTR szFileName)
 	}
 	if(!optionalText.empty())
 	{
-		fwprintf_s(fout, L"%s\n",optionalText.c_str());
+		fwprintf_s(fOut, L"%s\n",optionalText.c_str());
 	}
 
-	fwprintf_s(fout, L"%35s\t|\tAvg\t|\tCall\t|\tMin\t|\tMax\t|\n",  L"Name");
+	fwprintf_s(fOut, L"%35s\t|\tAvg\t|\tCall\t|\tMin\t|\tMax\t|\n",  L"Name");
 
-	std::sort(samples.begin(), samples.end(), cmp);
+	ranges::sort(samples, cmp);
 	samples.emplace_back();
 
 	const WCHAR* name = samples.begin()->szName;
-	std::chrono::microseconds tot = std::chrono::microseconds(0);
+	auto tot = std::chrono::microseconds(0);
 	long long cnt = 0;
 
-	std::chrono::microseconds min = std::chrono::microseconds(987654321);
-	std::chrono::microseconds max = std::chrono::microseconds(-1);
+	auto min = std::chrono::microseconds(987654321);
+	auto max = std::chrono::microseconds(-1);
 	for (auto& sample : samples)
 	{
 		if(wcscmp(name,sample.szName) !=0)
 		{
-			auto avg = tot / ((double)cnt);
-			fwprintf_s(fout, L"%35s\t%20.6fus\t%20lld\t%20lld\t%20lld\n", name, avg.count(), cnt, min.count(), max.count());
+			auto avg = tot / static_cast<double>(cnt);
+			fwprintf_s(fOut, L"%35s\t%20.6fus\t%20lld\t%20lld\t%20lld\n", name, avg.count(), cnt, min.count(), max.count());
 //			fwprintf_s(fout, L"%s %.6fus\n", name, avg.count());
 
 			name = sample.szName;
@@ -217,13 +206,13 @@ void ProfileManager::ProfileDataOutText(LPWSTR szFileName)
 	}
 
 
-	fclose(fout);
+	fclose(fOut);
 
 
 
 }
 
-void ProfileManager::SetOptional(std::wstring optional)
+void ProfileManager::SetOptional(const std::wstring& optional)
 {
 	optionalText = optional;
 }

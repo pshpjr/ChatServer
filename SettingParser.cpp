@@ -1,8 +1,5 @@
 ﻿#include "stdafx.h"
 #include "SettingParser.h"
-
-#include <string.h>
-
 #include <iostream>
 #include <fstream>
 
@@ -11,14 +8,14 @@
 #define WORD_END _buffer[wordEnd]
 
 
-void SettingParser::Init(LPCWSTR location )
+void SettingParser::Init(const LPCWSTR location )
 {
-	loadSetting(location);
-	parse();
+	LoadSetting(location);
+	Parse();
 	free(_buffer);
 }
 
-void SettingParser::loadSetting(LPCTSTR location)
+void SettingParser::LoadSetting(const LPCTSTR location)
 {
 	std::wifstream rawText { location,std::ios::binary | std::ios::ate };
 
@@ -27,17 +24,19 @@ void SettingParser::loadSetting(LPCTSTR location)
 		throw EFileOpen();
 	}
 
-	size_t fileSize = rawText.tellg();
+	const size_t fileSize = rawText.tellg();
 
 	rawText.seekg(0);
-	_buffer = ( LPWCH ) malloc(fileSize * 2 + 2);
+	_buffer = static_cast<LPWCH>(malloc(fileSize * 2 + 2));
 	if ( _buffer == nullptr )
+	{
 		throw exception();
+	}
 
 	bufferSize = fileSize + 1;
 
 	rawText.read(_buffer, fileSize);
-	auto count = rawText.gcount();
+	const auto count = rawText.gcount();
 	//파일 읽고 문자열 끝에 null 추가
 	if ( count != fileSize )
 	{
@@ -48,17 +47,19 @@ void SettingParser::loadSetting(LPCTSTR location)
 }
 
 //텍스트 파일은 키 : 값 쌍으로 이루어짐
-void SettingParser::parse()
+void SettingParser::Parse()
 {
 	WCHAR key[MAX_WORD_SIZE];
 	WCHAR value[MAX_WORD_SIZE];
-	WCHAR op[MAX_WORD_SIZE];
 
 	while ( true )
 	{
+		WCHAR op[MAX_WORD_SIZE];
 
-		if ( getTok(key) == false )
+		if ( GetTok(key) == false )
+		{
 			break;
+		}
 
 		//그룹 종료 예외 처리
 		if ( key[0] == L'}' )
@@ -66,17 +67,21 @@ void SettingParser::parse()
 			continue;
 		}
 
-		if ( getTok(op) == false )
+		if ( GetTok(op) == false )
+		{
 			break;
+		}
 
 		// ':' 위치에 다른 거 있으면 에러
 		if ( op[0] != L':' )
 		{
-			throw EUnexpectOp();
+			throw EUnExpectOp();
 		}
 
-		if ( getTok(value) == false )
+		if ( GetTok(value) == false )
+		{
 			break;
+		}
 
 		//그룹 시작 예외 처리
 		if ( value[0] == L'{' )
@@ -89,7 +94,7 @@ void SettingParser::parse()
 	}
 }
 
-bool SettingParser::getTok(LPWCH word)
+bool SettingParser::GetTok(const LPWCH word)
 {
 	//의미 있는 문자까지 이동. 널문자를 만나도 탈출
 	while ( _bufferIndex < bufferSize )
@@ -99,12 +104,16 @@ bool SettingParser::getTok(LPWCH word)
 			_bufferIndex++;
 		}
 		else
+		{
 			break;
+		}
 	}
 
 	//널문자 만났는지 확인
 	if ( WORD_START == L'\0' || _bufferIndex == bufferSize )
+	{
 		return false;
+	}
 
 	size_t wordEnd = _bufferIndex + 1;
 
@@ -118,11 +127,10 @@ bool SettingParser::getTok(LPWCH word)
 				wordEnd++;
 				break;
 			}
-			else
-				wordEnd++;
+			wordEnd++;
 		}
 		_bufferIndex = wordEnd;
-		return getTok(word);
+		return GetTok(word);
 	}
 
 	//여러 줄 주석이면 */ 만날 때 까지 이동
@@ -135,11 +143,11 @@ bool SettingParser::getTok(LPWCH word)
 				wordEnd += 2;
 				break;
 			}
-			else
-				wordEnd++;
+			wordEnd++;
+			
 		}
 		_bufferIndex = wordEnd;
-		return getTok(word);
+		return GetTok(word);
 	}
 
 	if ( WORD_START == L'"' )
@@ -153,8 +161,7 @@ bool SettingParser::getTok(LPWCH word)
 				wordEnd++;
 				break;
 			}
-			else
-				wordEnd++;
+			wordEnd++;
 		}
 
 		if ( _bufferIndex == bufferSize )
@@ -163,7 +170,7 @@ bool SettingParser::getTok(LPWCH word)
 		}
 
 		//끝나는 " 문자열에 안 들어가게 
-		size_t wordSize = wordEnd - _bufferIndex - 1;
+		const size_t wordSize = wordEnd - _bufferIndex - 1;
 
 		wcsncpy_s(word, MAX_WORD_SIZE, &WORD_START, wordSize);
 		_bufferIndex = wordEnd;
@@ -174,7 +181,7 @@ bool SettingParser::getTok(LPWCH word)
 	//하나짜리 토큰이면 바로 리턴
 	if ( WORD_START == L':' || WORD_START == L'{' || WORD_START == L'}' )
 	{
-		size_t wordSize = wordEnd - _bufferIndex;
+		const size_t wordSize = wordEnd - _bufferIndex;
 		wcsncpy_s(word, MAX_WORD_SIZE, &WORD_START, wordSize);
 		word[wordSize] = '\0';
 
@@ -193,18 +200,14 @@ bool SettingParser::getTok(LPWCH word)
 		{
 			break;
 		}
-		else
-		{
-			wordEnd++;
-		}
-
+		wordEnd++;
 	}
 	if ( _bufferIndex == bufferSize )
 	{
 		return false;
 	}
 
-	size_t wordSize = wordEnd - _bufferIndex;
+	const size_t wordSize = wordEnd - _bufferIndex;
 	wcsncpy_s(word, MAX_WORD_SIZE, &WORD_START, wordSize);
 	word[wordSize] = '\0';
 
@@ -213,44 +216,27 @@ bool SettingParser::getTok(LPWCH word)
 	return true;
 }
 
-String SettingParser::getValue(const String name)
+String SettingParser::GetValueImpl(const String& name)
 {
-	size_t groupEnd = name.find(L'.');
+	const size_t groupEnd = name.find(L'.');
 
-	auto nameStart = name.begin();
-	String Group(nameStart, nameStart + groupEnd);
-	String Name(nameStart + groupEnd + 1, name.end());
+	const auto nameStart = name.begin();
+	const String group(nameStart, nameStart + groupEnd);
+	const String typeName(nameStart + groupEnd + 1, name.end());
 
 	for ( int i = 0; i < MAXGROUPSIZE; i++ )
 	{
-		if ( _groupsName[i].compare(Group) == 0 )
+		if ( _groupsName[i].compare(group) == 0 )
 		{
-			auto result = _settingsContainer[i].find(Name);
+			const auto result = _settingsContainer[i].find(typeName);
 
 			if ( result == _settingsContainer[i].end() )
+			{
 				throw EInvalidName();
+			}
 			return result->second;
 		}
 	}
 	throw EInvalidGroup();
 }
-
-
-//void SettingParser::GetValue(const String name, OUT String& value)
-//{
-//	auto result = getValue(name);
-//
-//	value = result->second;
-//	return;
-//}
-
-
-
-//value 배열에 값을 복사한다. 이 때 value 배열의 크기는 SettingParser::MAX_WORD_SIZE를 사용한다. 
-//void SettingParser::GetValue(const String name, LPWSTR value)
-//{
-//	auto result = getValue(name);
-//
-//	wcscpy_s(value, MAX_WORD_SIZE, result->second.c_str());
-//}
 

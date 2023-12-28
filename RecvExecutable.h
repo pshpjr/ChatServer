@@ -1,12 +1,12 @@
 ﻿#pragma once
 #include "Executable.h"
 class Session;
-class RecvExecutable : public Executable
+class RecvExecutable final : public Executable
 {
 public:
 	RecvExecutable()
 	{
-		_type = ioType::RECV;
+		_type = RECV;
 	}
 	void Execute(ULONG_PTR key, DWORD transferred, void* iocp) override;
 	~RecvExecutable() override = default;
@@ -14,7 +14,7 @@ public:
 private:
 
 	template <typename Header>
-	void recvHandler(Session& session, void* iocp); 
+	void RecvHandler(Session& session, void* iocp); 
 
 };
 

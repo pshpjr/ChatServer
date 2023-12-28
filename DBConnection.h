@@ -6,18 +6,18 @@
 class DBConnection
 {
 public:
-	DBConnection(LPCSTR ip, uint32 port, LPCSTR id, LPCSTR pass, LPCSTR db )
+	DBConnection(const LPCSTR ip, const uint32 port, const LPCSTR id, const LPCSTR pass, const LPCSTR db )
 	{
 		mysql_init(&conn);
 
 		//SetReconnect(true);
 
-		connection = mysql_real_connect(&conn, ip, id, pass, db, port, ( char* ) NULL, 0);
+		connection = mysql_real_connect(&conn, ip, id, pass, db, port, ( char* )nullptr, 0);
 		const char* err = nullptr;
-		if ( connection == NULL )
+		if ( connection == nullptr)
 		{
 			err = mysql_error(&conn);
-			auto num = mysql_errno(&conn);
+			const auto num = mysql_errno(&conn);
 			throw DBErr(err,num, chrono::milliseconds::zero());
 
 			printf("%d \n", num);
@@ -38,10 +38,11 @@ public:
 		using std::chrono::duration;
 		using std::chrono::milliseconds;
 		using namespace std::chrono_literals;
+
 		va_list args;
 
 		va_start(args, query);
-		size_t len = vsnprintf(NULL, 0, query, args);
+		const size_t len = vsnprintf(nullptr, 0, query, args);
 		va_end(args);
 
 		vector<char> vec(len + 1);
@@ -50,15 +51,15 @@ public:
 		vsnprintf(&vec[0], len + 1, query, args);
 		va_end(args);
 
-		auto start = system_clock::now();
+		const auto start = system_clock::now();
 		const char* err;
-		
-		int query_stat = mysql_query(connection, vec.data());
+
+		const int query_stat = mysql_query(connection, vec.data());
 		if ( query_stat != 0 )
 		{
 			err = mysql_error(&conn);
 
-			auto num = mysql_errno(&conn);
+			const auto num = mysql_errno(&conn);
 
 			switch ( num )
 			{
@@ -70,8 +71,8 @@ public:
 
 				default:
 				{
-					auto dur = duration_cast< milliseconds >( system_clock::now() - start );
-					string errStr = to_string(dur.count()) + err;
+					const auto dur = duration_cast< milliseconds >( system_clock::now() - start );
+					const string errStr = to_string(dur.count()) + err;
 					throw DBErr(errStr.c_str(),num,dur);
 				}
 			}
@@ -88,19 +89,19 @@ public:
 		return sql_row != nullptr;
 	}
 
-	char* getString(int index)
+	char* getString(const int index) const
 	{
 		return sql_row[index];
 	}
 
 
 
-	int getInt(int index)
+	int getInt(const int index) const
 	{
 		return stoi(sql_row[index]);
 	}
 
-	double getDouble(int index)
+	double getDouble(const int index) const
 	{
 		return stod(sql_row[index]);
 	}
@@ -115,15 +116,15 @@ public:
 		mysql_close(connection);
 	}
 
-	void SetReconnect(bool useReconnect)
+	void SetReconnect(const bool useReconnect)
 	{
-		bool reconnect = useReconnect;
+		const bool reconnect = useReconnect;
 		mysql_options(&conn, MYSQL_OPT_RECONNECT, &reconnect);
 	}
 
 private:
 	MYSQL conn;
-	MYSQL* connection = NULL;
+	MYSQL* connection = nullptr;
 	MYSQL_RES* sql_result = {};
 	MYSQL_ROW sql_row = {};
 };

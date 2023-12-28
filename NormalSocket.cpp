@@ -7,40 +7,36 @@ Socket::Socket() : NormalSocket(INVALID_SOCKET, { 0 })
 {
 }
 
-Socket::Socket(SOCKET socket, SOCKADDR_IN addr) : NormalSocket(socket, addr)
+Socket::Socket(const SOCKET socket, const SOCKADDR_IN address) : NormalSocket(socket, address)
 {
 }
 
-bool Socket::isSameSubnet(const String& comp, char subnetMaskBits)
+bool Socket::IsSameSubnet(const String& comp, const char subnetMaskBits) const
 {
-	IN_ADDR compAddr;
-	InetPtonW(AF_INET, comp.c_str(), &compAddr);
+	IN_ADDR compAddress;
+	InetPtonW(AF_INET, comp.c_str(), &compAddress);
 
-	return isSameSubnet(compAddr, _sockAddr.sin_addr, subnetMaskBits);
+	return IsSameSubnet(compAddress, _sockAddr.sin_addr, subnetMaskBits);
 }
 
-bool Socket::isSameSubnet(const IN_ADDR& a, const IN_ADDR& b, char subnetMaskBits)
+bool Socket::IsSameSubnet(const IN_ADDR& a, const IN_ADDR& b, const char subnetMaskBits)
 {
 	ASSERT_CRASH(0 <= subnetMaskBits && subnetMaskBits <= 32, "subnetSizeError");
-	unsigned long subnetMask = ( 0xFFFFFFFFull >> ( 32 - subnetMaskBits ) ) & 0xFFFFFFFF;
+	const unsigned long subnetMask =  0xFFFFFFFFull >>  (32 - subnetMaskBits  & 0xFFFFFFFF);
 
-	unsigned long compMasked = a.S_un.S_addr & subnetMask;
-	unsigned long tarMasked = b.S_un.S_addr & subnetMask;
+	const unsigned long compMasked = a.S_un.S_addr & subnetMask;
+	const unsigned long tarMasked = b.S_un.S_addr & subnetMask;
 
 
 	return compMasked == tarMasked;
 }
 
-void Socket::CancleIO()
+void Socket::CancelIO() const
 {
-
-	auto result = CancelIoEx(( HANDLE ) _socket, nullptr);
-	if ( result == 0 )
+	if (const auto result = CancelIoEx(reinterpret_cast<HANDLE>(_socket), nullptr); result == 0 )
 	{
-		auto error = GetLastError();
-
 		//소켓 닫혀서 gqcs에러 받은 상황에서 send 실패하면 io 자체가 없음. 에러 아님. 
-		if ( error == ERROR_NOT_FOUND )
+		if (const auto error = GetLastError(); error == ERROR_NOT_FOUND )
 		{
 		}
 		else
@@ -61,12 +57,12 @@ void Socket::Close()
 	closesocket(_beforeSocket);
 }
 
-int Socket::Send(LPWSABUF buf, DWORD bufCount, DWORD flag, LPWSAOVERLAPPED lpOverlapped)
+int Socket::Send(const LPWSABUF buf, const DWORD bufCount, const DWORD flag, const LPWSAOVERLAPPED lpOverlapped) const
 {
 	return WSASend(_socket, buf, bufCount, nullptr, flag, lpOverlapped, nullptr);
 }
 
-int Socket::Recv(LPWSABUF buf, DWORD bufCount, LPDWORD flag, LPWSAOVERLAPPED lpOverlapped)
+int Socket::Recv(const LPWSABUF buf, const DWORD bufCount, const LPDWORD flag, const LPWSAOVERLAPPED lpOverlapped) const
 {
 
 	return WSARecv(_socket, buf, bufCount, nullptr, flag, lpOverlapped, nullptr);
@@ -74,35 +70,35 @@ int Socket::Recv(LPWSABUF buf, DWORD bufCount, LPDWORD flag, LPWSAOVERLAPPED lpO
 }
 
 
-int Socket::lastError() const
+int Socket::LastError()
 {
 	return WSAGetLastError();
 }
 
-void Socket::setLinger(bool on)
+void Socket::SetLinger(const bool on) const
 {
 	linger l = { on,0 };
 	setsockopt(_socket, SOL_SOCKET, SO_LINGER, ( char* ) &l, sizeof(l));
 }
 
-void Socket::setNoDelay(bool on)
+void Socket::SetNoDelay(bool on) const
 {
 	setsockopt(_socket, IPPROTO_TCP, TCP_NODELAY, ( char* ) &on, sizeof(on));
 }
 
-void Socket::setSendbuffer(int size)
+void Socket::SetSendBuffer(const int size) const
 {
 	int bufSize = size;
 	setsockopt(_socket, SOL_SOCKET, SO_SNDBUF, ( char* ) &bufSize, sizeof(bufSize));
 }
 
 
-SOCKADDR_IN Socket::GetSockAddr() const
+SOCKADDR_IN Socket::GetSockAddress() const
 {
 	return _sockAddr;
 }
 
-String Socket::GetIP() const
+String Socket::GetIp() const
 {
 	WCHAR str[47];
 	InetNtopW(AF_INET, &_sockAddr.sin_addr, str, 47);
@@ -126,28 +122,28 @@ bool Socket::Init()
 	}
 	return true;
 }
-bool Socket::isValid() const
+bool Socket::IsValid() const
 {
 	return _socket != INVALID_SOCKET;
 }
 
 
-bool Socket::Bind(String ip, uint16 port)
+bool Socket::Bind(const String& ip, const uint16 port)
 {
 	memset(&_sockAddr, 0, sizeof(_sockAddr));
 	_sockAddr.sin_family = AF_INET;
-	_sockAddr.sin_addr = ip2Address(ip.c_str());
+	_sockAddr.sin_addr = Ip2Address(ip.c_str());
 	_sockAddr.sin_port = htons(port);
 
-	return SOCKET_ERROR != bind(_socket, ( SOCKADDR* ) &_sockAddr, sizeof(_sockAddr));
+	return SOCKET_ERROR != bind(_socket, reinterpret_cast<SOCKADDR*>(&_sockAddr), sizeof(_sockAddr));
 }
 
-bool Socket::Listen(int backlog)
+bool Socket::Listen(const int backlog) const
 {
 	return SOCKET_ERROR != listen(_socket, backlog);
 }
 
-Socket Socket::Accept()
+Socket Socket::Accept() const
 {
 	SOCKADDR_IN clientAddr = {};
 	int len = sizeof(SOCKADDR);
@@ -158,17 +154,16 @@ Socket Socket::Accept()
 	return { clientSocket, clientAddr };
 }
 
-WSAResult<bool> Socket::Connect(String ip, uint16 port)
+WSAResult<bool> Socket::Connect(const String& ip, const uint16 port)
 {
 	memset(&_sockAddr, 0, sizeof(_sockAddr));
 	_sockAddr.sin_family = AF_INET;
-	_sockAddr.sin_addr = ip2Address(ip.c_str());
+	_sockAddr.sin_addr = Ip2Address(ip.c_str());
 	_sockAddr.sin_port = htons(port);
 
-	int result = 0;
 	if ( SOCKET_ERROR == connect(_socket, ( SOCKADDR* ) &_sockAddr, sizeof(_sockAddr)))
 	{
-		result = WSAGetLastError();
+		const int result = WSAGetLastError();
 		return result;
 	}
 	  
@@ -176,7 +171,7 @@ WSAResult<bool> Socket::Connect(String ip, uint16 port)
 }
 
 
-IN_ADDR Socket::ip2Address(const WCHAR* ip)
+IN_ADDR Socket::Ip2Address(const WCHAR* ip)
 {
 	IN_ADDR address = { 0 };
 	InetPtonW(AF_INET, ip, &address);

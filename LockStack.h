@@ -9,7 +9,7 @@ class LockStack
 		Node* next = nullptr;
 		T data = 0;
 		Node() = default;
-		Node(const T& data) : data(data), next(nullptr) {}
+		Node(const T& data) : next(nullptr), data(data) {}
 	};
 
 public:

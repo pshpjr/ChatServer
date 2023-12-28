@@ -2,7 +2,7 @@
 class MonitoringStats
 {
 public:
-	void addData(int data)
+	void AddData(const int data)
 	{
 		_count++;
 		_sum += data;
@@ -21,7 +21,7 @@ public:
 
 	[[nodiscard]] double Avg() const
 	{
-		return _sum / double(_count);
+		return _sum / static_cast<double>(_count);
 	}
 
 	[[nodiscard]] int Max() const

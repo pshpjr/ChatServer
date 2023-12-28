@@ -6,9 +6,9 @@
 #include "CrashDump.h"
 //#include "Profiler.h"
 
-CrashDump* GCrashDump = nullptr;
-CLogger* GLogger = nullptr;
-SettingParser* GSettingParser = nullptr;
+CrashDump* gCrashDump = nullptr;
+CLogger* gLogger = nullptr;
+SettingParser* gSettingParser = nullptr;
 
 class CoreGlobal
 {
@@ -16,16 +16,16 @@ class CoreGlobal
 public:
 	CoreGlobal()
 	{
-		GCrashDump = new CrashDump();
-		GLogger = new CLogger();
-		GSettingParser = new SettingParser();
+		gCrashDump = new CrashDump();
+		gLogger = new CLogger();
+		gSettingParser = new SettingParser();
 
 	}
 	~CoreGlobal()
 	{
 
-		delete GSettingParser;
-		delete GLogger;
-		delete GCrashDump;
+		delete gSettingParser;
+		delete gLogger;
+		delete gCrashDump;
 	}
-} GCoreGlobal;
+} gCoreGlobal;

@@ -7,7 +7,7 @@ struct NetHeader;
 #pragma pack(1)
 
 
-class CSendBuffer
+class CSendBuffer final
 {
 	USE_TLS_POOL(CSendBuffer);
 
@@ -19,7 +19,7 @@ class CSendBuffer
 public:
 
 #pragma pack()
-	static int64 GetPoolAllockedSize() { return _pool.AllockedCount(); }
+	static int64 GetPoolAllocatedSize() { return _pool.AllocatedCount(); }
 	/// <summary>
 	/// Alloc을 받으면 레퍼런스가 1임. 
 	/// </summary>
@@ -27,7 +27,7 @@ public:
 
 	static CSendBuffer* Alloc()
 	{
-		auto ret = _pool.Alloc();
+		const auto ret = _pool.Alloc();
 		ret->Clear();
 		ret->IncreaseRef(L"AllocInc");
 		return ret;
@@ -66,19 +66,16 @@ public:
 	CSendBuffer& operator << (const T& value);
 	CSendBuffer& operator <<(LPWSTR value);
 	CSendBuffer& operator <<(LPCWSTR value);
-	CSendBuffer& operator <<(String& value);
+	CSendBuffer& operator <<(const String& value);
 
-	void SetWSTR(LPCWSTR arr, int size);
-	void SetCSTR(LPCSTR arr, int size);
+	void SetWstr(LPCWSTR arr, int size);
+	void SetCstr(LPCSTR arr, int size);
 
 private:
 	//버퍼랑 데이터 위치는 고정. 헤더랑 딴 건 가변
 	CSendBuffer();
-	virtual ~CSendBuffer()
-	{
-
-		delete[] _buffer;
-	}
+	~CSendBuffer() = default;
+	
 	CSendBuffer(const CSendBuffer& other) = delete;
 
 	CSendBuffer(CSendBuffer&& other) noexcept = delete;
@@ -89,7 +86,7 @@ private:
 
 private:
 
-	bool CopyData(CSendBuffer& dst);
+	bool CopyData(CSendBuffer& dst) const;
 
 	void Clear()
 	{
@@ -99,49 +96,52 @@ private:
 		isEncrypt = 0;
 	}
 
-	inline ULONG SendDataSize() const { return ULONG(_rear - _head); }
+	inline ULONG SendDataSize() const { return static_cast<ULONG>(_rear - _head); }
 	inline char* GetFront() const { return _front; }
 	inline char* GetRear() const { return _rear; }
 	inline char* GetHead() const { return _head; }
 	inline char* GetDataPtr(void) const { return _data; }
-	inline void MoveWritePos(int size) { _rear += size; }
-	inline int canPushSize() const
+	inline void MoveWritePos(const int size) { _rear += size; }
+	inline int CanPushSize() const
 	{
-		return ( int ) ( BUFFER_SIZE - distance(_data, _rear) );
+		return static_cast<int>(BUFFER_SIZE - distance(_data, _rear));
 	}
 
 
 	inline int CanPopSize() const
 	{
-		return ( int ) ( distance(_front, _rear) );
+		return static_cast<int>(distance(_front, _rear));
 	}
 
-	inline void canPush(int64 size)
+	inline void CanPush(const int64 size) const
 	{
-		if ( canPushSize() < size )
+		if ( CanPushSize() < size )
+		{
 			throw std::invalid_argument { "size is bigger than free space in buffer" };
+		}
 	}
 
 	//Encrypt
-	void writeLanHeader();
-	void writeNetHeader(int code);
+	void WriteLanHeader();
+	void WriteNetHeader(int code) const;
+	void TryEncode(char staticKey);
 	void Encode(char staticKey);
-	void encode(char staticKey);
 	
 
 
 private:
 	enum bufferOption { BUFFER_SIZE = 1024 };
 
-	char* _front = nullptr;
-	char* _rear = nullptr;
+
 	char* _buffer = nullptr;
 	char* _data = nullptr;
 	char*  _head = nullptr;
+	char* _front = nullptr;
+	char* _rear = nullptr;
 	int _bufferSize = BUFFER_SIZE;
 	char isEncrypt = false;
 
-	static TLSPool<CSendBuffer, 0, false> _pool;
+	static TlsPool<CSendBuffer, 0, false> _pool;
 
 	long _refCount = 0;
 
@@ -164,7 +164,7 @@ private:
 
 	static void PoolDebug()
 	{
-		for ( auto node : _pool.allocked )
+		for ( auto node : _pool.allocated )
 		{
 			if ( node->_data._refCount == 1 )
 				DebugBreak();
@@ -178,14 +178,13 @@ private:
 template<typename T>
 inline CSendBuffer& CSendBuffer::operator<<(const T& value)
 {
-	static_assert(is_scalar_v<T>);
-	canPush(sizeof(T));
+	static_assert( is_scalar_v<T> );
+	CanPush(sizeof(T));
 
-	*(T*)(_rear) = value;
+	*( T* ) ( _rear ) = value;
 	_rear += sizeof(T);
 
 	return *this;
 }
-
 
 

@@ -7,11 +7,12 @@
 class ProfileManager;
 class ProfileItem;
 
-static const int MAXNAME = 64;
 
 
+static constexpr int MAXNAME = 64;
 
 struct PROFILE_SAMPLE {
+
 	PROFILE_SAMPLE() :iTotalTime(0), iMin(987654321), iMax(-1) {  }
 	WCHAR			szName[MAXNAME] = L"";
 	long			lFlag = false;				// 프로파일의 사용 여부. (배열시에만)
@@ -22,6 +23,8 @@ struct PROFILE_SAMPLE {
 	std::chrono::microseconds			iMax;			
 
 	__int64			iCall = 0;				// 누적 호출 횟수.
+
+
 };
 
 class Profiler
@@ -33,19 +36,19 @@ public:
 
 	void ProfileReset()
 	{
-		for (int i = 0; i < MAXITEM; ++i)
+		for (auto& profileSample : Profile_Samples)
 		{
-			new (&Profile_Samples[i]) PROFILE_SAMPLE;
+			new (&profileSample) PROFILE_SAMPLE;
 		}
 	}
 
 private:
-	Profiler() {  };
+	Profiler() = default;
 
 	static const int MAXITEM = 64;
 
-	int getItemNumber(LPCWSTR name);
-	void applyProfile(const int& item_number, std::chrono::microseconds time);
+	int GetItemNumber(LPCWSTR name);
+	void ApplyProfile(const int& itemNumber, std::chrono::microseconds time);
 
 	PROFILE_SAMPLE Profile_Samples[MAXITEM];
 	int _size = 0;
@@ -64,14 +67,14 @@ private:
 };
 
 
-int callProfileManagerDtor();
+int call_profile_manager_destructor();
 class ProfileManager
 {
-	ProfileManager() { InitializeSRWLock(&_profileListLock); setTLSNum(); _onexit(callProfileManagerDtor); }
+	ProfileManager() { InitializeSRWLock(&_profileListLock); setTLSNum(); _onexit(call_profile_manager_destructor); }
 public:
 	~ProfileManager()
 	{
-		time_t timer = time(NULL);
+		const time_t timer = time(nullptr);
 		tm t;
 		localtime_s(&t, &timer);
 		WCHAR buffer[100];
@@ -84,21 +87,13 @@ public:
 
 	static ProfileManager& Get()
 	{
-		if ( _instance == nullptr )
-		{
-
-		}
-
-		call_once(_flag, []()
-				  {
-					  _instance = new ProfileManager;
-				  });
-		return *_instance;
+		static ProfileManager manager;
+		return manager;
 	}
 
 	Profiler& GetLocalProfiler()
 	{
-		auto ret = (Profiler*)TlsGetValue(TLSNum);
+		auto ret = static_cast<Profiler*>(TlsGetValue(TLSNum));
 
 		if ( ret == nullptr )
 		{
@@ -118,7 +113,7 @@ public:
 	void ProfileDataOutText(LPWSTR szFileName);
 	void DumpAndReset()
 	{
-		time_t timer = time(NULL);
+		const time_t timer = time(nullptr);
 		tm t;
 		localtime_s(&t, &timer);
 		WCHAR buffer[100];
@@ -131,16 +126,16 @@ public:
 	}
 
 
-	void ProfileReset(void)
+	void ProfileReset()
 	{
 		AcquireSRWLockShared(&_profileListLock);
-		for (auto& pro : _profilerList)
+		for (const auto& pro : _profilerList)
 		{
 			pro->ProfileReset();
 		}
 		ReleaseSRWLockShared(&_profileListLock);
 	}
-	void SetOptional(std::wstring optional);
+	void SetOptional(const std::wstring& optional);
 
 	void setTLSNum()
 	{
@@ -153,13 +148,12 @@ private:
 
 	std::list<Profiler*> _profilerList;
 	SRWLOCK _profileListLock;
-	CRITICAL_SECTION singletonLock;
 	std::wstring optionalText;
 	DWORD TLSNum;
 };
 
 
-#define PROFILE
+//#define PROFILE
 
 #ifdef PROFILE
 
@@ -167,7 +161,7 @@ private:
 #define PROFILE_CONCATENATE(x, y) PROFILE_CONCATENATE_DETAIL(x, y)
 #define PROFILE_MAKE_UNIQUE(x) PROFILE_CONCATENATE(x, __COUNTER__)
 
-#define PRO_BEGIN(TagName) ProfileItem PROFILE_MAKE_UNIQUE(t_)(L#TagName);
+//#define PRO_BEGIN(TagName) ProfileItem PROFILE_MAKE_UNIQUE(t_)(L#TagName);
 #else
 
 #define PRO_BEGIN(TagName)

@@ -2,6 +2,6 @@
 
 class CSendBuffer;
 class CrashDump;
-extern CrashDump* GCrashDump;
-extern class CLogger* GLogger;
-extern class SettingParser* GSettingParser;
+extern CrashDump* gCrashDump;
+extern class CLogger* gLogger;
+extern class SettingParser* gSettingParser;

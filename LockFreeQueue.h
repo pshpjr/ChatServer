@@ -1,7 +1,6 @@
 ﻿#pragma once
-#include "Memorypool.h"
 #include "MultiThreadObjectPool.h"
-
+#include "LockFreeData.h"
 
 
 
@@ -27,12 +26,11 @@ class LockFreeQueue
 		Node* next = nullptr;
 		T data;
 		Node() = default;
-		Node(const T& data) : data(data), next(nullptr) {}
+		explicit Node(const T& data) : next(nullptr), data(data) {}
 	};
 
 public:
-
-	LockFreeQueue(int basePoolSize) : _pool(basePoolSize)
+	explicit LockFreeQueue(int basePoolSize) : _pool(basePoolSize)
 	{
 		Node* dummy = _pool.Alloc();
 		
@@ -49,8 +47,8 @@ public:
 		newNode->data = data;
 
 		newNode->next = nullptr;
-		auto nextTailCount = InterlockedIncrement16(&tailCount);
-		Node* newTail = (Node*)((unsigned long long)newNode | ((unsigned long long)(nextTailCount)) << 47);
+		const auto nextTailCount = InterlockedIncrement16(&tailCount);
+		Node* newTail = static_cast<Node*>((unsigned long long)newNode | (unsigned long long)nextTailCount << 47);
 
 
 		int loop = 0;
@@ -58,11 +56,11 @@ public:
 		{
 
 			Node* tail = _tail;
-			Node* tailNode = (Node*)((unsigned long long)tail & pointerMask);
+			Node* tailNode = static_cast<Node*>((unsigned long long)tail & lock_free_data::_tailCount);
 
 			if (tailNode->next == nullptr)
 			{
-				if (InterlockedCompareExchangePointer((PVOID*)&tailNode->next, newTail, nullptr) == nullptr)
+				if (InterlockedCompareExchangePointer(static_cast<PVOID*>(&tailNode->next), newTail, nullptr) == nullptr)
 				{
 					//auto debugCount = InterlockedIncrement64(&debugIndex);
 					//auto index = debugCount % debugSize;
@@ -70,9 +68,9 @@ public:
 					//debug[index].threadID = std::this_thread::get_id();
 					//debug[index].type = IoTypes::Enqueue;
 					//debug[index].oldHead = (unsigned long long)tailNode;
-					//debug[index].newHead = (unsigned long long)((Node*)((unsigned long long)newTail &pointerMask));
+					//debug[index].newHead = (unsigned long long)((Node*)((unsigned long long)newTail &lock_free_data::_tailCount));
 
-					InterlockedCompareExchangePointer(( PVOID* ) &_tail, newTail, tail);
+					InterlockedCompareExchangePointer(static_cast<PVOID*>(&_tail), newTail, tail);
 
 					break;
 				}
@@ -80,7 +78,7 @@ public:
 			}
 			else
 			{
-				InterlockedCompareExchangePointer((PVOID*)&_tail, tailNode->next, tail);
+				InterlockedCompareExchangePointer(static_cast<PVOID*>(&_tail), tailNode->next, tail);
 			}
 			loop++;
 		}
@@ -91,32 +89,36 @@ public:
 	int Dequeue(T& data)
 	{
 		if (_size == 0)
+		{
 			return -1;
+		}
 
 		int loopCount = 0;
 		while (true)
 		{
 
 			Node* head = _head;
-			Node* headNode = (Node*)((unsigned long long)head & pointerMask);
+			Node* headNode = static_cast<Node*>((unsigned long long)head & lock_free_data::_tailCount);
 
 			Node* next = headNode->next;
-			Node* nextNode = (Node*)((unsigned long long)next & pointerMask);
+			Node* nextNode = static_cast<Node*>((unsigned long long)next & lock_free_data::_tailCount);
 
 			if (next == nullptr)
+			{
 				return false;
+			}
 
 			data = nextNode->data;
 
-			if (InterlockedCompareExchangePointer((PVOID*)&_head, next, head) == head)
+			if (InterlockedCompareExchangePointer(static_cast<PVOID*>(&_head), next, head) == head)
 			{
 
 				Node* tail = _tail;
-				Node* tailNode = (Node*)((unsigned long long)tail & pointerMask);
+				Node* tailNode = static_cast<Node*>((unsigned long long)tail & lock_free_data::_tailCount);
 				if (tail == head)
 				{
 					//내가 뺀 애가 tail이면 풀에 넣기 전에 수정해줘야 함. 아니면 꼬임.
-					InterlockedCompareExchangePointer((PVOID*)&_tail, tailNode->next, tail);
+					InterlockedCompareExchangePointer(static_cast<PVOID*>(&_tail), tailNode->next, tail);
 				}
 
 				_pool.Free(headNode);
@@ -131,7 +133,6 @@ public:
 
 
 private:
-	const unsigned long long pointerMask = 0x0000'7FFF'FFFF'FFFF;
 
 	//이거 붙어있을 때 떨어져 있을 때 성능 차이 비교
 	Node* _head = nullptr;
@@ -140,11 +141,11 @@ private:
 	short tailCount = 0;
 	static long ID;
 	long _size = 0;
-	MultiThreadObjectPool<Node, false> _pool;
+	MultiThreadObjectPool<Node> _pool;
 
 
 	//DEBUG
-	static const int debugSize = 3000;
+	static constexpr int debugSize = 3000;
 	long long debugIndex = 0;
 	//debugData<T> debug[debugSize];
 

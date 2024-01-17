@@ -180,20 +180,20 @@ public:
 
 	controlData MakeControl()
 	{
-		Node* newTop = createNode();
-
+		Node* newTop = ( Node* ) malloc(sizeof(Node) * _localPoolSize);
 		controlData data = {};
-		data.end = newTop;
-
-		for ( int i = 0; i < _localPoolSize -1; ++i )
-		{
-			Node* newNode = createNode();
-
-			newNode->tail = newTop;
-			newTop = newNode;
-		}
-
 		data.front = newTop;
+
+		Node* newNode = newTop;
+		for ( int i = 0; i < _localPoolSize-1 ; ++i )
+		{
+			new ( newNode )Node();
+			newNode->tail = newNode + 1;
+			newNode += 1;
+		}
+		new ( newNode )Node();
+		newNode->tail = nullptr;
+		data.end = newNode;
 
 		return data;
 	}

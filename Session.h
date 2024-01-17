@@ -36,6 +36,18 @@ namespace SessionInfo
 
 consteval SessionID InvalidSessionID() { return { -1 , 0}; }
 
+struct timeoutInfo
+{
+	enum class IOtype
+	{
+		recv,
+		send
+	};
+
+	IOtype type;
+	long long waitTime = 0;
+	int timeoutTime = 0;
+};
 
 //#define SESSION_DEBUG
 class Session
@@ -54,27 +66,21 @@ public:
 
 	Session();
 	Session(Socket socket, SessionID sessionId, IOCP& owner);
-	bool CanSend();
+
 	void Close();
 	void Reset();
+
+
+
+	inline long IncreaseRef(LPCWSTR content);
 	bool Release(LPCWSTR content = L"", int type = 0);
-	void RealSend();
-
-	inline long IncreaseRef(LPCWSTR content)
-	{
-		auto result = InterlockedIncrement(&_refCount);
-
-#ifdef SESSION_DEBUG
-		auto index = InterlockedIncrement(&debugIndex);
-		release_D[index % debugSize] = { result,content,0 };
-#endif
-		return result;
-	}
 
 	void EnqueueSendData(CSendBuffer* buffer);
 	void RegisterRecv();
 	void RecvNotIncrease();
 	void TrySend();
+	bool CanSend();
+
 
 	void RegisterIOCP(HANDLE iocpHandle);
 
@@ -87,32 +93,34 @@ public:
 	void SetOwner(IOCP& owner) { _owner = &owner; }
 	void SetNetSession(const char staticKey) { _staticKey = staticKey; }
 	void SetLanSession() { SetNetSession(0); }
+	void SetMaxPacketLen(const int size) { _maxPacketLen = size; }
+	void SetConnect() { _connect = true; }
 
 	void SetDefaultTimeout(int timeoutMillisecond);
 	void SetTimeout(int timeoutMillisecond);
 	void OffReleaseFlag() { InterlockedBitTestAndReset(&_refCount, 20); }
-	void SetMaxPacketLen(const int size) { _maxPacketLen = size; }
+
 	void ResetTimeoutWait();
-	void SetConnect() { _connect = true; }
+
 	//GROUP
-
 	GroupID GetGroupID() const { return _groupId; }
-
 	void SetGroupID(const GroupID id)
 	{
 		InterlockedExchange(( long* ) &_groupId, id);
 	}
 
 
-
+	void LanRecv();
+	void NetRecv();
 private:
-	bool CheckTimeout(chrono::system_clock::time_point now);
+	optional<timeoutInfo> CheckTimeout(chrono::steady_clock::time_point now);
+	void RealSend();
 
 private:
 	//CONST
 	static constexpr unsigned long long ID_MASK = 0x000'7FFF'FFFF'FFFF;
 	static constexpr unsigned long long INDEX_MASK = 0x7FFF'8000'0000'0000;
-	static constexpr int MAX_SEND_COUNT = 128;
+	static constexpr int MAX_SEND_COUNT = 512;
 
 	static constexpr long RELEASE_FLAG = 0x0010'0000;
 
@@ -120,17 +128,17 @@ private:
 	//Network
 	SessionID _sessionId = {{0}};
 	Socket _socket;
-	CRingBuffer _recvQ;
-	char _recvTempBuffer[300];
 
-	LockFreeFixedQueue<CSendBuffer*,256> _sendQ;
+
+
+	LockFreeFixedQueue<CSendBuffer*, MAX_SEND_COUNT> _sendQ;
 	//TlsLockFreeQueue<CSendBuffer*> _sendQ;
 	CSendBuffer* _sendingQ[MAX_SEND_COUNT];
 
 	//Group
 	GroupID _groupId = 0;
 	TlsLockFreeQueue<CRecvBuffer*> _groupRecvQ;
-
+	char _recvTempBuffer[300];
 
 	IOCP* _owner;
 
@@ -151,8 +159,8 @@ private:
 	char _connect = false;
 	int _defaultTimeout = 5000;
 	int _timeout = 5000;
-
-	chrono::system_clock::time_point lastRecv;
+	CRingBuffer _recvQ;
+	chrono::steady_clock::time_point lastRecv;
 
 	//Encrypt
 	char _staticKey = false;
@@ -184,8 +192,16 @@ private:
 #endif
 	}
 
-
-
-
-
 };
+
+
+long Session::IncreaseRef(LPCWSTR Content)
+{
+	auto result = InterlockedIncrement(&_refCount);
+
+#ifdef SESSION_DEBUG
+	auto index = InterlockedIncrement(&debugIndex);
+	release_D[index % debugSize] = { result,content,0 };
+#endif
+	return result;
+}

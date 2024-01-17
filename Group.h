@@ -41,6 +41,7 @@ class Group
 	friend class Client;
 public:
 
+	virtual void OnCreate() {};
 	virtual void OnUpdate() {};
 	virtual void OnEnter(SessionID id) {};
 	virtual void OnLeave(SessionID id) {};
@@ -52,6 +53,7 @@ protected:
 	void LeaveSession(SessionID id);
 	void EnterSession(SessionID id);
 	Group();
+	IOCP* _iocp;
 private:
 
 
@@ -61,15 +63,20 @@ private:
 	void Execute(IOCP* iocp) const;
 	void HandlePacket();
 private:
+	template <typename Header>
+	void RecvHandler(Session& session, void* iocp);
 
+
+	void onRecvPacket(const Session& session, CRecvBuffer& buffer);
+	
 	GroupID _groupId = -1;
 	GroupExecutable& _executable;
-	std::chrono::system_clock::time_point _lastUpdate;
+	std::chrono::steady_clock::time_point _lastUpdate;
 	HashSet<SessionID, SessionInfo::SessionIdHash, SessionInfo::SessionIdEqual> _sessions;
 	TlsLockFreeQueue<SessionID> _enterSessions;
 	TlsLockFreeQueue<SessionID> _leaveSessions;
 	
-	IOCP* _iocp;
+
 	GroupManager* _owner;
 };
 

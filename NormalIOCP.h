@@ -115,24 +115,39 @@ protected:
 	void WaitStart();
 
 protected:
-	static constexpr int MAX_SESSIONS = 24000;
+	static constexpr int MAX_SESSIONS = 15000;
 	static constexpr long releaseFlag = 0x0010'0000;
 
 	virtual ~NormalIOCP();
 
-	//IOCP
+
+	/*
+	*
+	*	IOCP
+	*
+	*/
+
 	HANDLE _iocp = INVALID_HANDLE_VALUE;
 	Socket _listenSocket;
-	char _isRunning = false;
-	std::vector<HANDLE> _threadArray;
-	uint16 _maxNetThread = 0;
+
+	std::vector<std::pair<HANDLE,int>> _threadArray;
+
 	String _ip {};
+	uint16 _maxNetThread = 0;
 	uint16 _port {};
 	int _backlog = 0;
+
 	bool _checkTiemout = true;
 	void* _this = nullptr;
+	char _staticKey = 0;
+	char gracefulEnd = false;
+	char _isRunning = false;
 
-	//MONITOR
+	/*
+	*
+	*	MONITOR
+	*
+	*/
 	uint64 _acceptCount = 0;
 	uint64 _oldAccepCount = 0;
 	int64 _recvCount = 0;
@@ -149,29 +164,31 @@ protected:
 	uint32 _packetPoolEmpty = 0;
 	uint64 _timeoutSessions = 0;
 	uint32 _acceptErrorCount = 0;
-
 	long _iocpCompBufferSize = 0;
-	vector<threadMonitor> _threadMonitors;
-	//Memory
 
+	//vector<threadMonitor> _threadMonitors;
 	MemoryUsage _memMonitor;
 	CCpuUsage _cpuMonitor;
 
-	// SESSION_MANAGER
 
+
+
+	/*
+	*
+	*	SESSION_MANAGER
+	*
+	*/
 	Session _sessions[MAX_SESSIONS];
 	LockFreeStack<unsigned short> freeIndex;
-
 	uint64 g_sessionId = 0;
-	char _staticKey = 0;
 
-	char gracefulEnd = false;
-
-	//GROUP_MANAGER
+	/*
+	*
+	*	GROUP_MANAGER
+	*
+	*/
 
 	GroupManager* _groupManager;
 	SettingParser& _settingParser;
-
-
 };
 

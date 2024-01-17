@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "TLSPool.h"
+#include "Protocol.h"
 //#define SEND_DEBUG
 
 class Player;
@@ -133,7 +134,7 @@ private:
 	enum bufferOption { BUFFER_SIZE = 1024 };
 
 
-	char* _buffer = nullptr;
+	char _buffer[BUFFER_SIZE + sizeof(NetHeader)];
 	char* _data = nullptr;
 	char*  _head = nullptr;
 	char* _front = nullptr;
@@ -147,6 +148,8 @@ private:
 
 	SRWLOCK _encodeLock;
 
+	static constexpr int SERIAL_INIT_SIZE = 500;
+	static constexpr int SERIAL_INIT_MULTIPLIER = 20;
 
 	//DEBUG
 #ifdef SEND_DEBUG

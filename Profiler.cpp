@@ -53,13 +53,18 @@ void Profiler::ProfileDataOutText(const LPWSTR szFileName)
 int Profiler::GetItemNumber(const LPCWSTR name)
 {
 
-	for (int i = 0; i < MAXITEM; i++)
+	for (int i = 0; i < MAX_ITEM; i++)
 	{
 		if (Profile_Samples[i].lFlag == false)
 		{
 			Profile_Samples[i].lFlag = true;
-			memcpy_s(Profile_Samples[i].szName, MAXNAME, name, MAXNAME);
-			_size++;
+			Profile_Samples[i].iCall = 0;
+			Profile_Samples[i].iTotalTime = 0us;
+			Profile_Samples[i].iMin = 987654321us;
+			Profile_Samples[i].iMax = -1us;
+
+
+			memcpy_s(Profile_Samples[i].szName, MAX_NAME, name, MAX_NAME);
 			return i;
 		}
 
@@ -93,14 +98,15 @@ void Profiler::ApplyProfile(const int& itemNumber, const std::chrono::microsecon
 
 ProfileItem::ProfileItem(const LPCWSTR name)
 {
-	_itemNumber = ProfileManager::Get().GetLocalProfiler().GetItemNumber(name);
+	memcpy_s(_name, MAX_NAME, name, MAX_NAME);
 	_start = std::chrono::steady_clock::now();
 }
 
 ProfileItem::~ProfileItem()
 {
 	_end = std::chrono::steady_clock::now();
-	ProfileManager::Get().GetLocalProfiler().ApplyProfile(_itemNumber, std::chrono::duration_cast<std::chrono::microseconds>(_end - _start));
+	ProfileManager::Get().GetLocalProfiler().ApplyProfile(ProfileManager::Get().GetLocalProfiler().GetItemNumber(_name),
+														  std::chrono::duration_cast<std::chrono::microseconds>(_end - _start));
 }
 
 bool cmp(const PROFILE_SAMPLE& lhs, const PROFILE_SAMPLE& rhs)
@@ -129,7 +135,7 @@ void ProfileManager::ProfileDataOutText(const LPWSTR szFileName)
 	std::vector<PROFILE_SAMPLE> samples;
 	for (const auto profiler : _profilerList)
 	{
-		for (int i = 0; i < profiler->_size; i++)
+		for (int i = 0; i < MAX_ITEM; i++)
 		{
 			if ( profiler->Profile_Samples[i].lFlag == false )
 			{

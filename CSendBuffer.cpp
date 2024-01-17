@@ -1,9 +1,8 @@
 ﻿#include "stdafx.h"
 #include "CSendBuffer.h"
-#include "Protocol.h"
 
-constexpr int SERIAL_INIT_SIZE = 5000;
-constexpr int SERIAL_INIT_MULTIPLIER = 3;
+
+
 
 TlsPool<CSendBuffer, 0> CSendBuffer::_pool(SERIAL_INIT_SIZE, SERIAL_INIT_MULTIPLIER);
 
@@ -51,8 +50,7 @@ void CSendBuffer::TryEncode(const char staticKey)
 	}
 }
 
-CSendBuffer::CSendBuffer() : _buffer(new char[BUFFER_SIZE + sizeof(NetHeader)])
-                           , _data(_buffer + sizeof(NetHeader))
+CSendBuffer::CSendBuffer() :_data(_buffer + sizeof(NetHeader))
                            , _head(_buffer)
                            , _front(_data)
                            , _rear(_data)

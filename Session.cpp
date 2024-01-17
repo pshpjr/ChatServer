@@ -72,7 +72,6 @@ void Session::TrySend()
 {
 	if ( !CanSend() )
 	{
-		EASY_BLOCK("CANSEND")
 		return;
 	}
 
@@ -88,12 +87,11 @@ void Session::RegisterRecv()
 
 void Session::RecvNotIncrease()
 {
-	if ( _connect == false )
+	if ( _refCount >= RELEASE_FLAG )
 	{
 		Release(L"tryRecvReleaseIOCanceled");
 		return;
 	}
-	EASY_BLOCK("RECV")
 	int bufferCount = 1;
 	WSABUF recvWsaBuf[2] = {};
 	DWORD flags = 0;
@@ -110,14 +108,28 @@ void Session::RecvNotIncrease()
 	}
 	_recvExecute.Clear();
 
+	_recvExecute._recvBufSize[0] = 0;
+	_recvExecute._recvBufSize[1] = 0;
+	_recvExecute.isPending = 0;
 
-	lastRecv = chrono::system_clock::now();
+	for ( int i = 0; i < bufferCount; i++ )
+	{
+		_recvExecute._recvBufSize[i] =  recvWsaBuf[i].len;
+	}
+	if ( recvWsaBuf[0].len + recvWsaBuf[1].len == 0 || bufferCount == 0 )
+	{
+		int a = 0;
+	}
+	ASSERT_CRASH(_recvExecute._recvBufSize[0] + _recvExecute._recvBufSize[1] != 0, "RecvBuffer is 0");
+
+	lastRecv = chrono::steady_clock::now();
 
 	if (const int recvResult = _socket.Recv(recvWsaBuf, bufferCount, &flags, &_recvExecute._overlapped); recvResult == SOCKET_ERROR )
 	{
 		const int error = WSAGetLastError();
 		if ( error == WSA_IO_PENDING )
 		{
+			_recvExecute.isPending = 1;
 			return;
 		}
 
@@ -157,45 +169,192 @@ void Session::SetTimeout(const int timeoutMillisecond)
 
 void Session::ResetTimeoutWait()
 {
-	const auto now = chrono::system_clock::now();
+	const auto now = chrono::steady_clock::now();
 	lastRecv = now;
 	_postSendExecute.lastSend = now;
 }
 
-bool Session::CheckTimeout(const chrono::system_clock::time_point now)
+
+void Session::LanRecv()
+{
+	using Header = LANHeader;
+	int loopCount = 0;
+
+	while (true)
+	{
+		if (_recvQ.Size() < sizeof(Header))
+		{
+			break;
+		}
+
+
+		Header* header = (Header*)_recvTempBuffer;
+		_recvQ.Peek((char*)header, sizeof(Header));
+
+		if (const int totPacketSize = header->len + sizeof(Header); _recvQ.Size() < totPacketSize)
+		{
+			break;
+		}
+
+		Header* recvQHeader = (Header*)_recvQ.GetFront();
+
+		char* front;
+		char* rear;
+
+		//if can pop direct
+		if (_recvQ.DirectDequeueSize() >= header->len + sizeof(Header))
+		{
+			_recvQ.Dequeue(sizeof(Header));
+			front = _recvQ.GetFront();
+			rear = front + header->len;
+			header = recvQHeader;
+		}
+		else
+		{
+			front = (char*)header + sizeof(Header);
+			_recvQ.Dequeue(sizeof(Header));
+			_recvQ.Peek(front, header->len);
+			rear = front + header->len;
+		}
+
+
+		auto& buffer = *CRecvBuffer::Alloc(front, rear);
+		loopCount++;
+
+		_owner->onRecvPacket(*this, buffer);
+
+		buffer.Release(L"RecvRelease");
+
+		
+		_recvQ.Dequeue(header->len);
+	}
+
+	if (loopCount > 0)
+	{
+		_owner->IncreaseRecvCount(loopCount);
+	}
+}
+
+void Session::NetRecv()
+{
+	using Header = NetHeader;
+	int loopCount = 0;
+
+	while (true)
+	{
+		if (_recvQ.Size() < sizeof(Header))
+		{
+			break;
+		}
+
+		Header* header = (Header*)_recvTempBuffer;
+		_recvQ.Peek((char*)header, sizeof(Header));
+
+		if constexpr (is_same_v<Header, NetHeader>)
+		{
+			if (header->code != dfPACKET_CODE)
+			{
+				Close();
+				break;
+			}
+
+			if (header->len > _maxPacketLen)
+			{
+				Close();
+				break;
+			}
+		}
+
+		if (const int totPacketSize = header->len + sizeof(Header); _recvQ.Size() < totPacketSize)
+		{
+			break;
+		}
+
+		Header* recvQHeader = (Header*)_recvQ.GetFront();
+
+		char* front;
+		char* rear;
+
+		//if can pop direct
+		if (_recvQ.DirectDequeueSize() >= header->len + sizeof(Header))
+		{
+			_recvQ.Dequeue(sizeof(Header));
+			front = _recvQ.GetFront();
+			rear = front + header->len;
+			header = recvQHeader;
+		}
+		else
+		{
+			front = (char*)header + sizeof(Header);
+			_recvQ.Dequeue(sizeof(Header));
+			_recvQ.Peek(front, header->len);
+			rear = front + header->len;
+		}
+
+
+		auto& buffer = *CRecvBuffer::Alloc(front, rear);
+
+		if constexpr (is_same_v<Header, NetHeader>)
+		{
+			buffer.Decode(_staticKey, header);
+
+			if (!buffer.ChecksumValid(header))
+			{
+				//printf("checkSumInvalid %d %p\n", buffer._rear- buffer._front, buffer._front);
+
+				Close();
+				break;
+			}
+		}
+		loopCount++;
+
+		_owner->onRecvPacket(*this, buffer);
+
+		buffer.Release(L"RecvRelease");
+
+		
+		_recvQ.Dequeue(header->len);
+	}
+
+	if (loopCount > 0)
+	{
+		_owner->IncreaseRecvCount(loopCount);
+	}
+}
+
+optional<timeoutInfo> Session::CheckTimeout(const chrono::steady_clock::time_point now)
 {
 	if ( _timeout == 0 )
 	{
-		return false;
+		return {};
 	}
 	if ( _refCount >= RELEASE_FLAG )
 	{
-		return false;
+		return {};
 	}
+
 
 	if ( IncreaseRef(L"timeoutInc") >= RELEASE_FLAG )
 	{
 		Release(L"TimeoutAlreadyRelease");
-		return false;
+		return {};
 	}
 
 	const auto recvWait = chrono::duration_cast< chrono::milliseconds >( now - lastRecv );
 	const auto sendWait = chrono::duration_cast< chrono::milliseconds >( now - _postSendExecute.lastSend );
 
-	bool isTimedOut = false;
-
+	optional<timeoutInfo> retVal {};
 	if ( needCheckSendTimeout && sendWait.count() > _timeout )
 	{
-		isTimedOut = true;
+		retVal = { timeoutInfo::IOtype::send,sendWait.count(),_timeout };
 	}
-
-	if ( recvWait.count() > _timeout )
+	else if ( recvWait.count() > _timeout )
 	{
-		isTimedOut = true;
+		retVal = { timeoutInfo::IOtype::recv,recvWait.count(),_timeout };
 	}
 
 	Release(L"TimeoutRelease");
-	return isTimedOut;
+	return retVal;
 }
 
 
@@ -251,7 +410,7 @@ bool Session::Release([[maybe_unused]] LPCWSTR content, [[maybe_unused]] int typ
 	{
 		if ( InterlockedCompareExchange(&_refCount, RELEASE_FLAG, 0) == 0 )
 		{
-			InterlockedIncrement(&_owner->_iocpCompBufferSize);
+			//InterlockedIncrement(&_owner->_iocpCompBufferSize);
 			PostQueuedCompletionStatus(_owner->_iocp, -1, reinterpret_cast<ULONG_PTR>(this), &_releaseExecutable._overlapped);
 
 			return true;
@@ -262,7 +421,6 @@ bool Session::Release([[maybe_unused]] LPCWSTR content, [[maybe_unused]] int typ
 
 void Session::RealSend()
 {
-	EASY_FUNCTION();
 	if (const auto refIncResult = IncreaseRef(L"realSendInc"); refIncResult >= RELEASE_FLAG )
 	{
 		Release(L"realSendSessionIsRelease");
@@ -307,19 +465,19 @@ void Session::RealSend()
 	}
 
 	needCheckSendTimeout = true;
-	_postSendExecute.lastSend = chrono::system_clock::now();
+	_postSendExecute.lastSend = chrono::steady_clock::now();
 
 	constexpr DWORD flags = 0;
 	_postSendExecute.Clear();
 
 	_postSendExecute.dataNotSend = sendPackets;
 
-	EASY_BLOCK("WSASEND");
 	if (const int sendResult = _socket.Send(sendWsaBuf, sendPackets, flags, &_postSendExecute._overlapped); sendResult == SOCKET_ERROR )
 	{
 		const int error = WSAGetLastError();
 		if ( error == WSA_IO_PENDING )
 		{
+			return;
 			return;
 		}
 
@@ -337,3 +495,4 @@ void Session::RealSend()
 		Release(L"SendErrorRelease");
 	}
 }
+

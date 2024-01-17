@@ -2,7 +2,8 @@
 #include "SettingParser.h"
 #include <iostream>
 #include <fstream>
-
+#include <CoreGlobal.h>
+#include "CLogger.h"
 
 #define WORD_START _buffer[_bufferIndex]
 #define WORD_END _buffer[wordEnd]
@@ -232,6 +233,7 @@ String SettingParser::GetValueImpl(const String& name)
 
 			if ( result == _settingsContainer[i].end() )
 			{
+				gLogger->Write(L"SettingParser", LogLevel::Debug, L"%s %s", group.c_str(), typeName.c_str());
 				throw EInvalidName();
 			}
 			return result->second;

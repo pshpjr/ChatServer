@@ -6,7 +6,6 @@
 
 void PostSendExecutable::Execute(const ULONG_PTR key, DWORD transferred, void* iocp)
 {
-	EASY_FUNCTION();
 
 	IOCP& server = *static_cast< IOCP* >( iocp );
 	const auto session = reinterpret_cast<Session*>(key);

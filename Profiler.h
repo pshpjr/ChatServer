@@ -9,12 +9,13 @@ class ProfileItem;
 
 
 
-static constexpr int MAXNAME = 64;
+constexpr int MAX_NAME = 64;
+constexpr int MAX_ITEM = 64;
 
 struct PROFILE_SAMPLE {
 
 	PROFILE_SAMPLE() :iTotalTime(0), iMin(987654321), iMax(-1) {  }
-	WCHAR			szName[MAXNAME] = L"";
+	WCHAR			szName[MAX_NAME] = L"";
 	long			lFlag = false;				// 프로파일의 사용 여부. (배열시에만)
 		// 프로파일 샘플 이름.
 
@@ -23,9 +24,8 @@ struct PROFILE_SAMPLE {
 	std::chrono::microseconds			iMax;			
 
 	__int64			iCall = 0;				// 누적 호출 횟수.
-
-
 };
+
 
 class Profiler
 {
@@ -38,20 +38,19 @@ public:
 	{
 		for (auto& profileSample : Profile_Samples)
 		{
-			new (&profileSample) PROFILE_SAMPLE;
+			profileSample.lFlag = false;
 		}
 	}
 
 private:
 	Profiler() = default;
 
-	static const int MAXITEM = 64;
+
 
 	int GetItemNumber(LPCWSTR name);
 	void ApplyProfile(const int& itemNumber, std::chrono::microseconds time);
 
-	PROFILE_SAMPLE Profile_Samples[MAXITEM];
-	int _size = 0;
+	PROFILE_SAMPLE Profile_Samples[MAX_ITEM];
 };
 
 class ProfileItem
@@ -61,9 +60,9 @@ public:
 	~ProfileItem();
 
 private:
-	int _itemNumber = 0;
 	std::chrono::steady_clock::time_point  _start;
 	std::chrono::steady_clock::time_point  _end;
+	WCHAR _name[MAX_NAME];
 };
 
 
@@ -161,7 +160,7 @@ private:
 #define PROFILE_CONCATENATE(x, y) PROFILE_CONCATENATE_DETAIL(x, y)
 #define PROFILE_MAKE_UNIQUE(x) PROFILE_CONCATENATE(x, __COUNTER__)
 
-//#define PRO_BEGIN(TagName) ProfileItem PROFILE_MAKE_UNIQUE(t_)(L#TagName);
+#define PRO_BEGIN(TagName) ProfileItem PROFILE_MAKE_UNIQUE(t_)(L#TagName);
 #else
 
 #define PRO_BEGIN(TagName)

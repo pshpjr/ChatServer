@@ -10,7 +10,8 @@ public:
 	}
 	void Execute(ULONG_PTR key, DWORD transferred, void* iocp) override;
 	~RecvExecutable() override = default;
-
+	int _recvBufSize[2] = { 0, };
+	bool isPending = false;
 private:
 
 	template <typename Header>

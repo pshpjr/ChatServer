@@ -12,7 +12,11 @@ void RecvExecutable::Execute(const ULONG_PTR key, const DWORD transferred, void*
 
 	session._recvQ.MoveRear(transferred);
 
-	if ( const char sKey = session._staticKey )
+	if (session.GetGroupID() != 0) 
+	{
+
+	}
+	else if ( const char sKey = session._staticKey )
 	{
 		RecvHandler<NetHeader>(session, iocp);
 	}
@@ -101,16 +105,10 @@ void RecvExecutable::RecvHandler(Session& session, void* iocp)
 		}
 		loopCount++;
 
-		if ( session._groupId != 0 )
-		{
-			session._groupRecvQ.Enqueue(&buffer);
-		}
-		else
-		{
-			server.onRecvPacket(session, buffer);
+		server.onRecvPacket(session, buffer);
 
-			buffer.Release(L"RecvRelease");
-		}
+		buffer.Release(L"RecvRelease");
+
 		session._recvQ.Dequeue(header->len);
 	}
 

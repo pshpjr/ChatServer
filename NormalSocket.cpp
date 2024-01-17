@@ -65,7 +65,7 @@ int Socket::Send(const LPWSABUF buf, const DWORD bufCount, const DWORD flag, con
 int Socket::Recv(const LPWSABUF buf, const DWORD bufCount, const LPDWORD flag, const LPWSAOVERLAPPED lpOverlapped) const
 {
 
-	return WSARecv(_socket, buf, bufCount, nullptr, flag, lpOverlapped, nullptr);
+	return WSARecv(_socket, buf, bufCount, NULL, flag, lpOverlapped, nullptr);
 
 }
 

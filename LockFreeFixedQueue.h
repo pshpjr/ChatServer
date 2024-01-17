@@ -41,13 +41,13 @@ public:
 	{
 		const long tail = InterlockedIncrement(&tailIndex) - 1;
 
-		if ( buffer[tail & indexMask].isUsed == true )
+		if ( buffer[tail & indexMask].isUsed == 1 )
 		{
 			DebugBreak();
 		}
 
 		buffer[tail & indexMask].data = data;
-		if ( InterlockedExchange8(&buffer[tail & indexMask].isUsed, true) == true )
+		if ( InterlockedExchange8(&buffer[tail & indexMask].isUsed, 1) == 1 )
 		{
 			DebugBreak();
 		}

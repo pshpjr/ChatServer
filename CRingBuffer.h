@@ -4,7 +4,7 @@ class CRingBuffer
 {
 public:
 	//버퍼 사이즈는 10의 거듭제곱이어야 한다. 
-	CRingBuffer(int size = 6400);
+	CRingBuffer(int size = 10000);
 
 	~CRingBuffer();
 

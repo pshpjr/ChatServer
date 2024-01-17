@@ -7,6 +7,9 @@ class CRecvBuffer;
 class Executable;
 class Client;
 
+
+
+
 template <typename T>
 class SingleThreadQ;
 class IOCP : public IOCP_CLASS
@@ -26,6 +29,7 @@ public:
 	void Stop();
 	void Wait();
 	bool SendPacket(SessionID sessionId, CSendBuffer* buffer, int type = 0);
+	bool SendPacketBlocking(SessionID sessionId, CSendBuffer* buffer, int type = 0);
 	//deprecate
 	bool SendPackets(SessionID sessionId, SingleThreadQ<CSendBuffer*>& bufArr);
 
@@ -56,14 +60,15 @@ public:
 	virtual void OnInit() {}
 	virtual void OnStart() {}
 	virtual void OnEnd() {}
-	virtual void OnSessionTimeout(SessionID sessionId) {}
+
+	virtual void OnSessionTimeout(SessionID sessionId, timeoutInfo info) {}
 	virtual void OnMonitorRun() {}
 	//MONITOR
 	uint64 GetAcceptCount() const;
 	uint64 GetAcceptTps() const;
 	uint64 GetRecvTps() const;
 	uint64 GetSendTps() const;
-	uint16 GetSessions() const;
+	int16 GetSessions() const;
 	uint64 GetPacketPoolSize() const;
 	uint32 GetPacketPoolEmptyCount() const;
 	uint64 GetTimeoutCount() const;
@@ -86,8 +91,8 @@ public:
 	String GetLibMonitorString() const;
 	void PrintMonitorString() const;
 
-	template<typename GroupType>
-	short CreateGroup() const;
+	template <typename GroupType, typename ...Args>
+	GroupID CreateGroup(Args&&... args) const;
 	void MoveSession(SessionID target, GroupID dst) const;
 private:
 
@@ -116,8 +121,8 @@ private:
 };
 
 
-template<typename GroupType>
-inline short IOCP::CreateGroup() const
+template <typename GroupType, typename ...Args>
+inline GroupID IOCP::CreateGroup(Args&&... args) const
 {
-	return _groupManager->CreateGroup<GroupType>();
+	return _groupManager->CreateGroup<GroupType>(std::forward<Args>(args)...);
 }

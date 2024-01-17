@@ -1,6 +1,9 @@
 ﻿#include "stdafx.h"
 #include "RedisConnection.h"
 #include <optional>
+//#include <atlbase.h>
+#include "CoreGlobal.h"
+#include "CLogger.h"
 
 bool RedisConnection::Set(const std::string& key, const std::string& value)
 {
@@ -44,6 +47,10 @@ optional<String> RedisConnection::Get(const string& key)
 
 	if ( rep.is_null() )
 	{
+		String wKey(key.length(), L'\n');
+		wKey.assign(key.begin(), key.end());
+		gLogger->Write(L"Redis", LogLevel::Debug, L"invalid key %s",wKey.c_str());
+
 		return{};
 	}
 	auto cRet = rep.as_string();

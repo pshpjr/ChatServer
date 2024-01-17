@@ -10,8 +10,8 @@ public:
 	GroupManager(IOCP* owner);
 
 
-	template <typename GroupType>
-	short CreateGroup();
+	template <typename GroupType, typename ...Args>
+	GroupID CreateGroup(Args&&... args);
 
 	//move 0이면 나가기. 
 	void MoveSession(SessionID target, GroupID dst);
@@ -22,15 +22,18 @@ private:
 
 	IOCP* _owner;
 	
-	short g_groupID = 2;
+	/// <summary>
+	/// 0번 그룹은 그룹이 없는 것을 의미한다. 
+	/// </summary>
+	GroupID g_groupID = 2;
 };
 
-template <typename GroupType>
-short GroupManager::CreateGroup()
+template <typename GroupType, typename ...Args>
+GroupID GroupManager::CreateGroup(Args&&... args)
 {
-	static_assert( is_base_of_v<Group, GroupType>, "GroupName must inherit Group" );
+	static_assert( is_base_of_v<Group, GroupType>, "GroupType must inherit Group" );
 
-	Group* newGroup = new GroupType();
+	Group* newGroup = new GroupType(std::forward<Args>(args)...);
 	newGroup->_groupId = InterlockedIncrement16(&g_groupID);
 	newGroup->_iocp = _owner;
 	newGroup->_owner = this;
@@ -39,6 +42,8 @@ short GroupManager::CreateGroup()
 	auto ret = _groups.emplace(newGroup->_groupId, unique_ptr<Group>(newGroup));
 	ReleaseSRWLockExclusive(&_groupLock);
 
-	newGroup->execute(_owner);
+	newGroup->OnCreate();
+
+	newGroup->Execute(_owner);
 	return newGroup->_groupId;
 }

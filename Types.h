@@ -40,8 +40,6 @@ public:
 };
 
 
-
-
 using SocketID = uint64;
 using GroupID = long;
 #include <WinSock2.h>

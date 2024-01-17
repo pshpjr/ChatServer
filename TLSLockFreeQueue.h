@@ -137,27 +137,26 @@ public:
 	long Size() const { return _size; }
 
 private:
-	Node* _head = nullptr;
+	static TlsPool<Node, 0, false> _tlsLfqNodePool;
+	alignas(64) Node* _head = nullptr;
 
-	long _size = 0;
+	alignas( 64 ) long _size = 0;
 
 	int _initSize = 5000;
 	int _multiplier = 10;
-	static TlsPool<Node, 0, false> _tlsLfqNodePool;
 
 
-	short _tailCount = 0;
+
+	alignas( 64 ) short _tailCount = 0;
 	Node* _queueId;
 	static int64 _gid;
-
-
 	static constexpr int DEBUG_SIZE =1000;
 	long long _debugIndex = 0;
 	//debugData<T> debug[debugSize];
 
 
 	long tryEnqueueCount = 0;
-	Node* _tail = nullptr;
+	alignas( 64 ) Node* _tail = nullptr;
 };
 template <typename T>
 TlsPool<typename TlsLockFreeQueue<T>::Node, 0> typename TlsLockFreeQueue<T>::_tlsLfqNodePool(10000, 10);

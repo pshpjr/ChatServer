@@ -3,14 +3,13 @@
 #include <synchapi.h>
 #pragma comment(lib,"Synchronization.lib")
 #pragma comment(lib,"Winmm.lib")
-//#define BUILD_WITH_EASY_PROFILER
+
 #include "externalHeader/easy/profiler.h"
 
 
 
 #include <chrono>
 #include <format>
-
 
 
 
@@ -32,9 +31,6 @@
 //			INIT
 /*****************************/
 
-
-
-
 IOCP::IOCP()
 {
 	timeBeginPeriod(1);
@@ -51,6 +47,7 @@ IOCP::IOCP()
 	_groupManager = new GroupManager(this);
 
 	_settingParser.Init();
+
 	String ip;
 	Port port;
 	uint16 backlog;
@@ -91,8 +88,8 @@ bool IOCP::Init(const String& ip, const Port port, const uint16 backlog, const u
 		return false;
 	}
 	_listenSocket.SetLinger(true);
-	//_listenSocket.setNoDelay(true);
-	//_listenSocket.setSendbuffer(0);
+	//_listenSocket.SetNoDelay(true);
+	//_listenSocket.SetSendBuffer(0);
 	if (_listenSocket.Bind(ip, port) == false)
 	{
 		_listenSocket.Close();
@@ -115,13 +112,17 @@ bool IOCP::Init(const String& ip, const Port port, const uint16 backlog, const u
 	void* _this = this;
 	for (int i = 0; i < workerThread; ++i)
 	{
-		_threadArray[i] = (HANDLE)_beginthreadex(nullptr, 0, WorkerEntry, _this, 0, nullptr);
-		if (_threadArray[i] == INVALID_HANDLE_VALUE)
+		auto handle = ( HANDLE ) _beginthreadex(nullptr, 0, WorkerEntry, _this, 0, nullptr);
+
+		if ( handle == INVALID_HANDLE_VALUE)
 		{
 			_listenSocket.Close();
 			return false;
 		}
-		printf("WorkerThread %p\n", _threadArray[i]);
+
+		_threadArray[i] = { handle,GetThreadId(handle) };
+
+		printf("WorkerThread %p\n", handle);
 	}
 
 
@@ -131,7 +132,7 @@ bool IOCP::Init(const String& ip, const Port port, const uint16 backlog, const u
 		_listenSocket.Close();
 		return false;
 	}
-	_threadArray.push_back(acceptT);
+	_threadArray.push_back({ acceptT,GetThreadId(acceptT) });
 	printf("AcceptThread %p\n", acceptT);
 
 
@@ -141,7 +142,8 @@ bool IOCP::Init(const String& ip, const Port port, const uint16 backlog, const u
 		_listenSocket.Close();
 		return false;
 	}
-
+	_threadArray.push_back({ timeoutT,GetThreadId(timeoutT) });
+	printf("TimeoutThread %p\n", timeoutT);
 
 	const auto monitorT = (HANDLE)_beginthreadex(nullptr, 0, MonitorEntry, _this, 0, nullptr);
 	if (monitorT == INVALID_HANDLE_VALUE)
@@ -150,18 +152,14 @@ bool IOCP::Init(const String& ip, const Port port, const uint16 backlog, const u
 		return false;
 	}
 	
-	_threadArray.push_back(monitorT);
+	_threadArray.push_back({ monitorT,GetThreadId(monitorT) });
 	printf("MonitorThread %p\n", monitorT);
 
 
-	_threadArray.push_back(timeoutT);
-	printf("TimeoutThread %p\n", timeoutT);
-
-
-	for ( auto thread : _threadArray )
-	{
-		_threadMonitors.emplace_back(thread);
-	}
+	//for ( auto thread : _threadArray )
+	//{
+	//	_threadMonitors.emplace_back(thread.first);
+	//}
 
 	OnInit();
 	return true;
@@ -172,8 +170,33 @@ void IOCP::Start()
 	OnStart();
 	InterlockedExchange8(&_isRunning , true);
 	WakeByAddressAll(&_isRunning);
-
 }
+
+/*
+워커에서 스레드를 멈추고자 한다면?
+stop이 OnEnd 호출해도 종료가 안 된 상황임.
+stop을 호출하는 순간 멈춰야 하는가?
+ㄴㄴ 안 그래도 됨. 
+
+워커에서 호출하면?
+이 함수를 호출하고 나서 다른 스레드들이 종료된 후 
+함수를 나가고, 뭔가 작업을 더 할지도 모름. 
+
+원격으로 서버를 끄고 싶은 경우. 
+패킷 종류에 따라 recv 한 후 워커가 이 함수를 호출할거임. 
+그리고 나서 처리해야 할 또 다른 패킷들이 있을 수 있음. 
+stop을 쏘고 패킷을 또 보내는 멍청한 짓을 하면 그것도 처리함. 
+아니면 stop을 호출하면 
+*/
+//void DissociateThreadFromIoCompletionPort()
+//{
+//	auto iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 1);
+//	DWORD bytes;
+//	ULONG_PTR key;
+//	LPOVERLAPPED overlapped;
+//	GetQueuedCompletionStatus(iocp, &bytes, &key, &overlapped, 0);
+//	CloseHandle(iocp);
+//}
 
 void IOCP::Stop()
 {
@@ -181,7 +204,12 @@ void IOCP::Stop()
 	_listenSocket.Close();
 	PostQueuedCompletionStatus(_iocp, 0, 0, nullptr);
 
-	for (const auto h : _threadArray) {
+
+	for (const auto [h, id] : _threadArray) {
+		if ( id == GetCurrentThreadId() )
+		{
+			continue;
+		}
 		if (const auto result = WaitForSingleObject(h, INFINITE); result != WAIT_OBJECT_0)
 		{
 			printf("WaitForMultipleObjects failed %d %d\n",result, GetLastError());
@@ -203,7 +231,6 @@ void IOCP::Wait()
 		WaitOnAddress(&gracefulEnd, &unExpect, sizeof(unExpect), INFINITE);
 		capture = gracefulEnd;
 	}
-
 }
 
 void IOCP::SetTimeout(const SessionID sessionId, const int timeoutMillisecond)
@@ -241,7 +268,6 @@ void IOCP::SetDefaultTimeout(const unsigned int timeoutMillisecond)
 
 bool IOCP::SendPacket(const SessionID sessionId, CSendBuffer* buffer, const int type)
 {
-	EASY_FUNCTION();
 
 	const auto result = FindSession(sessionId, L"SendPacketInc");
 	if ( result == nullptr )
@@ -261,10 +287,28 @@ bool IOCP::SendPacket(const SessionID sessionId, CSendBuffer* buffer, const int 
 	if ( session.CanSend())
 	{
 		//InterlockedIncrement(&_iocpCompBufferSize);
-		EASY_BLOCK("PQCS");
 		PostQueuedCompletionStatus(_iocp, -1, ( ULONG_PTR ) &session, &session._sendExecute._overlapped);
 	}
 
+	session.Release(L"SendPacketRelease");
+	return true;
+}
+
+bool IOCP::SendPacketBlocking(SessionID sessionId, CSendBuffer* buffer, int type)
+{
+	const auto result = FindSession(sessionId, L"SendPacketInc");
+	if ( result == nullptr )
+	{
+		return false;
+	}
+
+	auto& session = *result;
+
+	session.WriteContentLog(type);
+
+	ProcessBuffer(session, *buffer);
+
+	session.TrySend();
 	session.Release(L"SendPacketRelease");
 	return true;
 }
@@ -333,7 +377,7 @@ WSAResult<SessionID>  IOCP::GetClientSession(const String& ip, const Port port)
 
 	_sessions[index].SetSocket(s);
 
-	SessionID sessionId;
+	SessionID sessionId {};
 
 	//클라이언트 사용이 많지 않고, 계속 재접속 할 거 아니고, 보통 accept 전에 하니까 그냥 풀어둬도 될 것 같음. 
 	//인덱스는 안 겹침. 
@@ -346,6 +390,7 @@ WSAResult<SessionID>  IOCP::GetClientSession(const String& ip, const Port port)
 	_sessions[index].OffReleaseFlag();
 	_sessions[index].SetConnect();
 	_sessions[index].SetLanSession();
+	_sessions[index].SetTimeout(0);
 
 	_sessions[index].RecvNotIncrease();
 	
@@ -418,6 +463,7 @@ bool IOCP::DisconnectSession(const SessionID sessionId)
 
 void IOCP::_onDisconnect(const SessionID sessionId)
 {
+
 	InterlockedDecrement16(&_sessionCount);
 	InterlockedIncrement64(&_disconnectCount);
 
@@ -433,6 +479,7 @@ void IOCP::onRecvPacket(const Session& session, CRecvBuffer& buffer)
 	catch ( const std::invalid_argument& )
 	{
 		gLogger->Write(L"RecvErr", LogLevel::Debug, L"ERR");
+		DisconnectSession(session._sessionId);
 	}
 }
 
@@ -501,7 +548,7 @@ uint64 IOCP::GetSendTps() const
 	return _sendTps;
 }
 
-uint16 IOCP::GetSessions() const
+int16 IOCP::GetSessions() const
 {
 	return _sessionCount;
 }
@@ -628,7 +675,6 @@ String IOCP::GetLibMonitorString() const
 				, L"SendPoolAcq", CSendBuffer::_pool.GetAcquireCount(), L"SendPoolRel", CSendBuffer::_pool.GetReleaseCount()
 				, L"RecvPoolAcq", CRecvBuffer::_pool.GetAcquireCount(), L"RecvPoolRel", CRecvBuffer::_pool.GetReleaseCount()
 			     ,L"SendPoolGap", CSendBuffer::_pool.GetAcquireCount()- CSendBuffer::_pool.GetReleaseCount(),L"RecvPoolGap", CRecvBuffer::_pool.GetAcquireCount() - CRecvBuffer::_pool.GetReleaseCount()
-
 	);
 
 
@@ -639,7 +685,6 @@ void IOCP::PrintMonitorString() const
 	const auto tmpS = GetLibMonitorString();
 
 	wprintf_s(tmpS.c_str());
-
 }
 
 
@@ -678,142 +723,149 @@ unsigned __stdcall IOCP::AcceptEntry(const LPVOID arg)
 
 void IOCP::WorkerThread(LPVOID arg)
 {
+	EASY_THREAD("WORKER");
 	srand(GetCurrentThreadId());
 	WaitStart();
-	EASY_THREAD("WORKER");
 	while (true)
 	{
+		//constexpr ULONG arrSize = 100;
+		//bool end = false;
+		//OVERLAPPED_ENTRY arr[arrSize] = { 0, };
+		//ULONG size = 0;
 
-		bool end = false;
-		OVERLAPPED_ENTRY arr[50] = { 0, };
-		ULONG size = 0;
-
-		{
-			EASY_BLOCK("GQCS");
-			auto ret = GetQueuedCompletionStatusEx(_iocp, arr, 50, &size, INFINITE, false);
-		}
-		
-		EASY_BLOCK("EXECUTE");
-		for ( unsigned int i = 0; i < size; i++ )
-		{
-			const DWORD transferred = arr[i].dwNumberOfBytesTransferred;
-			const LPOVERLAPPED overlap = arr[i].lpOverlapped;
-			auto session = ( Session* )arr[i].lpCompletionKey;
-
-			Executable* overlapped = Executable::GetExecutable(overlap);
-			if ( transferred == 0 && session == nullptr )
-			{
-				PostQueuedCompletionStatus(_iocp, 0, 0, nullptr);
-				end = true;
-
-				break;
-			}
-
-			if ( transferred == 0 && session != nullptr )
-			{
-				const auto errNo = WSAGetLastError();
-				switch ( errNo )
-				{
-					//정상종료됨. 
-					case 0:
-						break;
-					case ERROR_NETNAME_DELETED:
-						break;
-						//ERROR_SEM_TIMEOUT. 장치에서 끊은 경우 (5회 재전송 실패 등..)
-					case ERROR_SEM_TIMEOUT:
-						InterlockedIncrement(&_tcpSegmenTimeout);
-						[[fallthrough]];
-						//WSA_OPERATION_ABORTED cancleIO로 인한 것. 
-					case WSA_OPERATION_ABORTED:
-						[[fallthrough]];
-					case WSA_IO_PENDING:
-						[[fallthrough]];
-					case ERROR_CONNECTION_ABORTED:
-						[[fallthrough]];
-					case ERROR_NOT_FOUND:
-						[[fallthrough]];
-					case WSAECONNRESET:
-						break;
-					[[unlikely]] default:
-					{
-						auto now = chrono::system_clock::now();
-						auto recvWait = chrono::duration_cast< chrono::milliseconds >( now - session->lastRecv );
-						auto sendWait = chrono::duration_cast< chrono::milliseconds >( now - session->_postSendExecute.lastSend );
-						DebugBreak();
-						int tmp = 0;
-					}
-				}
-
-
-				auto sessionID = session->GetSessionId();
-
-				session->Release(L"GQCSErrorRelease", errNo);
-			}
-			else
-			{
-				overlapped->Execute(( ULONG_PTR ) session, transferred, this);
-			}
-	
-
-		}
-		if ( end )
-		{
-			break;
-		}
-
-		//DWORD transferred = 0;
-		//LPOVERLAPPED overlap = nullptr;
-		//Session* session = nullptr;
-
-		//auto ret = GetQueuedCompletionStatus(_iocp, &transferred, ( PULONG_PTR ) &session, &overlap, INFINITE);
-	
-		//Executable* overlapped = Executable::GetExecutable(overlap);
-		//if(transferred==0&&session== nullptr)
+		//auto ret = GetQueuedCompletionStatusEx(_iocp, arr, arrSize, &size, INFINITE, false);
+		//
+		//
+		//for ( unsigned int i = 0; i < size; i++ )
 		//{
-		//	PostQueuedCompletionStatus(_iocp, 0, 0, nullptr);
+		//	const DWORD transferred = arr[i].dwNumberOfBytesTransferred;
+		//	const LPOVERLAPPED overlap = arr[i].lpOverlapped;
+		//	auto session = ( Session* )arr[i].lpCompletionKey;
+
+		//	Executable* overlapped = Executable::GetExecutable(overlap);
+		//	if ( transferred == 0 && session == nullptr )
+		//	{
+		//		PostQueuedCompletionStatus(_iocp, 0, 0, nullptr);
+		//		end = true;
+
+		//		break;
+		//	}
+
+		//	if ( transferred == 0 && session != nullptr )
+		//	{
+		//		//
+		//		//const auto errNo = RtlNtStatusToDosError(overlap->Internal);
+
+		//		//if ( errNo == ERROR_MR_MID_NOT_FOUND )
+		//		//{
+		//		//	DebugBreak();
+		//		//}
+
+		//		//switch ( errNo )
+		//		//{
+		//		//	//정상종료됨. 
+		//		//	case 0:
+		//		//		break;
+		//		//	case ERROR_NETNAME_DELETED:
+		//		//		break;
+		//		//		//ERROR_SEM_TIMEOUT. 장치에서 끊은 경우 (5회 재전송 실패 등..)
+		//		//	case ERROR_SEM_TIMEOUT:
+		//		//		InterlockedIncrement(&_tcpSegmenTimeout);
+		//		//		[[fallthrough]];
+		//		//		//WSA_OPERATION_ABORTED cancleIO로 인한 것. 
+		//		//	case WSA_OPERATION_ABORTED:
+		//		//		[[fallthrough]];
+		//		//	case ERROR_CONNECTION_ABORTED:
+		//		//		[[fallthrough]];
+		//		//	case ERROR_NOT_FOUND:
+		//		//		[[fallthrough]];
+		//		//	case WSAECONNRESET:
+		//		//		break;
+		//		//	[[unlikely]] default:
+		//		//	{
+		//		//		auto now = chrono::system_clock::now();
+		//		//		auto recvWait = chrono::duration_cast< chrono::milliseconds >( now - session->lastRecv );
+		//		//		auto sendWait = chrono::duration_cast< chrono::milliseconds >( now - session->_postSendExecute.lastSend );
+		//		//		DebugBreak();
+		//		//		int tmp = 0;
+		//		//	}
+		//		//}
+
+
+		//		auto sessionID = session->GetSessionId();
+
+		//		session->Release(L"GQCSErrorRelease"/*, errNo*/);
+		//	}
+		//	else
+		//	{
+		//		overlapped->Execute(( ULONG_PTR ) session, transferred, this);
+		//	}
+		//}
+		//if ( end )
+		//{
 		//	break;
 		//}
 
-		//if(transferred == 0 && session != nullptr)
-		//{
-		//	auto errNo = WSAGetLastError();
-		//	switch (errNo) {
-		//	//정상종료됨. 
-		//	case 0:
-		//		break;
-		//	case ERROR_NETNAME_DELETED:
-		//		break;
-		//	//ERROR_SEM_TIMEOUT. 장치에서 끊은 경우 (5회 재전송 실패 등..)
-		//	case ERROR_SEM_TIMEOUT:
-		//		InterlockedIncrement(&_tcpSegmenTimeout);
-		//		[[fallthrough]];
-		//	//WSA_OPERATION_ABORTED cancleIO로 인한 것. 
-		//	case WSA_OPERATION_ABORTED:
-		//		break;
-		//	case WSA_IO_PENDING:
-		//		break;
-		//	case ERROR_CONNECTION_ABORTED:
-		//		break;
-		//	case ERROR_NOT_FOUND:
-		//		break;
-		//	default:
-		//		{
-		//			auto now = chrono::system_clock::now();
-		//			auto recvWait = chrono::duration_cast<chrono::milliseconds>(now - session->lastRecv);
-		//			auto sendWait = chrono::duration_cast<chrono::milliseconds>(now - session->_postSendExecute._lastSend);
-		//			DebugBreak();
-		//			int i = 0;
-		//		}
-		//	}
+		DWORD transferred = 0;
+		LPOVERLAPPED overlap = nullptr;
+		Session* session = nullptr;
 
-		//	auto sessionID =session->GetSessionID();
-		//
-		//	session->Release(L"GQCSErrorRelease", errNo);
-		//}
-		//else
-		//{
-		//	overlapped->Execute((ULONG_PTR)session, transferred, this);
-		//}
+		EASY_BLOCK("GQCSWAIT", profiler::colors::Magenta);
+		auto ret = GetQueuedCompletionStatus(_iocp, &transferred, ( PULONG_PTR ) &session, &overlap, INFINITE);
+		EASY_END_BLOCK;
+		Executable* overlapped = Executable::GetExecutable(overlap);
+
+		if ( transferred == 0 && ret != 0 )
+		{
+			session->Release(L"ConnectEndRel", 0);
+			continue;
+		}
+
+		if(transferred==0&&session== nullptr)
+		{
+			PostQueuedCompletionStatus(_iocp, 0, 0, nullptr);
+			break;
+		}
+		auto errNo = 0;
+
+		if(transferred == 0 && session != nullptr)
+		{
+			errNo = WSAGetLastError();
+			switch (errNo) {
+			//정상종료됨.  
+			case 0:
+				break;
+			case ERROR_NETNAME_DELETED:
+				break;
+			//ERROR_SEM_TIMEOUT. 장치에서 끊은 경우 (5회 재전송 실패 등..)
+			case ERROR_SEM_TIMEOUT:
+				InterlockedIncrement(&_tcpSegmenTimeout);
+				[[fallthrough]];
+			//WSA_OPERATION_ABORTED cancleIO로 인한 것. 
+			case WSA_OPERATION_ABORTED:
+				break;
+			case ERROR_CONNECTION_ABORTED:
+				break;
+			case ERROR_NOT_FOUND:
+				break;
+			[[unlikely]] default:
+				{
+					auto now = chrono::steady_clock::now();
+					auto recvWait = chrono::duration_cast< chrono::milliseconds >( now - session->lastRecv );
+					auto sendWait = chrono::duration_cast< chrono::milliseconds >( now - session->_postSendExecute.lastSend );
+					DebugBreak();
+					int tmp = 0;
+				}
+			}
+
+			auto sessionID = session->GetSessionId();
+		
+			session->Release(L"GQCSErrorRelease", errNo);
+		}
+		else
+		{
+			overlapped->Execute((ULONG_PTR)session, transferred, this);
+		}
 
 	}
 	printf("WorkerThread End\n");
@@ -827,9 +879,10 @@ void IOCP::AcceptThread(LPVOID arg)
 	WaitStart();
 	EASY_THREAD("ACCEPT");
 	while (_isRunning)
-	{
+	{	
+		EASY_BLOCK("ACCEPT_BLOCK", profiler::colors::Magenta)
 		Socket clientSocket = _listenSocket.Accept();
-		EASY_BLOCK("ACCEPT")
+		EASY_END_BLOCK;
 		if (!clientSocket.IsValid()) {
 			//accept 서버 닫으려고 중단한 경우. 
 			if (const auto err = WSAGetLastError(); err == WSAEINTR )
@@ -849,12 +902,13 @@ void IOCP::AcceptThread(LPVOID arg)
 			clientSocket.CancelIO();
 			continue;
 		}
+
 		_acceptCount++;
 
 		
 		clientSocket.SetLinger(true);
-		//clientSocket.setNoDelay(true);
-		//clientSocket.setSendbuffer(0);
+		//_listenSocket.SetNoDelay(true);
+		//_listenSocket.SetSendBuffer(0);
 
 		unsigned short sessionIndex;
 		if (freeIndex.Pop(sessionIndex) == false) 
@@ -878,7 +932,7 @@ void IOCP::AcceptThread(LPVOID arg)
 		session.SetNetSession(_staticKey);
 		session.OffReleaseFlag();
 		session._connect = true;
-		
+
 		OnConnect(session.GetSessionId(),clientSocket.GetSockAddress());
 		session.RecvNotIncrease();
 
@@ -889,14 +943,16 @@ void IOCP::AcceptThread(LPVOID arg)
 
 void IOCP::MonitorThread(LPVOID arg)
 {
+	EASY_THREAD("Monitor");
 	WaitStart();
-	EASY_THREAD("MONITOR");
-	const auto start = chrono::system_clock::now();
+	const auto start = chrono::steady_clock::now();
 	auto next = start + 1s;
 	while (_isRunning)
 	{
-		{
-				_acceptTps = _acceptCount - _oldAccepCount;
+
+		{		
+			EASY_BLOCK("SET_MONITOR");
+			_acceptTps = _acceptCount - _oldAccepCount;
 			_oldAccepCount = _acceptCount;
 			_disconnectps = _disconnectCount - _oldDisconnect;
 			_oldDisconnect = _disconnectCount;
@@ -912,10 +968,11 @@ void IOCP::MonitorThread(LPVOID arg)
 		}
 
 		
-		auto sleepTime = chrono::duration_cast<chrono::milliseconds> (next - chrono::system_clock::now());
+		auto sleepTime = chrono::duration_cast<chrono::milliseconds> (next - chrono::steady_clock::now());
 		next += 1s;
 		if ( sleepTime.count() > 0 )
 		{
+			EASY_BLOCK("SLEEP", profiler::colors::Magenta);
 			Sleep(static_cast<DWORD>(sleepTime.count()));
 		}
 			
@@ -926,34 +983,31 @@ void IOCP::MonitorThread(LPVOID arg)
 
 void IOCP::TimeoutThread(LPVOID arg)
 {
-
+	EASY_THREAD("TIMEOUT");
 	WaitStart();
-	const auto start = chrono::system_clock::now();
+	const auto start = chrono::steady_clock::now();
 	auto next = chrono::time_point_cast<chrono::milliseconds>(start) + chrono::milliseconds(1000);
 	while (_isRunning) 
 	{
-		const auto now = chrono::system_clock::now();
+		const auto now = chrono::steady_clock::now();
 
-		EASY_BLOCK("TIMEOUT");
 		if ( _checkTiemout ) 
 		{
 			for ( auto& session : _sessions )
 			{
-				if ( !session.CheckTimeout(now) )
+				if ( auto result = session.CheckTimeout(now))
 				{
-					continue;
+					OnSessionTimeout(session.GetSessionId(),result.value() );
+					session.ResetTimeoutWait();
+					_timeoutSessions++;
 				}
-
-				OnSessionTimeout(session.GetSessionId());
-				session.ResetTimeoutWait();
-				_timeoutSessions++;
 			}
 		}
-		EASY_END_BLOCK;
-		auto sleepTime = chrono::duration_cast<chrono::milliseconds> (next - chrono::system_clock::now());
+		auto sleepTime = chrono::duration_cast<chrono::milliseconds> (next - chrono::steady_clock::now());
 		next += chrono::milliseconds(1000);
 		if (sleepTime.count() > 0)
 		{
+			EASY_BLOCK("SLEEP", profiler::colors::Magenta);
 			Sleep(static_cast<DWORD>(sleepTime.count()));
 		}
 	}
@@ -1002,7 +1056,7 @@ void IOCP::MoveSession(const SessionID target, const GroupID dst) const
 NormalIOCP::~NormalIOCP()
 {
 	CloseHandle(_iocp);
-	for (const auto h : _threadArray)
+	for (const auto [h,id ]: _threadArray)
 	{
 		printf("CloseHandle %p\n", h);
 

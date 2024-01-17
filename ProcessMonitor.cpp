@@ -13,8 +13,11 @@ void ProcessMonitor::Update()
 	//	tot = counterVal.doubleValue;
 	//	_totalProcessorTime = counterVal.doubleValue / _maxProcessorValue * 100;
 	//}
-
-
+	_kernelProcessorTime = 0;
+	_userProcessorTime = 0;
+	_totalProcessorTime = 0;
+	_pageFault = 0;
+	_useMemoryMB = 0;
 	if ( PdhGetFormattedCounterValue(_pCpuKernel, PDH_FMT_DOUBLE, nullptr, &counterVal) == ERROR_SUCCESS )
 	{
 		_kernelProcessorTime = counterVal.doubleValue / _maxProcessorValue * 100;

@@ -63,7 +63,7 @@ private:
 	double _kernelProcessorTime = 0;
 	double _userProcessorTime = 0;
 
-	double _pageFault = 0;
+	long _pageFault = 0;
 	double _useMemoryMB = 0;
 
 	//PDH_HQUERY pCpuTotal;

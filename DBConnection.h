@@ -33,7 +33,7 @@ public:
 
 	std::chrono::milliseconds Query(LPCSTR query, ...)
 	{
-		using std::chrono::system_clock;
+		using std::chrono::steady_clock;
 		using std::chrono::duration_cast;
 		using std::chrono::duration;
 		using std::chrono::milliseconds;
@@ -51,7 +51,7 @@ public:
 		vsnprintf(&vec[0], len + 1, query, args);
 		va_end(args);
 
-		const auto start = system_clock::now();
+		const auto start = steady_clock::now();
 		const char* err;
 
 		const int query_stat = mysql_query(connection, vec.data());
@@ -71,7 +71,7 @@ public:
 
 				default:
 				{
-					const auto dur = duration_cast< milliseconds >( system_clock::now() - start );
+					const auto dur = duration_cast< milliseconds >( steady_clock::now() - start );
 					const string errStr = to_string(dur.count()) + err;
 					throw DBErr(errStr.c_str(),num,dur);
 				}
@@ -80,7 +80,7 @@ public:
 		sql_result = mysql_store_result(connection);
 
 
-		return duration_cast< milliseconds >( system_clock::now() - start );
+		return duration_cast< milliseconds >( steady_clock::now() - start );
 	}
 
 	bool next()

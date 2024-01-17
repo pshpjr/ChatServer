@@ -16,7 +16,7 @@ class TlsPool;
  * \tparam usePlacement  : 매번 생성자 호출할건지 여부. 기본값은 false
  */
 template <typename data, int dataId, bool usePlacement = false>
-class SingleThreadObjectPool
+ class SingleThreadObjectPool
 {
 	
 	friend class TlsPool<data, dataId, usePlacement>;
@@ -42,8 +42,8 @@ public:
 
 	virtual	~SingleThreadObjectPool();
 
-
-	inline data* Alloc(void)
+	template <typename ...Args>
+	inline data* Alloc(Args&&... args)
 	{
 		Node* top = _top;
 		Node* retNode = top;
@@ -53,7 +53,7 @@ public:
 			--_objectCount;
 			if constexpr ( usePlacement )
 			{
-				retNode = static_cast<Node*>(new(&retNode->data)data());
+				retNode = (Node*)new(&retNode->data)data(forward< Args >(args)...);
 			}
 
 			return &retNode->data;
@@ -91,7 +91,7 @@ public:
 
 
 private:
-	Node* _top = nullptr;
+	alignas( 64 ) Node* _top = nullptr;
 	int _objectCount = 0;
 	int _allocCount = 0;
 	static constexpr int _identifier = dataId << 16;

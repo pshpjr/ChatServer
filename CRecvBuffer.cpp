@@ -8,9 +8,6 @@ constexpr int RECV_INIT_MULTIPLIER = 3;
 
 TlsPool<CRecvBuffer, 0> CRecvBuffer::_pool(RECV_INIT_SIZE, RECV_INIT_MULTIPLIER);
 
-
-
-
 CRecvBuffer& CRecvBuffer::operator>>(const LPWSTR value)
 {
 	const size_t strlen = wcslen(( LPWCH ) _front) + 1;

@@ -33,7 +33,7 @@ void ProcessMonitor::Update()
 
 	if( PdhGetFormattedCounterValue(_pPageFault, PDH_FMT_LONG, nullptr, &counterVal) == ERROR_SUCCESS )
 	{
-		_pageFault = counterVal.doubleValue;
+		_pageFault = counterVal.longValue;
 	}
 
 	if( PdhGetFormattedCounterValue(_pUseMemory, PDH_FMT_DOUBLE, nullptr, &counterVal) == ERROR_SUCCESS )

@@ -5,21 +5,17 @@
 
 class Player;
 struct NetHeader;
-#pragma pack(1)
-
 
 class CSendBuffer final
 {
 	USE_TLS_POOL(CSendBuffer);
 
-	friend class PostSendExecutable;
 	friend class IOCP;
 	friend class NormalIOCP;
 	friend class Session;
 
 public:
 
-#pragma pack()
 	static int64 GetPoolAllocatedSize() { return _pool.AllocatedCount(); }
 	/// <summary>
 	/// Alloc을 받으면 레퍼런스가 1임. 

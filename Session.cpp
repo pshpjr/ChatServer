@@ -7,13 +7,15 @@
 #include <optional>
 #include "Executables.h"
 #include "CRecvBuffer.h"
-Session::Session() : _sessionId(), _socket({}), _recvTempBuffer(), _sendingQ(), _owner(nullptr)
+#include <CoreGlobal.h>
+#include <CLogger.h>
+Session::Session() : _sessionId(), _socket({}),  _sendingQ(), _owner(nullptr)
 ,_recvExecute(*new RecvExecutable),_postSendExecute(*new PostSendExecutable),_sendExecute(*new SendExecutable), _releaseExecutable(*new ReleaseExecutable)
 {
 
 }
 
-Session::Session(Socket socket, SessionID sessionId, IOCP& owner) : _sessionId(sessionId), _socket(socket), _recvTempBuffer(), _sendingQ(), _owner(&owner)
+Session::Session(Socket socket, SessionID sessionId, IOCP& owner) : _sessionId(sessionId), _socket(socket),  _sendingQ(), _owner(&owner)
 , _recvExecute(*new RecvExecutable), _postSendExecute(*new PostSendExecutable), _sendExecute(*new SendExecutable), _releaseExecutable(*new ReleaseExecutable)
 {
 
@@ -138,6 +140,7 @@ void Session::RecvNotIncrease()
 			case WSAECONNABORTED:
 				__fallthrough;
 
+				//원격지에서 끊었다. 
 			case WSAECONNRESET:
 				__fallthrough;
 				break;
@@ -174,153 +177,6 @@ void Session::ResetTimeoutWait()
 	_postSendExecute.lastSend = now;
 }
 
-
-void Session::LanRecv()
-{
-	using Header = LANHeader;
-	int loopCount = 0;
-
-	while (true)
-	{
-		if (_recvQ.Size() < sizeof(Header))
-		{
-			break;
-		}
-
-
-		Header* header = (Header*)_recvTempBuffer;
-		_recvQ.Peek((char*)header, sizeof(Header));
-
-		if (const int totPacketSize = header->len + sizeof(Header); _recvQ.Size() < totPacketSize)
-		{
-			break;
-		}
-
-		Header* recvQHeader = (Header*)_recvQ.GetFront();
-
-		char* front;
-		char* rear;
-
-		//if can pop direct
-		if (_recvQ.DirectDequeueSize() >= header->len + sizeof(Header))
-		{
-			_recvQ.Dequeue(sizeof(Header));
-			front = _recvQ.GetFront();
-			rear = front + header->len;
-			header = recvQHeader;
-		}
-		else
-		{
-			front = (char*)header + sizeof(Header);
-			_recvQ.Dequeue(sizeof(Header));
-			_recvQ.Peek(front, header->len);
-			rear = front + header->len;
-		}
-
-
-		auto& buffer = *CRecvBuffer::Alloc(front, rear);
-		loopCount++;
-
-		_owner->onRecvPacket(*this, buffer);
-
-		buffer.Release(L"RecvRelease");
-
-		
-		_recvQ.Dequeue(header->len);
-	}
-
-	if (loopCount > 0)
-	{
-		_owner->IncreaseRecvCount(loopCount);
-	}
-}
-
-void Session::NetRecv()
-{
-	using Header = NetHeader;
-	int loopCount = 0;
-
-	while (true)
-	{
-		if (_recvQ.Size() < sizeof(Header))
-		{
-			break;
-		}
-
-		Header* header = (Header*)_recvTempBuffer;
-		_recvQ.Peek((char*)header, sizeof(Header));
-
-		if constexpr (is_same_v<Header, NetHeader>)
-		{
-			if (header->code != dfPACKET_CODE)
-			{
-				Close();
-				break;
-			}
-
-			if (header->len > _maxPacketLen)
-			{
-				Close();
-				break;
-			}
-		}
-
-		if (const int totPacketSize = header->len + sizeof(Header); _recvQ.Size() < totPacketSize)
-		{
-			break;
-		}
-
-		Header* recvQHeader = (Header*)_recvQ.GetFront();
-
-		char* front;
-		char* rear;
-
-		//if can pop direct
-		if (_recvQ.DirectDequeueSize() >= header->len + sizeof(Header))
-		{
-			_recvQ.Dequeue(sizeof(Header));
-			front = _recvQ.GetFront();
-			rear = front + header->len;
-			header = recvQHeader;
-		}
-		else
-		{
-			front = (char*)header + sizeof(Header);
-			_recvQ.Dequeue(sizeof(Header));
-			_recvQ.Peek(front, header->len);
-			rear = front + header->len;
-		}
-
-
-		auto& buffer = *CRecvBuffer::Alloc(front, rear);
-
-		if constexpr (is_same_v<Header, NetHeader>)
-		{
-			buffer.Decode(_staticKey, header);
-
-			if (!buffer.ChecksumValid(header))
-			{
-				//printf("checkSumInvalid %d %p\n", buffer._rear- buffer._front, buffer._front);
-
-				Close();
-				break;
-			}
-		}
-		loopCount++;
-
-		_owner->onRecvPacket(*this, buffer);
-
-		buffer.Release(L"RecvRelease");
-
-		
-		_recvQ.Dequeue(header->len);
-	}
-
-	if (loopCount > 0)
-	{
-		_owner->IncreaseRecvCount(loopCount);
-	}
-}
 
 optional<timeoutInfo> Session::CheckTimeout(const chrono::steady_clock::time_point now)
 {
@@ -370,7 +226,7 @@ void Session::Reset()
 	_timeout = _defaultTimeout;
 
 	
-	//GroupID _groupID = 0;
+	GroupID _groupID = 0;
 
 	CRecvBuffer* recvBuffer;
 	while ( _groupRecvQ.Dequeue(recvBuffer) )
@@ -421,7 +277,8 @@ bool Session::Release([[maybe_unused]] LPCWSTR content, [[maybe_unused]] int typ
 
 void Session::RealSend()
 {
-	if (const auto refIncResult = IncreaseRef(L"realSendInc"); refIncResult >= RELEASE_FLAG )
+	const auto refIncResult = IncreaseRef(L"realSendInc");
+	if ( refIncResult >= RELEASE_FLAG )
 	{
 		Release(L"realSendSessionIsRelease");
 		return;
@@ -485,6 +342,7 @@ void Session::RealSend()
 		{
 			case WSAECONNABORTED:
 				__fallthrough;
+				//원격지에서 끊었다. 
 			case WSAECONNRESET:
 				__fallthrough;
 				break;

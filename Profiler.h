@@ -30,7 +30,6 @@ struct PROFILE_SAMPLE {
 class Profiler
 {
 	friend ProfileManager;
-	friend ProfileItem;
 public:
 	void ProfileDataOutText(LPWSTR szFileName);
 
@@ -41,14 +40,14 @@ public:
 			profileSample.lFlag = false;
 		}
 	}
+	void ApplyProfile(const int& itemNumber, std::chrono::microseconds time);
+
+	int GetItemNumber(LPCWSTR name);
 
 private:
 	Profiler() = default;
 
 
-
-	int GetItemNumber(LPCWSTR name);
-	void ApplyProfile(const int& itemNumber, std::chrono::microseconds time);
 
 	PROFILE_SAMPLE Profile_Samples[MAX_ITEM];
 };
@@ -69,7 +68,9 @@ private:
 int call_profile_manager_destructor();
 class ProfileManager
 {
-	ProfileManager() { InitializeSRWLock(&_profileListLock); setTLSNum(); _onexit(call_profile_manager_destructor); }
+	ProfileManager() { InitializeSRWLock(&_profileListLock); setTLSNum(); 
+	//_onexit(call_profile_manager_destructor); 
+	}
 public:
 	~ProfileManager()
 	{
@@ -152,7 +153,7 @@ private:
 };
 
 
-//#define PROFILE
+#define PROFILE
 
 #ifdef PROFILE
 

@@ -26,9 +26,8 @@ public:
 
 	void Enqueue(const T& data)
 	{
-		Node* allocNode; {
-			allocNode = _tlsLfqNodePool.Alloc();
-		}
+		Node* allocNode = _tlsLfqNodePool.Alloc();
+		
 
 		Node* newNode = allocNode;
 		newNode->data = data;

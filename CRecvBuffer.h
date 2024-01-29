@@ -1,6 +1,8 @@
 ﻿#pragma once
+#include "CRingBuffer.h"
 #include "TLSPool.h"
 #include "Macro.h"
+class CRingBuffer;
 struct NetHeader;
 
 class CRecvBuffer
@@ -9,19 +11,16 @@ class CRecvBuffer
 	friend class RecvExecutable;
 	friend class IOCP;
 	friend class Group;
-	friend class Session;
 public:
 	template<typename T>
 	CRecvBuffer& operator >> (T& value);
 
-	CRecvBuffer& operator >>(LPWSTR value);
 	CRecvBuffer& operator >>(String& value);
 
 	void GetWstr(LPWSTR arr, int size);
 	void GetCstr(LPSTR arr, int size);
 
-	static void Decode(char staticKey, NetHeader* head);
-	static bool ChecksumValid(NetHeader* head);
+
 //private:
 	CRecvBuffer() = default;
 
@@ -29,13 +28,13 @@ public:
 
 	void CanPop(int64 size) const;
 
-	static CRecvBuffer* Alloc(char* front, char* rear)
+	static CRecvBuffer* Alloc(CRingBuffer* buffer, int32 size)
 	{
 		const auto ret = _pool.Alloc();
 		ret->Clear();
 		ret->IncreaseRef(L"AllocInc");
-		ret->_front = front;
-		ret->_rear = rear;
+		ret->_buffer = buffer;
+		ret->_size = size;
 		return ret;
 	}
 
@@ -67,16 +66,11 @@ public:
 	}
 
 	void Clear();
-
-	char* GetFront() const;
-	char* GetRear() const;
-	void MoveWritePos(int size);
-	void MoveReadPos(int size);
 	int	CanPopSize(void) const;
 
 private:
-	char* _front = nullptr;
-	char* _rear = nullptr;
+	CRingBuffer* _buffer = nullptr;
+	int32 _size = 0;
 	long _refCount = 0;
 
 	static TlsPool<CRecvBuffer, 0, false> _pool;
@@ -103,9 +97,9 @@ inline CRecvBuffer& CRecvBuffer::operator>>(T& value)
 	static_assert( is_scalar_v<T> );
 	CanPop(sizeof(T));
 
-	value = *reinterpret_cast<T*>(_front);
-	_front += sizeof(T);
+	_buffer->Peek( reinterpret_cast<char*>(&value),sizeof(T));
+	_buffer->Dequeue(sizeof(T));
+	_size -= sizeof(T);
 
 	return *this;
-	// TODO: 여기에 return 문을 삽입합니다.
 }

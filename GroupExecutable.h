@@ -3,9 +3,10 @@
 class Group;
 class GroupExecutable : public Executable
 {
-	static constexpr auto EXECUTION_INTERVAL = 1ms;
+
+	static constexpr auto EXECUTION_INTERVAL = 3ms;
 public:
-	GroupExecutable(Group* owner) :_owner(owner) {}
+	GroupExecutable(Group* owner) :_owner(owner),nextRun(std::chrono::steady_clock::now()) {}
 
 	/// <summary>
 	/// 
@@ -17,4 +18,5 @@ public:
 
 private:
 	Group* _owner;
+	std::chrono::steady_clock::time_point nextRun {};
 };

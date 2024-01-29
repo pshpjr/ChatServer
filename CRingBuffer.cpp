@@ -1,24 +1,17 @@
 ﻿
 #include "stdafx.h"
 #include "CRingBuffer.h"
+#include <Protocol.h>
 
 
 
-CRingBuffer::CRingBuffer(const int size) :BUFFER_SIZE(size), ALLOC_SIZE(BUFFER_SIZE + 10), _buffer(new char[ALLOC_SIZE]), _front(0), _rear(0)
-{
-	memset(_buffer + BUFFER_SIZE, 0, 10);
-}
 
-CRingBuffer::~CRingBuffer()
-{
-	delete[] _buffer;
-}
 
 //front가 맨 앞이고 rear가 맨 끝인 상황 처리 해야 함. 
 int CRingBuffer::Size() const
 {
-	const int rear = _rear;
-	const int front = _front;
+	const int rear = GetIndex(_rear);
+	const int front = GetIndex(_front);
 
 	if (rear >= front)
 	{
@@ -28,13 +21,81 @@ int CRingBuffer::Size() const
 	return BUFFER_SIZE - (front - rear);
 	
 }
+
+void CRingBuffer::Decode(const char staticKey)
+{
+	////맨 앞에 헤더가 있다는 가정. 
+	//NetHeader header;
+	//Peek(reinterpret_cast<char*>( &header), sizeof(NetHeader));
+
+	//int decodeStart = GetIndex(_front + offsetof(NetHeader, checkSum));
+	////체크섬부터 디코딩한다는 가정. 
+	//const unsigned short decodeLen = header.len + static_cast<unsigned short>(sizeof(NetHeader) - offsetof(NetHeader, checkSum));
+
+	//unsigned char p = 0;
+	//unsigned char e = 0;
+	//unsigned char oldP = 0;
+	//for (int i = 1; i <= decodeLen; i++)
+	//{
+	//	unsigned char tmp = _buffer[decodeStart];
+	//	p = tmp ^ (e + staticKey + i);
+	//	e = tmp;
+	//	_buffer[decodeStart] = p ^ (oldP + header.randomKey + i);
+	//	oldP = p;
+	//	decodeStart = GetIndex(decodeStart + 1);
+	//}
+
+	NetHeader* head = (NetHeader*)GetFront();
+	char* decodeData = (char*)head + offsetof(NetHeader, checkSum);
+	const unsigned short decodeLen = head->len + static_cast<unsigned short>(sizeof(NetHeader) - offsetof(NetHeader, checkSum));
+
+	char p = 0;
+	char e = 0;
+	char oldP = 0;
+	for (int i = 1; i <= decodeLen; i++)
+	{
+		p = (*decodeData) ^ (e + staticKey + i);
+		e = *decodeData;
+		*decodeData = p ^ (oldP + head->randomKey + i);
+		oldP = p;
+		decodeData++;
+	}
+}
+
+bool CRingBuffer::ChecksumValid()
+{
+	//맨 앞에 헤더가 있다는 가정. 
+
+	NetHeader header;
+	Peek(reinterpret_cast<char*>(&header), sizeof(NetHeader));
+
+	const int packetLen = header.len;
+	unsigned char payloadChecksum = 0;
+	const int payloadIndex = GetIndex(_front + sizeof(NetHeader));
+
+	for (int i = 0; i < packetLen; i++)
+	{
+		payloadChecksum += _buffer[GetIndex(payloadIndex + i)];
+	}
+
+	if (payloadChecksum != header.checkSum)
+	{
+		return false;
+	}
+	return true;
+}
+
+
+
+
 int CRingBuffer::DirectEnqueueSize() const
 {
-	const int rear = _rear;
-	const int front = _front;
+	const int rear = GetIndex(_rear);
+	const int front = GetIndex(_front);
 
 	//front는 변할 수 있지만 rear는 변하지 않음. 
-	if ((rear + 1) % BUFFER_SIZE == front)
+	//가득 찬 상황
+	if (GetIndex(rear+1) == front)
 	{
 		return 0;
 	}
@@ -109,8 +170,8 @@ int CRingBuffer::DirectEnqueueSize() const
 
 int CRingBuffer::DirectDequeueSize() const
 {
-	const int rear = _rear;
-	const int front = _front;
+	const int rear = GetIndex(_rear);
+	const int front = GetIndex(_front);
 	if (rear >= front)
 	{
 		return rear - front;
@@ -137,7 +198,7 @@ int CRingBuffer::Dequeue(const int deqSize)
 		size = Size();
 	}
 
-	_front = (_front + size) % BUFFER_SIZE;
+	_front += size;
 
 
 	return size;
@@ -145,29 +206,28 @@ int CRingBuffer::Dequeue(const int deqSize)
 
 int CRingBuffer::Peek(char* dst, const int size) const
 {
-	if ( _front == _rear )
-	{
-		return 0;
-	}
-
+	const int rear = GetIndex(_rear);
+	const int front = GetIndex(_front);
 	int peekSize = size;
 	//size는 늘어나기만 함. 
 	if ( Size() < size )
 	{
-		DebugBreak();
+		throw;
 		peekSize = Size();
 	}
 
+	
 	if ( DirectDequeueSize() >= peekSize )
 	{
-		memcpy_s(dst, peekSize, _buffer + _front, peekSize);
+		memcpy_s(dst, peekSize, &_buffer[front], peekSize);
 	}
 	else
 	{
 		const int deqSize = DirectDequeueSize();
 
-		memcpy_s(dst, deqSize, _buffer + _front, deqSize);
-		memcpy_s(dst + deqSize, peekSize - deqSize, _buffer, peekSize - deqSize);
+		memcpy_s(dst, deqSize, &_buffer[front], deqSize);
+		memcpy_s(dst + deqSize, peekSize - deqSize, &_buffer[0], peekSize - deqSize);
+
 	}
 
 	return peekSize;

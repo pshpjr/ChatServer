@@ -2,7 +2,7 @@
 #include "BuildOption.h"
 #include IOCP_HEADER
 
-class CSendBuffer;
+class SendBuffer;
 class CRecvBuffer;
 class Executable;
 class Client;
@@ -15,8 +15,8 @@ class SingleThreadQ;
 class IOCP : public IOCP_CLASS
 {
 	friend class RecvExecutable;
-	friend class PostSendExecutable;
 	friend class ReleaseExecutable;
+	friend class PostSendExecutable;
 	friend class Session;
 	friend class Group;
 	friend class GroupManager;
@@ -28,8 +28,8 @@ public:
 	void Start();
 	void Stop();
 	void Wait();
-	bool SendPacket(SessionID sessionId, CSendBuffer* buffer, int type = 0);
-	bool SendPacketBlocking(SessionID sessionId, CSendBuffer* buffer, int type = 0);
+	bool SendPacket(SessionID sessionId, SendBuffer& sendBuffer, int type = 0);
+	bool SendPacketBlocking(SessionID sessionId, SendBuffer& sendBuffer, int type = 0);
 	//deprecate
 	bool SendPackets(SessionID sessionId, SingleThreadQ<CSendBuffer*>& bufArr);
 

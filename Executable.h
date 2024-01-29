@@ -17,7 +17,6 @@ namespace executable {
 
 class Executable
 {
-	friend class Server;
 public:
 	enum ioType
 	{

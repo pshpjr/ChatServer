@@ -147,7 +147,6 @@ public:
 
 		if (pool == nullptr)
 		{
-
 			pool = new poolType(0);
 			TlsSetValue(_localPoolTlsIndex, pool);
 		}

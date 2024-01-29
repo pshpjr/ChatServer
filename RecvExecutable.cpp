@@ -3,6 +3,8 @@
 #include "Session.h"
 #include "Protocol.h"
 #include "CRecvBuffer.h"
+#include "CoreGlobal.h"
+#include "CLogger.h"
 #include "IOCP.h"
 
 void RecvExecutable::Execute(const ULONG_PTR key, const DWORD transferred, void* iocp)
@@ -44,72 +46,49 @@ void RecvExecutable::RecvHandler(Session& session, void* iocp)
 		}
 
 
-		Header* header = ( Header* ) session._recvTempBuffer;
-		recvQ.Peek(( char* ) header, sizeof(Header));
+		Header header;
+		recvQ.Peek(( char* )&header, sizeof(Header));
 
 		if constexpr ( is_same_v<Header, NetHeader> )
 		{
-			if ( header->code != dfPACKET_CODE )
+			if ( header.code != dfPACKET_CODE )
 			{
 				session.Close();
 				break;
 			}
 
-			if ( header->len > session._maxPacketLen )
+			if ( header.len > session._maxPacketLen )
 			{
 				session.Close();
 				break;
 			}
 		}
 
-		if (const int totPacketSize = header->len + sizeof(Header); recvQ.Size() < totPacketSize )
+		if (const int totPacketSize = header.len + sizeof(Header); recvQ.Size() < totPacketSize )
 		{
 			break;
 		}
 
-		Header* recvQHeader = ( Header* ) recvQ.GetFront();
-
-		char* front;
-		char* rear;
-		
-		//if can pop direct
-		if ( recvQ.DirectDequeueSize() >= header->len + sizeof(Header) )
-		{
-			recvQ.Dequeue(sizeof(Header));
-			front = session._recvQ.GetFront();
-			rear = front + header->len;
-			header = recvQHeader;
-		}
-		else
-		{
-			front = ( char* ) header + sizeof(Header);
-			recvQ.Dequeue(sizeof(Header));
-			recvQ.Peek(front, header->len);
-			rear = front + header->len;
-		}
-
-
-		auto& buffer = *CRecvBuffer::Alloc(front, rear);
+		auto& buffer = *CRecvBuffer::Alloc(&recvQ,header.len);
 
 		if constexpr ( is_same_v<Header, NetHeader> )
 		{
-			buffer.Decode(session._staticKey, header);
+			recvQ.Decode(session._staticKey);
 
-			if ( !buffer.ChecksumValid(header) )
+			if (recvQ.ChecksumValid() )
 			{
-				//printf("checkSumInvalid %d %p\n", buffer._rear- buffer._front, buffer._front);
-
+				gLogger->Write(L"Disconnect", LogLevel::Debug, L"Recv Invalid Checksum");
 				session.Close();
 				break;
 			}
 		}
 		loopCount++;
-
+		recvQ.Dequeue(sizeof(Header));
 		server.onRecvPacket(session, buffer);
 
 		buffer.Release(L"RecvRelease");
 
-		session._recvQ.Dequeue(header->len);
+		recvQ.Dequeue(header.len);
 	}
 
 	if ( loopCount > 0 )

@@ -15,6 +15,7 @@
 
 #include "IOCP.h"
 #include "Session.h"
+#include "SendBuffer.h"
 #include "CSendBuffer.h"
 #include "CRecvBuffer.h"
 #include "SingleThreadQ.h"
@@ -62,6 +63,8 @@ IOCP::IOCP()
 	_settingParser.GetValue(L"basic.workerThreads", workerThread);
 	_settingParser.GetValue(L"basic.staticKey", staticKey);
 
+
+	printf("%ls %d\n", ip.c_str(), port);
 	Init(ip, port, backlog, maxNetThead, workerThread, staticKey);
 
 }
@@ -265,10 +268,9 @@ void IOCP::SetDefaultTimeout(const unsigned int timeoutMillisecond)
 /*****************************/
 //			Network
 /*****************************/
-
-bool IOCP::SendPacket(const SessionID sessionId, CSendBuffer* buffer, const int type)
+bool IOCP::SendPacket(const SessionID sessionId, SendBuffer& sendBuffer, int type)
 {
-
+	auto buffer = sendBuffer.getBuffer();
 	const auto result = FindSession(sessionId, L"SendPacketInc");
 	if ( result == nullptr )
 	{
@@ -294,8 +296,9 @@ bool IOCP::SendPacket(const SessionID sessionId, CSendBuffer* buffer, const int 
 	return true;
 }
 
-bool IOCP::SendPacketBlocking(SessionID sessionId, CSendBuffer* buffer, int type)
+bool IOCP::SendPacketBlocking(SessionID sessionId, SendBuffer& sendBuffer, int type)
 {
+	auto buffer = sendBuffer.getBuffer();
 	const auto result = FindSession(sessionId, L"SendPacketInc");
 	if ( result == nullptr )
 	{
@@ -452,6 +455,8 @@ bool IOCP::DisconnectSession(const SessionID sessionId)
 	{
 		return false;
 	}
+	gLogger->Write(L"DisconnectSession", LogLevel::Debug, L"session ID : %d ",sessionId);
+
 	auto& session = *result;
 
 	session.Close();
@@ -478,7 +483,7 @@ void IOCP::onRecvPacket(const Session& session, CRecvBuffer& buffer)
 	}
 	catch ( const std::invalid_argument& )
 	{
-		gLogger->Write(L"RecvErr", LogLevel::Debug, L"ERR");
+		gLogger->Write(L"RecvErr", LogLevel::Debug, L"Can't pop : recv buffer is empty");
 		DisconnectSession(session._sessionId);
 	}
 }
@@ -728,83 +733,6 @@ void IOCP::WorkerThread(LPVOID arg)
 	WaitStart();
 	while (true)
 	{
-		//constexpr ULONG arrSize = 100;
-		//bool end = false;
-		//OVERLAPPED_ENTRY arr[arrSize] = { 0, };
-		//ULONG size = 0;
-
-		//auto ret = GetQueuedCompletionStatusEx(_iocp, arr, arrSize, &size, INFINITE, false);
-		//
-		//
-		//for ( unsigned int i = 0; i < size; i++ )
-		//{
-		//	const DWORD transferred = arr[i].dwNumberOfBytesTransferred;
-		//	const LPOVERLAPPED overlap = arr[i].lpOverlapped;
-		//	auto session = ( Session* )arr[i].lpCompletionKey;
-
-		//	Executable* overlapped = Executable::GetExecutable(overlap);
-		//	if ( transferred == 0 && session == nullptr )
-		//	{
-		//		PostQueuedCompletionStatus(_iocp, 0, 0, nullptr);
-		//		end = true;
-
-		//		break;
-		//	}
-
-		//	if ( transferred == 0 && session != nullptr )
-		//	{
-		//		//
-		//		//const auto errNo = RtlNtStatusToDosError(overlap->Internal);
-
-		//		//if ( errNo == ERROR_MR_MID_NOT_FOUND )
-		//		//{
-		//		//	DebugBreak();
-		//		//}
-
-		//		//switch ( errNo )
-		//		//{
-		//		//	//정상종료됨. 
-		//		//	case 0:
-		//		//		break;
-		//		//	case ERROR_NETNAME_DELETED:
-		//		//		break;
-		//		//		//ERROR_SEM_TIMEOUT. 장치에서 끊은 경우 (5회 재전송 실패 등..)
-		//		//	case ERROR_SEM_TIMEOUT:
-		//		//		InterlockedIncrement(&_tcpSegmenTimeout);
-		//		//		[[fallthrough]];
-		//		//		//WSA_OPERATION_ABORTED cancleIO로 인한 것. 
-		//		//	case WSA_OPERATION_ABORTED:
-		//		//		[[fallthrough]];
-		//		//	case ERROR_CONNECTION_ABORTED:
-		//		//		[[fallthrough]];
-		//		//	case ERROR_NOT_FOUND:
-		//		//		[[fallthrough]];
-		//		//	case WSAECONNRESET:
-		//		//		break;
-		//		//	[[unlikely]] default:
-		//		//	{
-		//		//		auto now = chrono::system_clock::now();
-		//		//		auto recvWait = chrono::duration_cast< chrono::milliseconds >( now - session->lastRecv );
-		//		//		auto sendWait = chrono::duration_cast< chrono::milliseconds >( now - session->_postSendExecute.lastSend );
-		//		//		DebugBreak();
-		//		//		int tmp = 0;
-		//		//	}
-		//		//}
-
-
-		//		auto sessionID = session->GetSessionId();
-
-		//		session->Release(L"GQCSErrorRelease"/*, errNo*/);
-		//	}
-		//	else
-		//	{
-		//		overlapped->Execute(( ULONG_PTR ) session, transferred, this);
-		//	}
-		//}
-		//if ( end )
-		//{
-		//	break;
-		//}
 
 		DWORD transferred = 0;
 		LPOVERLAPPED overlap = nullptr;
@@ -839,14 +767,19 @@ void IOCP::WorkerThread(LPVOID arg)
 				break;
 			//ERROR_SEM_TIMEOUT. 장치에서 끊은 경우 (5회 재전송 실패 등..)
 			case ERROR_SEM_TIMEOUT:
+				gLogger->Write(L"ConnectionError", LogLevel::Error, L"SegmentTimeout");
 				InterlockedIncrement(&_tcpSegmenTimeout);
-				[[fallthrough]];
-			//WSA_OPERATION_ABORTED cancleIO로 인한 것. 
+				break;
+			//WSA_OPERATION_ABORTED cancleIO로 인한 것.
+			//서버가 먼저 끊는 상황에서 발생.
 			case WSA_OPERATION_ABORTED:
+				gLogger->Write(L"ConnectionError", LogLevel::Error, L"Operation Aborted.");
 				break;
 			case ERROR_CONNECTION_ABORTED:
+				gLogger->Write(L"ConnectionError", LogLevel::Error, L"Connection Aborted.");
 				break;
 			case ERROR_NOT_FOUND:
+				gLogger->Write(L"ConnectionError", LogLevel::Error, L"Error Not Found");
 				break;
 			[[unlikely]] default:
 				{

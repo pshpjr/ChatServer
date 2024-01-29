@@ -9,14 +9,13 @@ void GroupExecutable::Execute(ULONG_PTR arg, DWORD transferred, void* iocp)
 	using std::chrono::duration_cast;
 	using std::chrono::milliseconds;
 
-	auto start = steady_clock::now();
-
 	_owner->Update();
 
 	auto end = steady_clock::now();
 
-	auto waitTime = EXECUTION_INTERVAL - duration_cast<milliseconds>(end - start);
+	auto waitTime = duration_cast<milliseconds>( nextRun - end );
 
+	nextRun += EXECUTION_INTERVAL;
 	if ( waitTime.count() > 0 )
 	{
 		Sleep(waitTime.count());

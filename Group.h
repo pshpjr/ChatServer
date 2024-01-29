@@ -7,7 +7,7 @@
 #include "TLSLockFreeQueue.h"
 #include "BuildOption.h"
 #include "Session.h"
-class CSendBuffer;
+class SendBuffer;
 class GroupManager;
 class GroupExecutable;
 class CRecvBuffer;
@@ -38,7 +38,6 @@ class Group
 {
 	friend class GroupExecutable;
 	friend class GroupManager;
-	friend class Client;
 public:
 
 	virtual void OnCreate() {};
@@ -46,9 +45,9 @@ public:
 	virtual void OnEnter(SessionID id) {};
 	virtual void OnLeave(SessionID id) {};
 	virtual void OnRecv(SessionID id, CRecvBuffer& recvBuffer) {};
-
+	virtual ~Group() {};
 protected:
-	void SendPacket(SessionID id, CSendBuffer& buffer) const;
+	void SendPacket(SessionID id, SendBuffer& buffer) const;
 	void MoveSession(SessionID id, GroupID dst) const;
 	void LeaveSession(SessionID id);
 	void EnterSession(SessionID id);
@@ -72,7 +71,7 @@ private:
 	GroupID _groupId = -1;
 	GroupExecutable& _executable;
 	std::chrono::steady_clock::time_point _lastUpdate;
-	HashSet<SessionID, SessionInfo::SessionIdHash, SessionInfo::SessionIdEqual> _sessions;
+	SessionSet _sessions;
 	TlsLockFreeQueue<SessionID> _enterSessions;
 	TlsLockFreeQueue<SessionID> _leaveSessions;
 	

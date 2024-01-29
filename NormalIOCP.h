@@ -73,16 +73,6 @@ public:
 	NormalIOCP& operator=(const NormalIOCP& other) = delete;
 	NormalIOCP& operator=(NormalIOCP&& other) = delete;
 
-private:
-	friend class Session;
-	friend class RecvExecutable;
-	friend class SendExecutable;
-	friend class PostSendExecutable;
-	friend class GroupExecutable;
-	friend class GroupManager;
-	
-
-	
 protected:
 	NormalIOCP();
 

@@ -15,25 +15,6 @@ class SendExecutable;
 class PostSendExecutable;
 class ReleaseExecutable;
 
-namespace SessionInfo
-{
-	struct SessionIdHash
-	{
-		std::size_t operator()(const SessionID& s) const
-		{
-			return std::hash<unsigned long long>()( s.id );
-		}
-	};
-
-	struct SessionIdEqual
-	{
-		bool operator()(const SessionID& lhs, const SessionID& rhs) const
-		{
-			return lhs.id == rhs.id;
-		}
-	};
-}
-
 consteval SessionID InvalidSessionID() { return { -1 , 0}; }
 
 struct timeoutInfo
@@ -52,13 +33,11 @@ struct timeoutInfo
 //#define SESSION_DEBUG
 class Session
 {
-	friend class Executable;
 	friend class RecvExecutable;
 	friend class PostSendExecutable;
 	friend class SendExecutable;
 	friend class ReleaseExecutable;
 	friend class IOCP;
-	friend class NormalIOCP;
 	friend class Group;
 public:
 	int ioCount = 0;
@@ -110,8 +89,7 @@ public:
 	}
 
 
-	void LanRecv();
-	void NetRecv();
+
 private:
 	optional<timeoutInfo> CheckTimeout(chrono::steady_clock::time_point now);
 	void RealSend();
@@ -138,7 +116,6 @@ private:
 	//Group
 	GroupID _groupId = 0;
 	TlsLockFreeQueue<CRecvBuffer*> _groupRecvQ;
-	char _recvTempBuffer[300];
 
 	IOCP* _owner;
 
@@ -164,7 +141,7 @@ private:
 
 	//Encrypt
 	char _staticKey = false;
-	unsigned int _maxPacketLen = 20000;
+	unsigned int _maxPacketLen = 5000;
 
 	//DEBUG
 	long debugCount = 0;

@@ -8,19 +8,22 @@ void PostSendExecutable::Execute(const ULONG_PTR key, DWORD transferred, void* i
 {
 
 	IOCP& server = *static_cast< IOCP* >( iocp );
+	server.increaseSendCount(dataNotSend);
+
+
+
+
 	const auto session = reinterpret_cast<Session*>(key);
+
+	//TODO: sendingQ 세션에 있을 필요 없음. 
 	const auto& sendingQ = session->_sendingQ;
-
-	CSendBuffer* buffer = nullptr;
-
 
 	for ( int i = 0; i < dataNotSend; i++ )
 	{
 		sendingQ[i]->Release(L"PostSendRelease");
 	}
-	server.increaseSendCount(dataNotSend);
-
 	dataNotSend = 0;
+
 
 	session->needCheckSendTimeout = false;
 
@@ -29,4 +32,6 @@ void PostSendExecutable::Execute(const ULONG_PTR key, DWORD transferred, void* i
 	session->TrySend();
 
 	session->Release(L"PostSendRelease");
+
+	
 }

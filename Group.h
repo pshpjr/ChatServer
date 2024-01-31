@@ -36,6 +36,18 @@ namespace GroupInfo
 
 class Group
 {
+	struct GroupJob 
+	{
+		enum type
+		{
+			recv,
+			update
+		};
+		type type;
+		SessionID sessionid;
+	};
+
+
 	friend class GroupExecutable;
 	friend class GroupManager;
 public:

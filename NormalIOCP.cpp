@@ -116,7 +116,6 @@ bool IOCP::Init(const String& ip, const Port port, const uint16 backlog, const u
 	for (int i = 0; i < workerThread; ++i)
 	{
 		auto handle = ( HANDLE ) _beginthreadex(nullptr, 0, WorkerEntry, _this, 0, nullptr);
-
 		if ( handle == INVALID_HANDLE_VALUE)
 		{
 			_listenSocket.Close();

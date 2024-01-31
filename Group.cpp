@@ -70,6 +70,7 @@ void Group::onRecvPacket(const Session& session, CRecvBuffer& buffer)
 	try
 	{
 		OnRecv(session._sessionId, buffer);
+		ASSERT_CRASH(buffer.CanPopSize() == 0, "can pop from recv buffer");
 	}
 	catch (const std::invalid_argument&)
 	{
@@ -119,6 +120,13 @@ void Group::RecvHandler(Session& session, void* iocp)
 	CRingBuffer& recvQ = session._recvQ;
 	while (true)
 	{
+		if (session.GetGroupID() != _groupId)
+		{
+			break;
+		}
+
+
+
 		if (recvQ.Size() < sizeof(Header))
 		{
 			break;
@@ -156,7 +164,7 @@ void Group::RecvHandler(Session& session, void* iocp)
 		{
 			recvQ.Decode(session._staticKey);
 
-			if (recvQ.ChecksumValid())
+			if (!recvQ.ChecksumValid())
 			{
 				gLogger->Write(L"Disconnect", LogLevel::Debug, L"Group Invalid Checksum");
 				session.Close();
@@ -165,11 +173,11 @@ void Group::RecvHandler(Session& session, void* iocp)
 		}
 		loopCount++;
 		recvQ.Dequeue(sizeof(Header));
-		server.onRecvPacket(session, buffer);
+		onRecvPacket(session, buffer);
+
+
 
 		buffer.Release(L"RecvRelease");
-
-		recvQ.Dequeue(header.len);
 	}
 
 	if (loopCount > 0)

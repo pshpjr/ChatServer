@@ -24,42 +24,42 @@ int CRingBuffer::Size() const
 
 void CRingBuffer::Decode(const char staticKey)
 {
-	////맨 앞에 헤더가 있다는 가정. 
-	//NetHeader header;
-	//Peek(reinterpret_cast<char*>( &header), sizeof(NetHeader));
+	//맨 앞에 헤더가 있다는 가정. 
+	NetHeader header;
+	Peek(reinterpret_cast<char*>( &header), sizeof(NetHeader));
 
-	//int decodeStart = GetIndex(_front + offsetof(NetHeader, checkSum));
-	////체크섬부터 디코딩한다는 가정. 
-	//const unsigned short decodeLen = header.len + static_cast<unsigned short>(sizeof(NetHeader) - offsetof(NetHeader, checkSum));
+	int decodeStart = GetIndex(_front + offsetof(NetHeader, checkSum));
+	//체크섬부터 디코딩한다는 가정. 
+	const unsigned short decodeLen = header.len + static_cast<unsigned short>(sizeof(NetHeader) - offsetof(NetHeader, checkSum));
 
-	//unsigned char p = 0;
-	//unsigned char e = 0;
-	//unsigned char oldP = 0;
-	//for (int i = 1; i <= decodeLen; i++)
-	//{
-	//	unsigned char tmp = _buffer[decodeStart];
-	//	p = tmp ^ (e + staticKey + i);
-	//	e = tmp;
-	//	_buffer[decodeStart] = p ^ (oldP + header.randomKey + i);
-	//	oldP = p;
-	//	decodeStart = GetIndex(decodeStart + 1);
-	//}
-
-	NetHeader* head = (NetHeader*)GetFront();
-	char* decodeData = (char*)head + offsetof(NetHeader, checkSum);
-	const unsigned short decodeLen = head->len + static_cast<unsigned short>(sizeof(NetHeader) - offsetof(NetHeader, checkSum));
-
-	char p = 0;
-	char e = 0;
-	char oldP = 0;
+	unsigned char p = 0;
+	unsigned char e = 0;
+	unsigned char oldP = 0;
 	for (int i = 1; i <= decodeLen; i++)
 	{
-		p = (*decodeData) ^ (e + staticKey + i);
-		e = *decodeData;
-		*decodeData = p ^ (oldP + head->randomKey + i);
+		unsigned char tmp = _buffer[decodeStart];
+		p = tmp ^ (e + staticKey + i);
+		e = tmp;
+		_buffer[decodeStart] = p ^ (oldP + header.randomKey + i);
 		oldP = p;
-		decodeData++;
+		decodeStart = GetIndex(decodeStart + 1);
 	}
+
+	//NetHeader* head = (NetHeader*)GetFront();
+	//char* decodeData = (char*)head + offsetof(NetHeader, checkSum);
+	//const unsigned short decodeLen = head->len + static_cast<unsigned short>(sizeof(NetHeader) - offsetof(NetHeader, checkSum));
+
+	//char p = 0;
+	//char e = 0;
+	//char oldP = 0;
+	//for (int i = 1; i <= decodeLen; i++)
+	//{
+	//	p = (*decodeData) ^ (e + staticKey + i);
+	//	e = *decodeData;
+	//	*decodeData = p ^ (oldP + head->randomKey + i);
+	//	oldP = p;
+	//	decodeData++;
+	//}
 }
 
 bool CRingBuffer::ChecksumValid()
@@ -182,7 +182,7 @@ int CRingBuffer::DirectDequeueSize() const
 
 int CRingBuffer::Dequeue(const int deqSize)
 {
-	if (_front == _rear)
+	if (Size() == 0)
 	{
 		return 0;
 	}

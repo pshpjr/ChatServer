@@ -14,6 +14,11 @@ public:
 
 	static SendBuffer Alloc();
 
+	int Size() const
+	{ 	
+		return buffer.GetDataSize(); 
+	}
+
 	CSendBuffer* getBuffer() const
 	{
 		return &buffer;

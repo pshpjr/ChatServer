@@ -21,12 +21,9 @@ class IOCP : public IOCP_CLASS
 	friend class Group;
 	friend class GroupManager;
 	friend class Client;
-
-
 public:
 	IOCP();
 
-	bool Init();
 	bool Init(const String& ip, Port port, uint16 backlog, uint16 maxRunningThread,uint16 workerThread, char staticKey);
 	void Start();
 	void Stop();
@@ -50,7 +47,7 @@ public:
 	WSAResult<SessionID> GetClientSession(const String& ip, Port port);
 	bool IsValidSession(SessionID id);
 	//GROUP
-	
+
 
 	//CONTENT VIRTUAL
 
@@ -94,11 +91,9 @@ public:
 	String GetLibMonitorString() const;
 	void PrintMonitorString() const;
 
-
 	template <typename GroupType, typename ...Args>
 	GroupID CreateGroup(Args&&... args) const;
 	void MoveSession(SessionID target, GroupID dst) const;
-
 private:
 
 	
@@ -110,17 +105,16 @@ private:
 	void onRecvPacket(const Session& session, CRecvBuffer& buffer);
 
 	//WorkerThreadFunc
-	void GroupThread(LPVOID arg);
 	void WorkerThread(LPVOID arg);
 	void AcceptThread(LPVOID arg);
 	void MonitorThread(LPVOID arg);
 	void TimeoutThread(LPVOID arg);
+	void GroupThread(LPVOID arg);
 
 
-	static unsigned __stdcall GroupEntry(LPVOID arg);
 	static unsigned __stdcall WorkerEntry(LPVOID arg);
 	static unsigned __stdcall AcceptEntry(LPVOID arg);
-
+	static unsigned __stdcall GroupEntry(const LPVOID arg);
 	static unsigned __stdcall MonitorEntry(LPVOID arg);
 	static unsigned __stdcall TimeoutEntry(LPVOID arg);
 

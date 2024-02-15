@@ -124,6 +124,7 @@ protected:
 
 	String _ip {};
 	uint16 _maxNetThread = 0;
+	uint16 _maxWorkerThread = 0; 
 	uint16 _port {};
 	int _backlog = 0;
 
@@ -144,7 +145,7 @@ protected:
 	int64 _sendCount = 0;
 	uint64 _oldDisconnect = 0;
 	int64 _disconnectCount = 0;
-	uint32 _tcpSegmenTimeout = 0;
+	uint32 _tcpSemaphoreTimeout = 0;
 	uint64 _acceptTps = 0;
 	uint64 _recvTps = 0;
 	uint64 _sendTps = 0;

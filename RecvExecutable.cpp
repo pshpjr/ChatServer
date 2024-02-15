@@ -53,17 +53,27 @@ void RecvExecutable::RecvHandler(Session& session, void* iocp)
 		{
 			if ( header.code != dfPACKET_CODE )
 			{
+				int frontIndex = recvQ.GetFrontIndex();
+				std::string dump(recvQ.GetBuffer(), recvQ.GetBuffer() + recvQ.GetBufferSize());
+				gLogger->Write(L"Disconnect", LogLevel::Debug, L"WrongPacketCode id : %d\n index: %d \n %s", session.GetSessionId(),frontIndex,dump);
 				session.Close();
 				break;
 			}
 
 			if ( header.len > session._maxPacketLen )
 			{
+				int frontIndex = recvQ.GetFrontIndex();
+				std::string dump(recvQ.GetBuffer(), recvQ.GetBuffer() + recvQ.GetBufferSize());
+				gLogger->Write(L"Disconnect", LogLevel::Debug, L"WrongPacketLen id : %d\n index: %d \n %s", session.GetSessionId(), frontIndex, dump);
 				session.Close();
 				break;
 			}
 		}
 
+		if(header.len > recvQ.Size())
+			break;
+		
+		
 		if (const int totPacketSize = header.len + sizeof(Header); recvQ.Size() < totPacketSize )
 		{
 			break;
@@ -75,9 +85,9 @@ void RecvExecutable::RecvHandler(Session& session, void* iocp)
 		{
 			recvQ.Decode(session._staticKey);
 
-			if (recvQ.ChecksumValid() )
+			if (!recvQ.ChecksumValid() )
 			{
-				gLogger->Write(L"Disconnect", LogLevel::Debug, L"Recv Invalid Checksum");
+				gLogger->Write(L"Disconnect", LogLevel::Debug, L"Recv Invalid Checksum id : %d",session.GetSessionId());
 				session.Close();
 				break;
 			}
@@ -86,9 +96,9 @@ void RecvExecutable::RecvHandler(Session& session, void* iocp)
 		recvQ.Dequeue(sizeof(Header));
 		server.onRecvPacket(session, buffer);
 
+		ASSERT_CRASH(buffer.CanPopSize() == 0,"UnuseData");
 		buffer.Release(L"RecvRelease");
-
-		recvQ.Dequeue(header.len);
+		
 	}
 
 	if ( loopCount > 0 )

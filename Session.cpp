@@ -94,6 +94,11 @@ void Session::RecvNotIncrease()
 		Release(L"tryRecvReleaseIOCanceled");
 		return;
 	}
+	if(_connect == false)
+	{
+		Release(L"RecvReleaseSessionClosed");
+		return;
+	}
 	int bufferCount = 1;
 	WSABUF recvWsaBuf[2] = {};
 	DWORD flags = 0;
@@ -126,12 +131,20 @@ void Session::RecvNotIncrease()
 
 	lastRecv = chrono::steady_clock::now();
 
+
+	//멀티스레딩 상황에서 recv의 에러 확인(ioPending)과 connect 확인 사이에 새로운 세션으로 변경될 수 있다.
+	auto beforeSessionId = _sessionId;
 	if (const int recvResult = _socket.Recv(recvWsaBuf, bufferCount, &flags, &_recvExecute._overlapped); recvResult == SOCKET_ERROR )
 	{
 		const int error = WSAGetLastError();
 		if ( error == WSA_IO_PENDING )
 		{
 			_recvExecute.isPending = 1;
+			if(_connect == false)
+			{
+				_owner->DisconnectSession(beforeSessionId);
+			}
+			
 			return;
 		}
 
@@ -200,7 +213,7 @@ optional<timeoutInfo> Session::CheckTimeout(const chrono::steady_clock::time_poi
 	const auto sendWait = chrono::duration_cast< chrono::milliseconds >( now - _postSendExecute.lastSend );
 
 	optional<timeoutInfo> retVal {};
-	if ( needCheckSendTimeout && sendWait.count() > _timeout )
+	if ( _needCheckSendTimeout && sendWait.count() > _timeout )
 	{
 		retVal = { timeoutInfo::IOtype::send,sendWait.count(),_timeout };
 	}
@@ -222,7 +235,7 @@ void Session::Reset()
 	_postSendExecute.Clear();
 	_recvQ.Clear();
 	_isSending = false;
-	needCheckSendTimeout = false;
+	_needCheckSendTimeout = false;
 	_timeout = _defaultTimeout;
 
 	
@@ -286,42 +299,39 @@ void Session::RealSend()
 
 	int sendPackets = 0;
 	WSABUF sendWsaBuf[MAX_SEND_COUNT] = {};
-	for ( int i = 0; i < MAX_SEND_COUNT; i++ )
+
+	while (sendPackets == 0) 
 	{
-		CSendBuffer* buffer;
-		if ( !_sendQ.Dequeue(buffer) )
+		for (int i = 0; i < MAX_SEND_COUNT; i++)
 		{
-			break;
+			CSendBuffer* buffer;
+			if (!_sendQ.Dequeue(buffer))
+			{
+				break;
+			}
+			sendPackets++;
+
+			_sendingQ[i] = buffer;
+
+
+
+			if (_staticKey)
+			{
+				buffer->TryEncode(_staticKey);
+			}
+			else
+			{
+				buffer->WriteLanHeader();
+			}
+
+			sendWsaBuf[i].buf = buffer->GetHead();
+			sendWsaBuf[i].len = buffer->SendDataSize();
+
+			ASSERT_CRASH(sendWsaBuf[i].len > 0, "Out of Case");
 		}
-		sendPackets++;
-
-		_sendingQ[i] = buffer;
-
-
-
-		if ( _staticKey )
-		{
-			buffer->TryEncode(_staticKey);
-		}
-		else
-		{
-			buffer->WriteLanHeader();
-		}
-
-		sendWsaBuf[i].buf = buffer->GetHead();
-		sendWsaBuf[i].len = buffer->SendDataSize();
-
-		ASSERT_CRASH(sendWsaBuf[i].len > 0, "Out of Case");
 	}
 
-	if ( sendPackets == 0 )
-	{ 
-		InterlockedExchange8(&_isSending, false);
-		Release(L"realSendPacket0Release");
-		return;
-	}
-
-	needCheckSendTimeout = true;
+	_needCheckSendTimeout = true;
 	_postSendExecute.lastSend = chrono::steady_clock::now();
 
 	constexpr DWORD flags = 0;
@@ -334,7 +344,6 @@ void Session::RealSend()
 		const int error = WSAGetLastError();
 		if ( error == WSA_IO_PENDING )
 		{
-			return;
 			return;
 		}
 
@@ -349,7 +358,7 @@ void Session::RealSend()
 			default:
 				DebugBreak();
 		}
-		Close();
+		gLogger->Write(L"Disconnect", LogLevel::Debug, L"SendFail errNo : %d, sessionID : %d", error, GetSessionId());
 		Release(L"SendErrorRelease");
 	}
 }

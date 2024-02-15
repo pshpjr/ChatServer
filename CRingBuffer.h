@@ -38,7 +38,7 @@ public:
 	 */
 	int Dequeue(int deqSize);
 
-
+	int GetBufferSize() const { return BUFFER_SIZE; }
 	/**
 	 * \brief
 	 * \return front의 주소
@@ -47,7 +47,7 @@ public:
 	{
 		return &_buffer[GetIndex(_front)];
 	}
-
+	int GetFrontIndex() const { return GetIndex(_front); }
 	/**
 	 * \brief
 	 * \return rear의 주소

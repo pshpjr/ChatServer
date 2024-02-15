@@ -14,8 +14,9 @@ public:
 	GroupID CreateGroup(Args&&... args);
 
 	//move 0이면 나가기. 
-	void MoveSession(SessionID target, GroupID dst);
+	void MoveSession(SessionID target, GroupID dst, void* optionVal);
 
+	void Update();
 private:
 	SRWLOCK _groupLock;
 	HashMap<GroupID, unique_ptr<Group>> _groups;

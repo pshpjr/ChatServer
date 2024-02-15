@@ -132,7 +132,7 @@ private:
 	char _isSending = false;
 
 	//Timeout
-	bool needCheckSendTimeout = false;
+	bool _needCheckSendTimeout = false;
 	char _connect = false;
 	int _defaultTimeout = 5000;
 	int _timeout = 5000;

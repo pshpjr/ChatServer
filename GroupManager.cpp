@@ -1,5 +1,6 @@
 ﻿#include "stdafx.h"
 #include "GroupManager.h"
+#include "GroupExecutable.h"
 #include "IOCP.h"
 
 
@@ -14,6 +15,7 @@ void GroupManager::MoveSession(const SessionID target, const GroupID dst)
 	}
 
 
+
 	session->SetGroupID(dst);
 	AcquireSRWLockShared(&_groupLock);
 	const auto dstGroup = _groups.find(dst);
@@ -21,6 +23,21 @@ void GroupManager::MoveSession(const SessionID target, const GroupID dst)
 	ReleaseSRWLockShared(&_groupLock);
 
 	session->Release(L"MoveSessionRel");
+}
+
+void GroupManager::Update()
+{
+	auto now = ::chrono::steady_clock::now();
+	AcquireSRWLockShared(&_groupLock);
+	for (auto& [groupId, groupPtr] : _groups)
+	{
+		if (groupPtr->NeedUpdate()) 
+		{
+			groupPtr->_executable.Clear();
+			_owner->PostExecutable((Executable*)(&(groupPtr->_executable)), 0);
+		}
+	}
+	ReleaseSRWLockShared(&_groupLock);
 }
 
 

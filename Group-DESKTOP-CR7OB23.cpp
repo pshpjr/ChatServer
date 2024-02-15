@@ -7,32 +7,14 @@
 #include <Protocol.h>
 #include <CLogger.h>
 #include "CoreGlobal.h"
-Group::Group() :_executable(*new GroupExecutable(this)),_iocp(nullptr),_owner(nullptr)
-,_nextUpdate(std::chrono::steady_clock::now() + chrono::milliseconds(_loopMs)) {};
-
-bool Group::NeedUpdate()
-{
-	return ::chrono::steady_clock::now() >= _nextUpdate;
-}
+Group::Group() :_executable(*new GroupExecutable(this)),_iocp(nullptr),_owner(nullptr) {};
 
 void Group::Update()
 {
-	if (InterlockedExchange8(&_isRun, 1) == 1)
-		return;
-	
 	HandleEnter();
 	HandlePacket();
-	if (NeedUpdate()) 
-	{
-		OnUpdate();
-		_nextUpdate += chrono::milliseconds(_loopMs);
-	}
-
-
-
+	OnUpdate();
 	HandleLeave();
-
-	InterlockedExchange8(&_isRun, 0);
 }
 
 void Group::HandleEnter()
@@ -88,12 +70,11 @@ void Group::onRecvPacket(const Session& session, CRecvBuffer& buffer)
 	try
 	{
 		OnRecv(session._sessionId, buffer);
-		ASSERT_CRASH(buffer.CanPopSize() == 0, "can pop from recv buffer");
 	}
 	catch (const std::invalid_argument&)
 	{
 		_iocp->DisconnectSession(session.GetSessionId());
-		gLogger->Write(L"Recv Pop Err", LogLevel::Debug, L"ERR");
+		gLogger->Write(L"RecvErr", LogLevel::Debug, L"ERR");
 	}
 }
 
@@ -108,11 +89,6 @@ void Group::LeaveSession(const SessionID id)
 void Group::EnterSession(const SessionID id)
 {
 	_enterSessions.Enqueue(id);
-}
-
-void Group::SetLoopMs(int loopMS)
-{
-	_loopMs = loopMS;
 }
 
 void Group::SendPacket(const SessionID id, SendBuffer& buffer) const
@@ -143,13 +119,11 @@ void Group::RecvHandler(Session& session, void* iocp)
 	CRingBuffer& recvQ = session._recvQ;
 	while (true)
 	{
-		if (session.GetGroupID() != _groupId)
+		if ( session.GetGroupID() != _groupId )
 		{
 			LeaveSession(session.GetSessionId());
 			break;
 		}
-
-
 
 		if (recvQ.Size() < sizeof(Header))
 		{
@@ -157,59 +131,76 @@ void Group::RecvHandler(Session& session, void* iocp)
 		}
 
 
-		Header header;
-		recvQ.Peek((char*)&header, sizeof(Header));
+		Header* header = (Header*)session._recvTempBuffer;
+		recvQ.Peek((char*)header, sizeof(Header));
 
 		if constexpr (is_same_v<Header, NetHeader>)
 		{
-			if (header.code != dfPACKET_CODE)
+			if (header->code != dfPACKET_CODE)
 			{
-				int frontIndex = recvQ.GetFrontIndex();
-				std::string dump(recvQ.GetBuffer(), recvQ.GetBuffer() + recvQ.GetBufferSize());
-				SessionID id = session.GetSessionId();
-				gLogger->Write(L"Disconnect", LogLevel::Debug, L"Group WrongPacketCode, SessionID : %d\n frontIndex: %d \n %s ",id, frontIndex, dump);
+				
+
+				gLogger->Write(L"Disconncet", LogLevel::Debug, L"Invalid PacketCode disconnect");
 				session.Close();
 				break;
 			}
 
-			if (header.len > session._maxPacketLen)
+			if (header->len > session._maxPacketLen)
 			{
-				int frontIndex = recvQ.GetFrontIndex();
-				std::string dump(recvQ.GetBuffer(), recvQ.GetBuffer() + recvQ.GetBufferSize());
-				SessionID id = session.GetSessionId();
-				gLogger->Write(L"Disconnect", LogLevel::Debug, L"Group WrongPacketLen, SessionID : %d\n index: %d \n %s",id, frontIndex, dump);
+				gLogger->Write(L"Disconncet", LogLevel::Debug, L"Invalid PacketCode disconnect");
 				session.Close();
 				break;
 			}
 		}
 
-		if (const int totPacketSize = header.len + sizeof(Header); recvQ.Size() < totPacketSize)
+		if (const int totPacketSize = header->len + sizeof(Header); recvQ.Size() < totPacketSize)
 		{
 			break;
 		}
 
+		Header* recvQHeader = (Header*)recvQ.GetFront();
+
+		char* front;
+		char* rear;
+
+		//if can pop direct
+		if (recvQ.DirectDequeueSize() >= header->len + sizeof(Header))
+		{
+			recvQ.Dequeue(sizeof(Header));
+			front = session._recvQ.GetFront();
+			rear = front + header->len;
+			header = recvQHeader;
+		}
+		else
+		{
+			front = (char*)header + sizeof(Header);
+			recvQ.Dequeue(sizeof(Header));
+			recvQ.Peek(front, header->len);
+			rear = front + header->len;
+		}
 
 
-		auto& buffer = *CRecvBuffer::Alloc(&recvQ, header.len);
+		auto& buffer = *CRecvBuffer::Alloc(front, rear);
 
 		if constexpr (is_same_v<Header, NetHeader>)
 		{
-			recvQ.Decode(session._staticKey);
+			buffer.Decode(session._staticKey, header);
 
-			if (!recvQ.ChecksumValid())
+			if (!buffer.ChecksumValid(header))
 			{
-				gLogger->Write(L"Disconnect", LogLevel::Debug, L"Group Invalid Checksum %d",session.GetSessionId());
+				//printf("checkSumInvalid %d %p\n", buffer._rear- buffer._front, buffer._front);
+
 				session.Close();
 				break;
 			}
 		}
 		loopCount++;
-		recvQ.Dequeue(sizeof(Header));
+
 		onRecvPacket(session, buffer);
 
-
-
 		buffer.Release(L"RecvRelease");
+		
+		session._recvQ.Dequeue(header->len);
 	}
 
 	if (loopCount > 0)

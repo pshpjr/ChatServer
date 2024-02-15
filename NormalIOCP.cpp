@@ -48,31 +48,29 @@ IOCP::IOCP()
 	_groupManager = new GroupManager(this);
 
 	_settingParser.Init();
+	
+	_settingParser.GetValue(L"basic.ip", _ip);
+	_settingParser.GetValue(L"basic.port", _port);
+	_settingParser.GetValue(L"basic.backlog", _backlog);
+	_settingParser.GetValue(L"basic.runningThreads", _maxNetThread);
+	_settingParser.GetValue(L"basic.workerThreads", _maxWorkerThread);
+	_settingParser.GetValue(L"basic.staticKey", _staticKey);
 
-	String ip;
-	Port port;
-	uint16 backlog;
-	uint16 maxNetThead;
-	uint16 workerThread;
-	char staticKey;
-
-	_settingParser.GetValue(L"basic.ip", ip);
-	_settingParser.GetValue(L"basic.port", port);
-	_settingParser.GetValue(L"basic.backlog", backlog);
-	_settingParser.GetValue(L"basic.runningThreads", maxNetThead);
-	_settingParser.GetValue(L"basic.workerThreads", workerThread);
-	_settingParser.GetValue(L"basic.staticKey", staticKey);
-
-
-	printf("%ls %d\n", ip.c_str(), port);
-	Init(ip, port, backlog, maxNetThead, workerThread, staticKey);
-
+	printf("%ls %d\n", _ip.c_str(), _port);
+	Init();
 }
+
+bool IOCP::Init()
+{
+	return Init(_ip, _port, _backlog, _maxNetThread, _maxWorkerThread, _staticKey);
+}
+
 
 
 bool IOCP::Init(const String& ip, const Port port, const uint16 backlog, const uint16 maxRunningThread, const uint16 workerThread, const char staticKey)
 {
-
+	_maxWorkerThread = workerThread;
+	_backlog = backlog;
 	_maxNetThread = maxRunningThread;
 	_staticKey = staticKey;
 	_ip = ip;
@@ -127,6 +125,16 @@ bool IOCP::Init(const String& ip, const Port port, const uint16 backlog, const u
 		printf("WorkerThread %p\n", handle);
 	}
 
+
+
+	const auto groupT = (HANDLE)_beginthreadex(nullptr, 0, GroupEntry, _this, 0, nullptr);
+	if (groupT == INVALID_HANDLE_VALUE)
+	{
+		_listenSocket.Close();
+		return false;
+	}
+	_threadArray.push_back({ groupT,GetThreadId(groupT) });
+	printf("GroupThread %p\n", groupT);
 
 	const auto acceptT = (HANDLE)_beginthreadex(nullptr,0,AcceptEntry,_this, 0, nullptr);
 	if (acceptT == INVALID_HANDLE_VALUE)
@@ -371,6 +379,7 @@ WSAResult<SessionID>  IOCP::GetClientSession(const String& ip, const Port port)
 
 	if (auto connectionResult = s.Connect(ip, port); !connectionResult.HasValue() )
 	{
+		gLogger->Write(L"ClientClose", LogLevel::Debug, L"connect fail");
 		s.Close();
 		freeIndex.Push(index);
 		
@@ -594,7 +603,7 @@ uint64 IOCP::GetDisconnectPerSec() const
 
 uint32 IOCP::GetSegmentTimeout() const
 {
-	return _tcpSegmenTimeout;
+	return _tcpSemaphoreTimeout;
 }
 
 size_t IOCP::GetPageFaultCount() const
@@ -696,6 +705,14 @@ void IOCP::PrintMonitorString() const
 		 ThreadFunc
 *****************************/
 
+unsigned __stdcall IOCP::GroupEntry(const LPVOID arg)
+{
+	const auto iocp = static_cast<IOCP*>(arg);
+
+	iocp->GroupThread(nullptr);
+	return 0;
+}
+
 unsigned __stdcall IOCP::MonitorEntry(const LPVOID arg)
 {
 	const auto iocp = static_cast<IOCP*>(arg);
@@ -723,6 +740,28 @@ unsigned __stdcall IOCP::AcceptEntry(const LPVOID arg)
 	const auto iocp = static_cast<IOCP*>(arg);
 	iocp->AcceptThread(nullptr);
 	return 0;
+}
+
+void IOCP::GroupThread(LPVOID arg)
+{
+	EASY_THREAD("Group");
+	WaitStart();
+	const auto start = chrono::steady_clock::now();
+	auto next = chrono::time_point_cast<chrono::milliseconds>(start) + chrono::milliseconds(1);
+	while (_isRunning)
+	{
+		_groupManager->Update();
+
+		auto sleepTime = chrono::duration_cast<chrono::milliseconds> (next - chrono::steady_clock::now());
+		next += chrono::milliseconds(1);
+		if (sleepTime.count() > 0)
+		{
+			EASY_BLOCK("SLEEP", profiler::colors::Magenta);
+			Sleep(static_cast<DWORD>(sleepTime.count()));
+		}
+	}
+	printf("GroupThread End\n");
+
 }
 
 void IOCP::WorkerThread(LPVOID arg)
@@ -765,20 +804,30 @@ void IOCP::WorkerThread(LPVOID arg)
 			case ERROR_NETNAME_DELETED:
 				break;
 			//ERROR_SEM_TIMEOUT. 장치에서 끊은 경우 (5회 재전송 실패 등..)
-			case ERROR_SEM_TIMEOUT:
-				gLogger->Write(L"ConnectionError", LogLevel::Error, L"SegmentTimeout");
-				InterlockedIncrement(&_tcpSegmenTimeout);
+				//제로 윈도우가 계속 떴다. 
+			case ERROR_SEM_TIMEOUT: 
+			{
+				auto now = chrono::steady_clock::now();
+				auto recvWait = chrono::duration_cast<chrono::milliseconds>(now - session->lastRecv);
+				auto sendWait = session->_needCheckSendTimeout ? chrono::duration_cast<chrono::milliseconds>(now - session->_postSendExecute.lastSend) : 0ms;
+
+				gLogger->Write(L"ConnectionError", LogLevel::Error, L"SemaphoreTimeout  sessionID : %d, executableType : %s, sendWait : %d recvWait : %d", session->GetSessionId(), typeid(overlapped).name(), sendWait,recvWait);
+				InterlockedIncrement(&_tcpSemaphoreTimeout);
 				break;
+			}
+
 			//WSA_OPERATION_ABORTED cancleIO로 인한 것.
 			//서버가 먼저 끊는 상황에서 발생.
 			case WSA_OPERATION_ABORTED:
-				gLogger->Write(L"ConnectionError", LogLevel::Error, L"Operation Aborted.");
+				gLogger->Write(L"ConnectionError", LogLevel::Error, L"Operation Aborted sessionID : %d, executableType : %s", session->GetSessionId(), typeid(overlapped).name());
 				break;
+			//io 도중에 closeSocket 호출
+			//생기면 안 됨. 
 			case ERROR_CONNECTION_ABORTED:
-				gLogger->Write(L"ConnectionError", LogLevel::Error, L"Connection Aborted.");
+				gLogger->Write(L"ConnectionError", LogLevel::Error, L"Connection Aborted sessionID : %d, executableType : %s", session->GetSessionId(), typeid(overlapped).name());
 				break;
 			case ERROR_NOT_FOUND:
-				gLogger->Write(L"ConnectionError", LogLevel::Error, L"Error Not Found");
+				gLogger->Write(L"ConnectionError", LogLevel::Error, L"Error Not Found sessionID : %d, executableType : %s", session->GetSessionId(), typeid(overlapped).name());
 				break;
 			[[unlikely]] default:
 				{

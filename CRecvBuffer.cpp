@@ -45,7 +45,7 @@ void CRecvBuffer::GetWstr(const LPWSTR arr, const int strLen)
 	_buffer->Peek(reinterpret_cast<char*>(arr),strLen*sizeof(WCHAR));
 	_buffer->Dequeue(strLen*sizeof(WCHAR));
 	
-	_size -= sizeof(WCHAR);
+	_size -= strLen * sizeof(WCHAR);
 }
 
 void CRecvBuffer::GetCstr(const LPSTR arr, const int size)

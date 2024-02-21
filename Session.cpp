@@ -239,7 +239,7 @@ void Session::Reset()
 	_timeout = _defaultTimeout;
 
 	
-	GroupID _groupID = 0;
+	_groupId = GroupID(0);
 
 	CRecvBuffer* recvBuffer;
 	while ( _groupRecvQ.Dequeue(recvBuffer) )
@@ -265,6 +265,11 @@ void Session::Reset()
 	_socket.Close();
 }
 
+void Session::PostRelease()
+{
+	PostQueuedCompletionStatus(_owner->_iocp, -1, reinterpret_cast<ULONG_PTR>(this), &_releaseExecutable._overlapped);
+}
+
 bool Session::Release([[maybe_unused]] LPCWSTR content, [[maybe_unused]] int type)
 {
 	int refDecResult = InterlockedDecrement(&_refCount);
@@ -280,8 +285,11 @@ bool Session::Release([[maybe_unused]] LPCWSTR content, [[maybe_unused]] int typ
 		if ( InterlockedCompareExchange(&_refCount, RELEASE_FLAG, 0) == 0 )
 		{
 			//InterlockedIncrement(&_owner->_iocpCompBufferSize);
-			PostQueuedCompletionStatus(_owner->_iocp, -1, reinterpret_cast<ULONG_PTR>(this), &_releaseExecutable._overlapped);
 
+			if(GetGroupID() == 0)
+			{
+				PostRelease();
+			}
 			return true;
 		}
 	}
@@ -300,36 +308,33 @@ void Session::RealSend()
 	int sendPackets = 0;
 	WSABUF sendWsaBuf[MAX_SEND_COUNT] = {};
 
-	while (sendPackets == 0) 
+	for (int i = 0; i < MAX_SEND_COUNT; i++)
 	{
-		for (int i = 0; i < MAX_SEND_COUNT; i++)
+		CSendBuffer* buffer;
+		if (!_sendQ.Dequeue(buffer))
 		{
-			CSendBuffer* buffer;
-			if (!_sendQ.Dequeue(buffer))
-			{
-				break;
-			}
-			sendPackets++;
-
-			_sendingQ[i] = buffer;
-
-
-
-			if (_staticKey)
-			{
-				buffer->TryEncode(_staticKey);
-			}
-			else
-			{
-				buffer->WriteLanHeader();
-			}
-
-			sendWsaBuf[i].buf = buffer->GetHead();
-			sendWsaBuf[i].len = buffer->SendDataSize();
-
-			ASSERT_CRASH(sendWsaBuf[i].len > 0, "Out of Case");
+			break;
 		}
+		sendPackets++;
+
+		_sendingQ[i] = buffer;
+
+		if (_staticKey)
+		{
+			buffer->TryEncode(_staticKey);
+		}
+		else
+		{
+			buffer->WriteLanHeader();
+		}
+
+		sendWsaBuf[i].buf = buffer->GetHead();
+		sendWsaBuf[i].len = buffer->SendDataSize();
+
+		ASSERT_CRASH(sendWsaBuf[i].len > 0, "Out of Case");
 	}
+
+	ASSERT_CRASH(sendPackets != 0);
 
 	_needCheckSendTimeout = true;
 	_postSendExecute.lastSend = chrono::steady_clock::now();

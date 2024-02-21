@@ -14,7 +14,7 @@ public:
 	GroupID CreateGroup(Args&&... args);
 
 	//move 0이면 나가기. 
-	void MoveSession(SessionID target, GroupID dst, void* optionVal);
+	void MoveSession(SessionID target, GroupID dst);
 
 	void Update();
 private:
@@ -28,6 +28,7 @@ private:
 	/// </summary>
 	GroupID g_groupID = GroupID::InvalidGroupID();
 };
+
 
 template <typename GroupType, typename ...Args>
 GroupID GroupManager::CreateGroup(Args&&... args)
@@ -44,7 +45,5 @@ GroupID GroupManager::CreateGroup(Args&&... args)
 	ReleaseSRWLockExclusive(&_groupLock);
 
 	newGroup->OnCreate();
-
-	newGroup->Execute(_owner);
 	return newGroup->_groupId;
 }

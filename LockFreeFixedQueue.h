@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "Container.h"
 
 template <typename T,int BufferSize>
 class LockFreeFixedQueue
@@ -86,7 +87,7 @@ public:
 	alignas( 64 ) long tailIndex = 0;
 
 	int indexMask;
-	vector<Node> buffer;
+	std::vector<Node> buffer;
 public:
 
 };

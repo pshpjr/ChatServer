@@ -54,10 +54,11 @@ public:
 
 	virtual void OnCreate() {};
 	virtual void OnUpdate() {};
-	virtual void OnEnter(SessionID id, void* optionVal) {};
+	virtual void OnEnter(SessionID id) {};
 	virtual void OnLeave(SessionID id) {};
 	virtual void OnRecv(SessionID id, CRecvBuffer& recvBuffer) {};
 	virtual ~Group() {};
+	GroupID GetID() const {return _groupId;}
 protected:
 	void SendPacket(SessionID id, SendBuffer& buffer) const;
 	void MoveSession(SessionID id, GroupID dst) const;
@@ -66,6 +67,7 @@ protected:
 	void SetLoopMs(int loopMS);
 	Group();
 	IOCP* _iocp;
+	int _loopMs = 10;
 private:
 
 	bool NeedUpdate();
@@ -83,14 +85,14 @@ private:
 	
 
 private:
-	GroupID _groupId = -1;
+	GroupID _groupId = GroupID::InvalidGroupID();
 	GroupExecutable& _executable;
 	std::chrono::steady_clock::time_point _nextUpdate;
 	SessionSet _sessions;
 	TlsLockFreeQueue<SessionID> _enterSessions;
 	TlsLockFreeQueue<SessionID> _leaveSessions;
 	char _isRun = 0;
-	int _loopMs = 10;
+
 	GroupManager* _owner;
 };
 

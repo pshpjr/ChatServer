@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "Container.h"
 
 class CRingBuffer
 {
@@ -107,7 +108,7 @@ public:
 	}
 
 private:
-	::array<char, BUFFER_SIZE> _buffer;
+	std::array<char, BUFFER_SIZE> _buffer;
 
 	/**
 	 * \brief 데이터가 들어있는 위치

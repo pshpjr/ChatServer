@@ -11,5 +11,6 @@ SendBuffer SendBuffer::Alloc()
 
 SendBuffer::~SendBuffer()
 {
-	buffer.Release();
+	if(buffer != nullptr)
+		buffer->Release();
 }

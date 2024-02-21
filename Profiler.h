@@ -48,7 +48,6 @@ private:
 	Profiler() = default;
 
 
-
 	PROFILE_SAMPLE Profile_Samples[MAX_ITEM];
 };
 
@@ -151,6 +150,9 @@ private:
 	std::wstring optionalText;
 	DWORD TLSNum;
 };
+
+
+
 
 
 #define PROFILE

@@ -48,7 +48,7 @@ public:
 
 	void Close();
 	void Reset();
-
+	void PostRelease();
 
 
 	inline long IncreaseRef(LPCWSTR content);
@@ -81,20 +81,19 @@ public:
 
 	void ResetTimeoutWait();
 
-	//GROUP
+	//0이면 아무 그룹 아님. 
 	GroupID GetGroupID() const { return _groupId; }
 	void SetGroupID(const GroupID id)
 	{
 		InterlockedExchange(( long* ) &_groupId, id);
 	}
 
-
-
 private:
-	optional<timeoutInfo> CheckTimeout(chrono::steady_clock::time_point now);
+	std::optional<timeoutInfo> CheckTimeout(std::chrono::steady_clock::time_point now);
 	void RealSend();
 
 private:
+
 	//CONST
 	static constexpr unsigned long long ID_MASK = 0x000'7FFF'FFFF'FFFF;
 	static constexpr unsigned long long INDEX_MASK = 0x7FFF'8000'0000'0000;
@@ -114,7 +113,7 @@ private:
 	CSendBuffer* _sendingQ[MAX_SEND_COUNT];
 
 	//Group
-	GroupID _groupId = 0;
+	GroupID _groupId = GroupID(0);
 	TlsLockFreeQueue<CRecvBuffer*> _groupRecvQ;
 
 	IOCP* _owner;
@@ -137,7 +136,7 @@ private:
 	int _defaultTimeout = 5000;
 	int _timeout = 5000;
 	CRingBuffer _recvQ;
-	chrono::steady_clock::time_point lastRecv;
+	std::chrono::steady_clock::time_point lastRecv;
 
 	//Encrypt
 	char _staticKey = false;

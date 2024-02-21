@@ -13,17 +13,26 @@ void GroupManager::MoveSession(const SessionID target, const GroupID dst)
 	{
 		return;
 	}
-
-
-
+	GroupID src = session->GetGroupID();
 	session->SetGroupID(dst);
+	
 	AcquireSRWLockShared(&_groupLock);
-	const auto dstGroup = _groups.find(dst);
-	dstGroup->second->EnterSession(session->GetSessionId());
-	ReleaseSRWLockShared(&_groupLock);
+	if(src != 0)
+	{
+		const auto srcGroup = _groups.find(src);
+		srcGroup->second->LeaveSession(session->GetSessionId());
+	}
+	if(dst != 0)
+	{
+		const auto dstGroup = _groups.find(dst);
+		dstGroup->second->EnterSession(session->GetSessionId());
+	}
 
+	ReleaseSRWLockShared(&_groupLock);
+	
 	session->Release(L"MoveSessionRel");
 }
+
 
 void GroupManager::Update()
 {

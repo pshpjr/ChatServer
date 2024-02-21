@@ -4,7 +4,6 @@
 #include "IOCP.h"
 void SendExecutable::Execute(const ULONG_PTR key, DWORD transferred, void* iocp)
 {
-
 	const auto session = reinterpret_cast<Session*>(key);
 	session->RealSend();
 }

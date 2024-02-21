@@ -46,7 +46,7 @@ public:
 class GroupID
 {
 public:
-	constexpr GroupID(long id) :_id (id){}
+	explicit constexpr GroupID(long id) :_id (id){}
 
 	static GroupID NextID() { return GroupID(InterlockedIncrement(&g_GroupID)); }
 	static consteval GroupID InvalidGroupID() { return GroupID(-1); }

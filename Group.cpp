@@ -27,9 +27,7 @@ void Group::Update()
 		OnUpdate();
 		_nextUpdate += chrono::milliseconds(_loopMs);
 	}
-
-
-
+	
 	HandleLeave();
 
 	InterlockedExchange8(&_isRun, 0);
@@ -38,24 +36,36 @@ void Group::Update()
 void Group::HandleEnter()
 {
 	SessionID id;
-
+	int count = 0;
 	while ( _enterSessions.Dequeue(id) )
 	{
+		++count;
 		_sessions.insert(id);
 		OnEnter(id);
+		if(count == 100)
+			break;
 	}
 }
 void Group::HandleLeave()
 {
 	SessionID id;
+	int count = 0;
 	while ( _leaveSessions.Dequeue(id) )
 	{
+		++count;
 		if ( _sessions.erase(id) == 0 )
 		{
 			DebugBreak();
 		}
-
+		
 		OnLeave(id);
+
+		if(_iocp->isRelease(id))
+		{
+			_iocp->postReleaseSession(id);
+		}
+		if(count == 100)
+			break;
 	}
 }
 //onDisconnect랑 OnSessionLeave랑 순서가 안 맞을 수 있다. 
@@ -149,8 +159,6 @@ void Group::RecvHandler(Session& session, void* iocp)
 			break;
 		}
 
-
-
 		if (recvQ.Size() < sizeof(Header))
 		{
 			break;
@@ -188,9 +196,8 @@ void Group::RecvHandler(Session& session, void* iocp)
 			break;
 		}
 
-
-
 		auto& buffer = *CRecvBuffer::Alloc(&recvQ, header.len);
+
 
 		if constexpr (is_same_v<Header, NetHeader>)
 		{
@@ -198,6 +205,7 @@ void Group::RecvHandler(Session& session, void* iocp)
 
 			if (!recvQ.ChecksumValid())
 			{
+				
 				gLogger->Write(L"Disconnect", LogLevel::Debug, L"Group Invalid Checksum %d",session.GetSessionId());
 				session.Close();
 				break;

@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include <optional>
-
+#include <chrono>
 #include "CRingBuffer.h"
 #include "Socket.h"
 #include "TLSLockFreeQueue.h"
@@ -14,25 +14,6 @@ class RecvExecutable;
 class SendExecutable;
 class PostSendExecutable;
 class ReleaseExecutable;
-
-namespace SessionInfo
-{
-	struct SessionIdHash
-	{
-		std::size_t operator()(const SessionID& s) const
-		{
-			return std::hash<unsigned long long>()( s.id );
-		}
-	};
-
-	struct SessionIdEqual
-	{
-		bool operator()(const SessionID& lhs, const SessionID& rhs) const
-		{
-			return lhs.id == rhs.id;
-		}
-	};
-}
 
 consteval SessionID InvalidSessionID() { return { -1 , 0}; }
 
@@ -52,13 +33,11 @@ struct timeoutInfo
 //#define SESSION_DEBUG
 class Session
 {
-	friend class Executable;
 	friend class RecvExecutable;
 	friend class PostSendExecutable;
 	friend class SendExecutable;
 	friend class ReleaseExecutable;
 	friend class IOCP;
-	friend class NormalIOCP;
 	friend class Group;
 public:
 	int ioCount = 0;
@@ -69,11 +48,12 @@ public:
 
 	void Close();
 	void Reset();
-
+	void PostRelease();
 
 
 	inline long IncreaseRef(LPCWSTR content);
-	bool Release(LPCWSTR content = L"", int type = 0);
+	inline bool Release(LPCWSTR content = L"", int type = 0);
+
 
 	void EnqueueSendData(CSendBuffer* buffer);
 	void RegisterRecv();
@@ -84,7 +64,7 @@ public:
 
 	void RegisterIOCP(HANDLE iocpHandle);
 
-	SessionID GetSessionId() const { return _sessionId; }
+	inline SessionID GetSessionId() const { return _sessionId; }
 	String GetIp() const { return _socket.GetIp(); }
 	uint16 GetPort() const { return _socket.GetPort(); }
 
@@ -102,25 +82,23 @@ public:
 
 	void ResetTimeoutWait();
 
-	//GROUP
-	GroupID GetGroupID() const { return _groupId; }
-	void SetGroupID(const GroupID id)
+	//0이면 아무 그룹 아님. 
+	inline GroupID GetGroupID() const { return _groupId; }
+	inline void SetGroupID(const GroupID id)
 	{
 		InterlockedExchange(( long* ) &_groupId, id);
 	}
 
-
-	void LanRecv();
-	void NetRecv();
 private:
-	optional<timeoutInfo> CheckTimeout(chrono::steady_clock::time_point now);
+	std::optional<timeoutInfo> CheckTimeout(std::chrono::steady_clock::time_point now);
 	void RealSend();
 
 private:
+
 	//CONST
 	static constexpr unsigned long long ID_MASK = 0x000'7FFF'FFFF'FFFF;
 	static constexpr unsigned long long INDEX_MASK = 0x7FFF'8000'0000'0000;
-	static constexpr int MAX_SEND_COUNT = 512;
+	static constexpr int MAX_SEND_COUNT = 256;
 
 	static constexpr long RELEASE_FLAG = 0x0010'0000;
 
@@ -136,9 +114,8 @@ private:
 	CSendBuffer* _sendingQ[MAX_SEND_COUNT];
 
 	//Group
-	GroupID _groupId = 0;
-	TlsLockFreeQueue<CRecvBuffer*> _groupRecvQ;
-	char _recvTempBuffer[300];
+	GroupID _groupId = GroupID(0);
+	//TlsLockFreeQueue<CRecvBuffer*> _groupRecvQ;
 
 	IOCP* _owner;
 
@@ -155,16 +132,16 @@ private:
 	char _isSending = false;
 
 	//Timeout
-	bool needCheckSendTimeout = false;
+	bool _needCheckSendTimeout = false;
 	char _connect = false;
 	int _defaultTimeout = 5000;
 	int _timeout = 5000;
 	CRingBuffer _recvQ;
-	chrono::steady_clock::time_point lastRecv;
+	std::chrono::steady_clock::time_point lastRecv;
 
 	//Encrypt
 	char _staticKey = false;
-	unsigned int _maxPacketLen = 20000;
+	unsigned int _maxPacketLen = 5000;
 
 	//DEBUG
 	long debugCount = 0;
@@ -205,3 +182,30 @@ long Session::IncreaseRef(LPCWSTR Content)
 #endif
 	return result;
 }
+
+inline bool Session::Release(LPCWSTR content, int type)
+{
+	int refDecResult = InterlockedDecrement(&_refCount);
+
+#ifdef SESSION_DEBUG
+
+	auto index = InterlockedIncrement(&debugIndex);
+	release_D[index % debugSize] = { refDecResult,content,type };
+#endif
+
+	if (refDecResult == 0)
+	{
+		if (InterlockedCompareExchange(&_refCount, RELEASE_FLAG, 0) == 0)
+		{
+			//InterlockedIncrement(&_owner->_iocpCompBufferSize);
+
+			if (GetGroupID() == 0)
+			{
+				PostRelease();
+			}
+			return true;
+		}
+	}
+	return false;
+}
+

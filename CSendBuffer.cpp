@@ -19,7 +19,7 @@ void CSendBuffer::WriteNetHeader(const int code) const
 	NetHeader tmpHeader;
 	tmpHeader.len = GetDataSize();
 	const int checkLen = tmpHeader.len;
-	int checkSum = 0;
+	unsigned char checkSum = 0;
 
 	for (int i = 0; i < checkLen; i++)
 	{
@@ -128,7 +128,7 @@ CSendBuffer& CSendBuffer::operator<<(const String& value)
 void CSendBuffer::SetWstr(const LPCWSTR arr, const int size)
 {
 	CanPush(size);
-	wcscpy_s(( LPWSTR ) _rear, size, ( wchar_t* ) arr);
+	wmemcpy_s(( LPWSTR ) _rear, size, ( wchar_t* ) arr,size);
 	_rear += size * sizeof(WCHAR);
 }
 

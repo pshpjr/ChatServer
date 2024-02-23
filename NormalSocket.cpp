@@ -33,6 +33,7 @@ bool Socket::IsSameSubnet(const IN_ADDR& a, const IN_ADDR& b, const char subnetM
 
 void Socket::CancelIO() const
 {
+
 	if (const auto result = CancelIoEx(reinterpret_cast<HANDLE>(_socket), nullptr); result == 0 )
 	{
 		//소켓 닫혀서 gqcs에러 받은 상황에서 send 실패하면 io 자체가 없음. 에러 아님. 

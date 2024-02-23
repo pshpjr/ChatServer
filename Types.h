@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include <string>
-
+#define _WINSOCKAPI_
+#include "Windows.h"
 #include "Result.h"
 
 
@@ -37,11 +38,67 @@ public:
 	{
 		return lhs.id == rhs.id;
 	}
+
+	friend std::hash<SessionID>;
+	friend std::equal_to<SessionID>;
 };
 
+class GroupID
+{
+public:
+	explicit constexpr GroupID(long id) :_id (id){}
+
+	static GroupID NextID() { return GroupID(InterlockedIncrement(&g_GroupID)); }
+	static consteval GroupID InvalidGroupID() { return GroupID(-1); }
+	operator long() const { return _id; }
+
+	friend std::hash<GroupID>;
+	friend std::equal_to<GroupID>;
+private:
+	long _id;
+	inline static long g_GroupID = 0;
+};
 
 using SocketID = uint64;
-using GroupID = long;
+
+namespace std 
+{
+	template <> class hash<GroupID>
+	{
+	public:
+		size_t operator()(const GroupID& id) const
+		{
+			return std::hash<long>()( id._id );
+		}
+	};
+	template<> class equal_to<GroupID>
+	{
+	public:
+		bool operator()(const GroupID& lhs, const GroupID& rhs) const
+		{
+			return lhs._id == rhs._id;
+		}
+	};
+
+	template <> class hash<SessionID>
+	{
+	public:
+		size_t operator()(const SessionID& id) const
+		{
+			return std::hash<unsigned long long>()( id.id );
+		}
+	};
+	template<> class equal_to<SessionID>
+	{
+	public:
+		bool operator()(const SessionID& lhs, const SessionID& rhs) const
+		{
+			return lhs.id == rhs.id;
+		}
+	};
+}
+
+
 #include <WinSock2.h>
 using SockAddr_in = SOCKADDR_IN;
 using Port = uint16;

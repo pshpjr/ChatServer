@@ -73,16 +73,6 @@ public:
 	NormalIOCP& operator=(const NormalIOCP& other) = delete;
 	NormalIOCP& operator=(NormalIOCP&& other) = delete;
 
-private:
-	friend class Session;
-	friend class RecvExecutable;
-	friend class SendExecutable;
-	friend class PostSendExecutable;
-	friend class GroupExecutable;
-	friend class GroupManager;
-	
-
-	
 protected:
 	NormalIOCP();
 
@@ -96,10 +86,9 @@ protected:
 		}
 
 		auto& session = _sessions[id.index];
-		const auto result = session.IncreaseRef(content);
 
 		//릴리즈 중이거나 세션 변경되었으면 
-		if ( result > releaseFlag || session.GetSessionId().id != id.id )
+		if (session.IncreaseRef(content) > releaseFlag || session.GetSessionId().id != id.id )
 		{
 			//세션 릴리즈 해도 문제 없음. 플레그 서 있을거라 내가 올린 만큼 내려감. 
 			session.Release(L"sessionChangedRelease");
@@ -134,6 +123,7 @@ protected:
 
 	String _ip {};
 	uint16 _maxNetThread = 0;
+	uint16 _maxWorkerThread = 0; 
 	uint16 _port {};
 	int _backlog = 0;
 
@@ -154,7 +144,7 @@ protected:
 	int64 _sendCount = 0;
 	uint64 _oldDisconnect = 0;
 	int64 _disconnectCount = 0;
-	uint32 _tcpSegmenTimeout = 0;
+	uint32 _tcpSemaphoreTimeout = 0;
 	uint64 _acceptTps = 0;
 	uint64 _recvTps = 0;
 	uint64 _sendTps = 0;

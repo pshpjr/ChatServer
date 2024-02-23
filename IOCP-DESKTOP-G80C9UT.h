@@ -21,13 +21,9 @@ class IOCP : public IOCP_CLASS
 	friend class Group;
 	friend class GroupManager;
 	friend class Client;
-
-
 public:
-	IOCP(bool server = true);
+	IOCP();
 
-	bool Init();
-	bool ClientInit(uint16 maxRunningThread, uint16 workerThread, char staticKey);
 	bool Init(const String& ip, Port port, uint16 backlog, uint16 maxRunningThread,uint16 workerThread, char staticKey);
 	void Start();
 	void Stop();
@@ -35,7 +31,7 @@ public:
 	bool SendPacket(SessionID sessionId, SendBuffer& sendBuffer, int type = 0);
 	bool SendPacketBlocking(SessionID sessionId, SendBuffer& sendBuffer, int type = 0);
 	//deprecate
-	bool SendPackets(SessionID sessionId, vector<SendBuffer>& bufArr);
+	bool SendPackets(SessionID sessionId, SingleThreadQ<CSendBuffer*>& bufArr);
 
 	static void SetDisableClickAndClose();
 	bool DisconnectSession(SessionID sessionId);
@@ -51,7 +47,7 @@ public:
 	WSAResult<SessionID> GetClientSession(const String& ip, Port port);
 	bool IsValidSession(SessionID id);
 	//GROUP
-	
+
 
 	//CONTENT VIRTUAL
 
@@ -95,13 +91,11 @@ public:
 	String GetLibMonitorString() const;
 	void PrintMonitorString() const;
 
-
 	template <typename GroupType, typename ...Args>
 	GroupID CreateGroup(Args&&... args) const;
 	void MoveSession(SessionID target, GroupID dst) const;
-	bool isRelease(SessionID id);
 private:
-	void postReleaseSession(SessionID id);
+
 	
 	//MONITOR
 	void IncreaseRecvCount(int value);
@@ -111,17 +105,16 @@ private:
 	void onRecvPacket(const Session& session, CRecvBuffer& buffer);
 
 	//WorkerThreadFunc
-	void GroupThread(LPVOID arg);
 	void WorkerThread(LPVOID arg);
 	void AcceptThread(LPVOID arg);
 	void MonitorThread(LPVOID arg);
 	void TimeoutThread(LPVOID arg);
+	void GroupThread(LPVOID arg);
 
 
-	static unsigned __stdcall GroupEntry(LPVOID arg);
 	static unsigned __stdcall WorkerEntry(LPVOID arg);
 	static unsigned __stdcall AcceptEntry(LPVOID arg);
-
+	static unsigned __stdcall GroupEntry(const LPVOID arg);
 	static unsigned __stdcall MonitorEntry(LPVOID arg);
 	static unsigned __stdcall TimeoutEntry(LPVOID arg);
 

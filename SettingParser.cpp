@@ -233,7 +233,7 @@ String SettingParser::GetValueImpl(const String& name)
 
 			if ( result == _settingsContainer[i].end() )
 			{
-				gLogger->Write(L"SettingParser", LogLevel::Debug, L"%s %s", group.c_str(), typeName.c_str());
+				gLogger->Write(L"SettingParser", CLogger::LogLevel::Debug, L"%s %s", group.c_str(), typeName.c_str());
 				throw EInvalidName();
 			}
 			return result->second;

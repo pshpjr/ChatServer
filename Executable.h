@@ -17,7 +17,6 @@ namespace executable {
 
 class Executable
 {
-	friend class Server;
 public:
 	enum ioType
 	{
@@ -26,6 +25,7 @@ public:
 		RECV,
 		POSTRECV,
 		RELEASE,
+		GROUP,
 		CUSTOM
 	};
 	Executable() :_type(CUSTOM), _overlapped{0} { }

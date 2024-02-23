@@ -31,6 +31,7 @@ public:
 		const int* p = nullptr;
 		p = nullptr;
 	}
+	
 
 	static LONG WINAPI ExceptionFilter(__in const PEXCEPTION_POINTERS pExceptionPointer)
 	{
@@ -40,14 +41,14 @@ public:
 		const long DumpCount = InterlockedIncrement(&_dumpCount);
 
 		const HANDLE hProcess = GetCurrentProcess();
-		if (hProcess == nullptr)
+		if ( hProcess == nullptr )
 		{
 			return 0;
 		}
 
 		PROCESS_MEMORY_COUNTERS pmc;
 
-		if (GetProcessMemoryInfo(hProcess, &pmc, sizeof(pmc)))
+		if ( GetProcessMemoryInfo(hProcess, &pmc, sizeof(pmc)) )
 		{
 			iWorkingMemory = pmc.WorkingSetSize;
 		}
@@ -56,7 +57,7 @@ public:
 		WCHAR szFileName[MAX_PATH] = { 0, };
 		GetLocalTime(&st);
 		wsprintf(szFileName, L"DUMP_%04d%02d%02d_%02d%02d%02d_%d_%dMB.dmp",
-			st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, DumpCount, iWorkingMemory);
+				 st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, DumpCount, iWorkingMemory);
 
 		wprintf(L"\n\n\t\t!!!!!! CRASH DUMP !!!!!  %04d%02d%02d_%02d%02d%02d\n\n", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
 		wprintf(L"Save Dump File : %s\n", szFileName);
@@ -68,9 +69,9 @@ public:
 			nullptr,
 			CREATE_ALWAYS,
 			FILE_ATTRIBUTE_NORMAL,
-		nullptr);
+			nullptr);
 
-		if (hFile != INVALID_HANDLE_VALUE)
+		if ( hFile != INVALID_HANDLE_VALUE )
 		{
 			MINIDUMP_EXCEPTION_INFORMATION eInfo {};
 			eInfo.ThreadId = GetCurrentThreadId();
@@ -78,12 +79,12 @@ public:
 			eInfo.ClientPointers = TRUE;
 
 			MiniDumpWriteDump(GetCurrentProcess(),
-				GetCurrentProcessId(),
-				hFile,
-				MiniDumpWithFullMemory,
-				&eInfo,
-				nullptr,
-			nullptr);
+							  GetCurrentProcessId(),
+							  hFile,
+							  MiniDumpWithFullMemory,
+							  &eInfo,
+							  nullptr,
+							  nullptr);
 			CloseHandle(hFile);
 
 			wprintf(L"Dump File Saved\n\n\n");

@@ -16,6 +16,7 @@ public:
 	//move 0이면 나가기. 
 	void MoveSession(SessionID target, GroupID dst);
 
+	void Update();
 private:
 	SRWLOCK _groupLock;
 	HashMap<GroupID, unique_ptr<Group>> _groups;
@@ -25,8 +26,9 @@ private:
 	/// <summary>
 	/// 0번 그룹은 그룹이 없는 것을 의미한다. 
 	/// </summary>
-	GroupID g_groupID = 2;
+	GroupID g_groupID = GroupID::InvalidGroupID();
 };
+
 
 template <typename GroupType, typename ...Args>
 GroupID GroupManager::CreateGroup(Args&&... args)
@@ -34,7 +36,7 @@ GroupID GroupManager::CreateGroup(Args&&... args)
 	static_assert( is_base_of_v<Group, GroupType>, "GroupType must inherit Group" );
 
 	Group* newGroup = new GroupType(std::forward<Args>(args)...);
-	newGroup->_groupId = InterlockedIncrement16(&g_groupID);
+	newGroup->_groupId = GroupID::NextID();
 	newGroup->_iocp = _owner;
 	newGroup->_owner = this;
 
@@ -43,7 +45,5 @@ GroupID GroupManager::CreateGroup(Args&&... args)
 	ReleaseSRWLockExclusive(&_groupLock);
 
 	newGroup->OnCreate();
-
-	newGroup->Execute(_owner);
 	return newGroup->_groupId;
 }

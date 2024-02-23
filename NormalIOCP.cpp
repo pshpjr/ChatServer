@@ -15,6 +15,7 @@
 
 #include "IOCP.h"
 #include "Session.h"
+#include "SendBuffer.h"
 #include "CSendBuffer.h"
 #include "CRecvBuffer.h"
 #include "SingleThreadQ.h"
@@ -31,7 +32,7 @@
 //			INIT
 /*****************************/
 
-IOCP::IOCP()
+IOCP::IOCP(bool server)
 {
 	timeBeginPeriod(1);
 	WSADATA wsaData;
@@ -45,41 +46,103 @@ IOCP::IOCP()
 		freeIndex.Push(i);
 	}
 	_groupManager = new GroupManager(this);
-
-	_settingParser.Init();
-
-	String ip;
-	Port port;
-	uint16 backlog;
-	uint16 maxNetThead;
-	uint16 workerThread;
-	char staticKey;
-
-	_settingParser.GetValue(L"basic.ip", ip);
-	_settingParser.GetValue(L"basic.port", port);
-	_settingParser.GetValue(L"basic.backlog", backlog);
-	_settingParser.GetValue(L"basic.runningThreads", maxNetThead);
-	_settingParser.GetValue(L"basic.workerThreads", workerThread);
-	_settingParser.GetValue(L"basic.staticKey", staticKey);
-
-	Init(ip, port, backlog, maxNetThead, workerThread, staticKey);
-
-}
-
-
-bool IOCP::Init(const String& ip, const Port port, const uint16 backlog, const uint16 maxRunningThread, const uint16 workerThread, const char staticKey)
-{
-
-	_maxNetThread = maxRunningThread;
-	_staticKey = staticKey;
-	_ip = ip;
-	_port = port;
+	_this = this;
 	
 	for ( auto& session : _sessions )
 	{
 		session.SetOwner(*this);
 	}
+	
+	if(server)
+		Init();
+	else
+	{
+		printf("Client mode. Not Initialized. please call clientInit Func");
+	}
+}
 
+bool IOCP::Init()
+{
+	_settingParser.Init();
+	
+	_settingParser.GetValue(L"basic.ip", _ip);
+	_settingParser.GetValue(L"basic.port", _port);
+	_settingParser.GetValue(L"basic.backlog", _backlog);
+	_settingParser.GetValue(L"basic.runningThreads", _maxNetThread);
+	_settingParser.GetValue(L"basic.workerThreads", _maxWorkerThread);
+	_settingParser.GetValue(L"basic.staticKey", _staticKey);
+
+	printf("%ls %d\n", _ip.c_str(), _port);
+	return Init(_ip, _port, _backlog, _maxNetThread, _maxWorkerThread, _staticKey);
+}
+
+bool IOCP::ClientInit(uint16 maxRunningThread, uint16 workerThread, char staticKey)
+{
+	_staticKey = staticKey;
+	_iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, maxRunningThread);
+	if (_iocp == INVALID_HANDLE_VALUE)
+	{
+		_listenSocket.Close();
+		return false;
+	}
+	
+
+	for (int i = 0; i < workerThread; ++i)
+	{
+		auto handle = (HANDLE)_beginthreadex(nullptr, 0, WorkerEntry, _this, 0, nullptr);
+		if (handle == INVALID_HANDLE_VALUE)
+		{
+			_listenSocket.Close();
+			return false;
+		}
+
+		_threadArray.push_back({ handle,GetThreadId(handle)});
+
+		printf("WorkerThread %p\n", handle);
+	}
+	
+	const auto groupT = (HANDLE)_beginthreadex(nullptr, 0, GroupEntry, _this, 0, nullptr);
+	if (groupT == INVALID_HANDLE_VALUE)
+	{
+		_listenSocket.Close();
+		return false;
+	}
+	_threadArray.push_back({ groupT,GetThreadId(groupT) });
+	printf("GroupThread %p\n", groupT);
+
+	
+	const auto timeoutT = (HANDLE)_beginthreadex(nullptr, 0, TimeoutEntry, _this, 0, nullptr);
+	if (timeoutT == INVALID_HANDLE_VALUE)
+	{
+		_listenSocket.Close();
+		return false;
+	}
+	_threadArray.push_back({ timeoutT,GetThreadId(timeoutT) });
+	printf("TimeoutThread %p\n", timeoutT);
+
+	const auto monitorT = (HANDLE)_beginthreadex(nullptr, 0, MonitorEntry, _this, 0, nullptr);
+	if (monitorT == INVALID_HANDLE_VALUE)
+	{
+		_listenSocket.Close();
+		return false;
+	}
+
+	_threadArray.push_back({ monitorT,GetThreadId(monitorT) });
+	printf("MonitorThread %p\n", monitorT);
+	return true;
+}
+
+
+
+bool IOCP::Init(const String& ip, const Port port, const uint16 backlog, const uint16 maxRunningThread, const uint16 workerThread, const char staticKey)
+{
+	_maxWorkerThread = workerThread;
+	_backlog = backlog;
+	_maxNetThread = maxRunningThread;
+	_staticKey = staticKey;
+	_ip = ip;
+	_port = port;
+	
 	_threadArray.resize(workerThread);
 
 	_listenSocket.Init();
@@ -102,31 +165,7 @@ bool IOCP::Init(const String& ip, const Port port, const uint16 backlog, const u
 		return false;
 	}
 
-	_iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, maxRunningThread);
-	if (_iocp == INVALID_HANDLE_VALUE)
-	{
-		_listenSocket.Close();
-		return false;
-	}
-
-	void* _this = this;
-	for (int i = 0; i < workerThread; ++i)
-	{
-		auto handle = ( HANDLE ) _beginthreadex(nullptr, 0, WorkerEntry, _this, 0, nullptr);
-
-		if ( handle == INVALID_HANDLE_VALUE)
-		{
-			_listenSocket.Close();
-			return false;
-		}
-
-		_threadArray[i] = { handle,GetThreadId(handle) };
-
-		printf("WorkerThread %p\n", handle);
-	}
-
-
-	const auto acceptT = (HANDLE)_beginthreadex(nullptr,0,AcceptEntry,_this, 0, nullptr);
+	const auto acceptT = (HANDLE)_beginthreadex(nullptr, 0, AcceptEntry, _this, 0, nullptr);
 	if (acceptT == INVALID_HANDLE_VALUE)
 	{
 		_listenSocket.Close();
@@ -134,32 +173,12 @@ bool IOCP::Init(const String& ip, const Port port, const uint16 backlog, const u
 	}
 	_threadArray.push_back({ acceptT,GetThreadId(acceptT) });
 	printf("AcceptThread %p\n", acceptT);
-
-
-	const auto timeoutT = ( HANDLE ) _beginthreadex(nullptr, 0, TimeoutEntry, _this, 0, nullptr);
-	if ( timeoutT == INVALID_HANDLE_VALUE )
+	
+	if (ClientInit(_maxNetThread, _maxWorkerThread, _staticKey))
 	{
-		_listenSocket.Close();
-		return false;
-	}
-	_threadArray.push_back({ timeoutT,GetThreadId(timeoutT) });
-	printf("TimeoutThread %p\n", timeoutT);
-
-	const auto monitorT = (HANDLE)_beginthreadex(nullptr, 0, MonitorEntry, _this, 0, nullptr);
-	if (monitorT == INVALID_HANDLE_VALUE)
-	{
-		_listenSocket.Close();
 		return false;
 	}
 	
-	_threadArray.push_back({ monitorT,GetThreadId(monitorT) });
-	printf("MonitorThread %p\n", monitorT);
-
-
-	//for ( auto thread : _threadArray )
-	//{
-	//	_threadMonitors.emplace_back(thread.first);
-	//}
 
 	OnInit();
 	return true;
@@ -167,9 +186,9 @@ bool IOCP::Init(const String& ip, const Port port, const uint16 backlog, const u
 
 void IOCP::Start()
 {
-	OnStart();
 	InterlockedExchange8(&_isRunning , true);
 	WakeByAddressAll(&_isRunning);
+	OnStart();
 }
 
 /*
@@ -265,10 +284,9 @@ void IOCP::SetDefaultTimeout(const unsigned int timeoutMillisecond)
 /*****************************/
 //			Network
 /*****************************/
-
-bool IOCP::SendPacket(const SessionID sessionId, CSendBuffer* buffer, const int type)
+bool IOCP::SendPacket(const SessionID sessionId, SendBuffer& sendBuffer, int type)
 {
-
+	auto buffer = sendBuffer.getBuffer();
 	const auto result = FindSession(sessionId, L"SendPacketInc");
 	if ( result == nullptr )
 	{
@@ -276,16 +294,15 @@ bool IOCP::SendPacket(const SessionID sessionId, CSendBuffer* buffer, const int 
 	}
 		
 	auto& session = *result;
-
 	session.WriteContentLog(type);
 
 	ProcessBuffer(session, *buffer);
 
-
-	//session.trySend();
+	//session.TrySend();
 
 	if ( session.CanSend())
 	{
+		session._sendExecute.Clear();
 		//InterlockedIncrement(&_iocpCompBufferSize);
 		PostQueuedCompletionStatus(_iocp, -1, ( ULONG_PTR ) &session, &session._sendExecute._overlapped);
 	}
@@ -294,8 +311,9 @@ bool IOCP::SendPacket(const SessionID sessionId, CSendBuffer* buffer, const int 
 	return true;
 }
 
-bool IOCP::SendPacketBlocking(SessionID sessionId, CSendBuffer* buffer, int type)
+bool IOCP::SendPacketBlocking(SessionID sessionId, SendBuffer& sendBuffer, int type)
 {
+	auto buffer = sendBuffer.getBuffer();
 	const auto result = FindSession(sessionId, L"SendPacketInc");
 	if ( result == nullptr )
 	{
@@ -307,14 +325,13 @@ bool IOCP::SendPacketBlocking(SessionID sessionId, CSendBuffer* buffer, int type
 	session.WriteContentLog(type);
 
 	ProcessBuffer(session, *buffer);
-
 	session.TrySend();
 	session.Release(L"SendPacketRelease");
 	return true;
 }
 
 
-bool IOCP::SendPackets(const SessionID sessionId, SingleThreadQ<CSendBuffer*>& bufArr)
+bool IOCP::SendPackets(const SessionID sessionId, vector<SendBuffer>& bufArr)
 {
 	const auto result = FindSession(sessionId, L"SendPacketInc");
 	if ( result == nullptr )
@@ -323,17 +340,18 @@ bool IOCP::SendPackets(const SessionID sessionId, SingleThreadQ<CSendBuffer*>& b
 	}
 	auto& session = *result;
 
-	CSendBuffer* buffer;
-	while ( bufArr.Dequeue(buffer) )
+	for(auto& sendBuffer : bufArr)
 	{
+		auto buffer = sendBuffer.getBuffer();
 		ProcessBuffer(session, *buffer);
-		buffer->Release(L"SendPacketsRelease");
 	}
-
-	if ( session._isSending == 0 )
+	
+	if (session.CanSend())
 	{
+		session._sendExecute.Clear();
 		PostQueuedCompletionStatus(_iocp, -1, ( ULONG_PTR ) &session, &session._sendExecute._overlapped);
 	}
+
 	session.Release(L"SendPacketRelease");
 	return true;
 }
@@ -342,8 +360,8 @@ bool IOCP::SendPackets(const SessionID sessionId, SingleThreadQ<CSendBuffer*>& b
 
 void NormalIOCP::ProcessBuffer(Session& session, CSendBuffer& buffer)
 {
-	buffer.IncreaseRef(L"ProcessBuffInc");
-
+	auto result = buffer.IncreaseRef(L"ProcessBuffInc");
+	ASSERT_CRASH(result != 1);
 	if ( buffer.GetDataSize() == 0 )
 	{
 		DebugBreak();
@@ -369,6 +387,7 @@ WSAResult<SessionID>  IOCP::GetClientSession(const String& ip, const Port port)
 
 	if (auto connectionResult = s.Connect(ip, port); !connectionResult.HasValue() )
 	{
+		gLogger->Write(L"ClientClose", CLogger::LogLevel::Debug, L"connect fail");
 		s.Close();
 		freeIndex.Push(index);
 		
@@ -391,7 +410,7 @@ WSAResult<SessionID>  IOCP::GetClientSession(const String& ip, const Port port)
 	_sessions[index].SetConnect();
 	_sessions[index].SetLanSession();
 	_sessions[index].SetTimeout(0);
-
+	_sessions[index].SetNetSession(_staticKey);
 	_sessions[index].RecvNotIncrease();
 	
 	return sessionId;
@@ -452,6 +471,8 @@ bool IOCP::DisconnectSession(const SessionID sessionId)
 	{
 		return false;
 	}
+	gLogger->Write(L"DisconnectSession", CLogger::LogLevel::Debug, L"session ID : %d ",sessionId);
+
 	auto& session = *result;
 
 	session.Close();
@@ -478,7 +499,7 @@ void IOCP::onRecvPacket(const Session& session, CRecvBuffer& buffer)
 	}
 	catch ( const std::invalid_argument& )
 	{
-		gLogger->Write(L"RecvErr", LogLevel::Debug, L"ERR");
+		gLogger->Write(L"RecvErr", CLogger::LogLevel::Debug, L"Can't pop : recv buffer is empty");
 		DisconnectSession(session._sessionId);
 	}
 }
@@ -590,7 +611,7 @@ uint64 IOCP::GetDisconnectPerSec() const
 
 uint32 IOCP::GetSegmentTimeout() const
 {
-	return _tcpSegmenTimeout;
+	return _tcpSemaphoreTimeout;
 }
 
 size_t IOCP::GetPageFaultCount() const
@@ -654,10 +675,10 @@ String IOCP::GetLibMonitorString() const
 				L"+  {:<14s} : {:>10d}, {:<14s} : {:>10d}\n"
 				L"+  {:<14s} : {:>10d}, {:<14s} : {:>10d}\n"
 				L"+  {:<14s} : {:>10d}, {:<14s} : {:>10d}\n"
+				//L"+  {:<14s} : {:>10d}, {:<14s} : {:>10d}\n"
 				L"+  {:<14s} : {:>10d}, {:<14s} : {:>10d}\n"
-				L"+  {:<14s} : {:>10d}, {:<14s} : {:>10d}\n"
-				L"+  {:<14s} : {:>10d}, {:<14s} : {:>10d}\n"
-				L"+  {:<14s} : {:>10d}, {:<14s} : {:>10d}\n"
+				//L"+  {:<14s} : {:>10d}, {:<14s} : {:>10d}\n"
+				//L"+  {:<14s} : {:>10d}, {:<14s} : {:>10d}\n"
 				L"----------------------------------------------------------------------------------\n"
 				, L"+++++", L"LIBS", L"+++++"
 				, L"VirtualMem", GetVirtualMemSize() / 1000'000., GetPeakVirtualMemSize() / 1000'000.
@@ -671,10 +692,10 @@ String IOCP::GetLibMonitorString() const
 				, L"Disconnect", GetDisconnectCount(), L"DisconnectTPS", GetDisconnectPerSec()
 				, L"SegmentTimeout", GetSegmentTimeout(), L"Timeout", GetTimeoutCount()
 				, L"GSendPool", CSendBuffer::_pool.GetGPoolSize(), L"GSendPoolEmpty", CSendBuffer::_pool.GetGPoolEmptyCount()
-				, L"GRecvPool", CRecvBuffer::_pool.GetGPoolSize(), L"GRecvPoolEmpty", CRecvBuffer::_pool.GetGPoolEmptyCount()
+				//, L"GRecvPool", CRecvBuffer::_pool.GetGPoolSize(), L"GRecvPoolEmpty", CRecvBuffer::_pool.GetGPoolEmptyCount()
 				, L"SendPoolAcq", CSendBuffer::_pool.GetAcquireCount(), L"SendPoolRel", CSendBuffer::_pool.GetReleaseCount()
-				, L"RecvPoolAcq", CRecvBuffer::_pool.GetAcquireCount(), L"RecvPoolRel", CRecvBuffer::_pool.GetReleaseCount()
-			     ,L"SendPoolGap", CSendBuffer::_pool.GetAcquireCount()- CSendBuffer::_pool.GetReleaseCount(),L"RecvPoolGap", CRecvBuffer::_pool.GetAcquireCount() - CRecvBuffer::_pool.GetReleaseCount()
+				//, L"RecvPoolAcq", CRecvBuffer::_pool.GetAcquireCount(), L"RecvPoolRel", CRecvBuffer::_pool.GetReleaseCount()
+			     //,L"SendPoolGap", CSendBuffer::_pool.GetAcquireCount()- CSendBuffer::_pool.GetReleaseCount(),L"RecvPoolGap", CRecvBuffer::_pool.GetAcquireCount() - CRecvBuffer::_pool.GetReleaseCount()
 	);
 
 
@@ -691,6 +712,14 @@ void IOCP::PrintMonitorString() const
 /*****************************
 		 ThreadFunc
 *****************************/
+
+unsigned __stdcall IOCP::GroupEntry(const LPVOID arg)
+{
+	const auto iocp = static_cast<IOCP*>(arg);
+
+	iocp->GroupThread(nullptr);
+	return 0;
+}
 
 unsigned __stdcall IOCP::MonitorEntry(const LPVOID arg)
 {
@@ -721,90 +750,34 @@ unsigned __stdcall IOCP::AcceptEntry(const LPVOID arg)
 	return 0;
 }
 
+void IOCP::GroupThread(LPVOID arg)
+{
+	EASY_THREAD("Group");
+	WaitStart();
+	const auto start = chrono::steady_clock::now();
+	auto next = chrono::time_point_cast<chrono::milliseconds>(start) + chrono::milliseconds(1);
+	while (_isRunning)
+	{
+		_groupManager->Update();
+
+		auto sleepTime = chrono::duration_cast<chrono::milliseconds> (next - chrono::steady_clock::now());
+		next += chrono::milliseconds(1);
+		if (sleepTime.count() > 0)
+		{
+			EASY_BLOCK("SLEEP", profiler::colors::Magenta);
+			Sleep(static_cast<DWORD>(sleepTime.count()));
+		}
+	}
+	printf("GroupThread End\n");
+
+}
+
 void IOCP::WorkerThread(LPVOID arg)
 {
 	EASY_THREAD("WORKER");
 	srand(GetCurrentThreadId());
-	WaitStart();
 	while (true)
 	{
-		//constexpr ULONG arrSize = 100;
-		//bool end = false;
-		//OVERLAPPED_ENTRY arr[arrSize] = { 0, };
-		//ULONG size = 0;
-
-		//auto ret = GetQueuedCompletionStatusEx(_iocp, arr, arrSize, &size, INFINITE, false);
-		//
-		//
-		//for ( unsigned int i = 0; i < size; i++ )
-		//{
-		//	const DWORD transferred = arr[i].dwNumberOfBytesTransferred;
-		//	const LPOVERLAPPED overlap = arr[i].lpOverlapped;
-		//	auto session = ( Session* )arr[i].lpCompletionKey;
-
-		//	Executable* overlapped = Executable::GetExecutable(overlap);
-		//	if ( transferred == 0 && session == nullptr )
-		//	{
-		//		PostQueuedCompletionStatus(_iocp, 0, 0, nullptr);
-		//		end = true;
-
-		//		break;
-		//	}
-
-		//	if ( transferred == 0 && session != nullptr )
-		//	{
-		//		//
-		//		//const auto errNo = RtlNtStatusToDosError(overlap->Internal);
-
-		//		//if ( errNo == ERROR_MR_MID_NOT_FOUND )
-		//		//{
-		//		//	DebugBreak();
-		//		//}
-
-		//		//switch ( errNo )
-		//		//{
-		//		//	//정상종료됨. 
-		//		//	case 0:
-		//		//		break;
-		//		//	case ERROR_NETNAME_DELETED:
-		//		//		break;
-		//		//		//ERROR_SEM_TIMEOUT. 장치에서 끊은 경우 (5회 재전송 실패 등..)
-		//		//	case ERROR_SEM_TIMEOUT:
-		//		//		InterlockedIncrement(&_tcpSegmenTimeout);
-		//		//		[[fallthrough]];
-		//		//		//WSA_OPERATION_ABORTED cancleIO로 인한 것. 
-		//		//	case WSA_OPERATION_ABORTED:
-		//		//		[[fallthrough]];
-		//		//	case ERROR_CONNECTION_ABORTED:
-		//		//		[[fallthrough]];
-		//		//	case ERROR_NOT_FOUND:
-		//		//		[[fallthrough]];
-		//		//	case WSAECONNRESET:
-		//		//		break;
-		//		//	[[unlikely]] default:
-		//		//	{
-		//		//		auto now = chrono::system_clock::now();
-		//		//		auto recvWait = chrono::duration_cast< chrono::milliseconds >( now - session->lastRecv );
-		//		//		auto sendWait = chrono::duration_cast< chrono::milliseconds >( now - session->_postSendExecute.lastSend );
-		//		//		DebugBreak();
-		//		//		int tmp = 0;
-		//		//	}
-		//		//}
-
-
-		//		auto sessionID = session->GetSessionId();
-
-		//		session->Release(L"GQCSErrorRelease"/*, errNo*/);
-		//	}
-		//	else
-		//	{
-		//		overlapped->Execute(( ULONG_PTR ) session, transferred, this);
-		//	}
-		//}
-		//if ( end )
-		//{
-		//	break;
-		//}
 
 		DWORD transferred = 0;
 		LPOVERLAPPED overlap = nullptr;
@@ -814,6 +787,12 @@ void IOCP::WorkerThread(LPVOID arg)
 		auto ret = GetQueuedCompletionStatus(_iocp, &transferred, ( PULONG_PTR ) &session, &overlap, INFINITE);
 		EASY_END_BLOCK;
 		Executable* overlapped = Executable::GetExecutable(overlap);
+		
+		if (transferred == 0 && session == nullptr)
+		{
+			PostQueuedCompletionStatus(_iocp, 0, 0, nullptr);
+			break;
+		}
 
 		if ( transferred == 0 && ret != 0 )
 		{
@@ -821,11 +800,7 @@ void IOCP::WorkerThread(LPVOID arg)
 			continue;
 		}
 
-		if(transferred==0&&session== nullptr)
-		{
-			PostQueuedCompletionStatus(_iocp, 0, 0, nullptr);
-			break;
-		}
+
 		auto errNo = 0;
 
 		if(transferred == 0 && session != nullptr)
@@ -838,15 +813,30 @@ void IOCP::WorkerThread(LPVOID arg)
 			case ERROR_NETNAME_DELETED:
 				break;
 			//ERROR_SEM_TIMEOUT. 장치에서 끊은 경우 (5회 재전송 실패 등..)
-			case ERROR_SEM_TIMEOUT:
-				InterlockedIncrement(&_tcpSegmenTimeout);
-				[[fallthrough]];
-			//WSA_OPERATION_ABORTED cancleIO로 인한 것. 
-			case WSA_OPERATION_ABORTED:
+				//제로 윈도우가 계속 떴다. 
+			case ERROR_SEM_TIMEOUT: 
+			{
+				auto now = chrono::steady_clock::now();
+				auto recvWait = chrono::duration_cast<chrono::milliseconds>(now - session->lastRecv);
+				auto sendWait = session->_needCheckSendTimeout ? chrono::duration_cast<chrono::milliseconds>(now - session->_postSendExecute.lastSend) : 0ms;
+
+				gLogger->Write(L"ConnectionError", CLogger::LogLevel::Error, L"SemaphoreTimeout  sessionID : %d, executableType : %s, sendWait : %d recvWait : %d", session->GetSessionId(), typeid(overlapped).name(), sendWait,recvWait);
+				InterlockedIncrement(&_tcpSemaphoreTimeout);
 				break;
+			}
+
+			//WSA_OPERATION_ABORTED cancleIO로 인한 것.
+			//서버가 먼저 끊는 상황에서 발생.
+			case WSA_OPERATION_ABORTED:
+				gLogger->Write(L"ConnectionError", CLogger::LogLevel::Error, L"Operation Aborted sessionID : %d, executableType : %s", session->GetSessionId(), typeid(overlapped).name());
+				break;
+			//io 도중에 closeSocket 호출
+			//생기면 안 됨. 
 			case ERROR_CONNECTION_ABORTED:
+				gLogger->Write(L"ConnectionError", CLogger::LogLevel::Error, L"Connection Aborted sessionID : %d, executableType : %s", session->GetSessionId(), typeid(overlapped).name());
 				break;
 			case ERROR_NOT_FOUND:
+				gLogger->Write(L"ConnectionError", CLogger::LogLevel::Error, L"Error Not Found sessionID : %d, executableType : %s", session->GetSessionId(), typeid(overlapped).name());
 				break;
 			[[unlikely]] default:
 				{
@@ -1051,6 +1041,18 @@ void IOCP::MoveSession(const SessionID target, const GroupID dst) const
 	_groupManager->MoveSession(target, dst);
 }
 
+bool IOCP::isRelease(SessionID id)
+{
+	auto& session = _sessions[id.index];
+	return session._refCount >= releaseFlag;
+}
+
+void IOCP::postReleaseSession(SessionID id)
+{
+	auto& session = _sessions[id.index];
+	session.PostRelease();
+	
+}
 
 
 NormalIOCP::~NormalIOCP()

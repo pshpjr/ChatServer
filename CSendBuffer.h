@@ -1,25 +1,22 @@
 ﻿#pragma once
 #include "TLSPool.h"
 #include "Protocol.h"
+#include <stdexcept>
 //#define SEND_DEBUG
 
 class Player;
 struct NetHeader;
-#pragma pack(1)
-
 
 class CSendBuffer final
 {
 	USE_TLS_POOL(CSendBuffer);
 
-	friend class PostSendExecutable;
 	friend class IOCP;
 	friend class NormalIOCP;
 	friend class Session;
 
 public:
 
-#pragma pack()
 	static int64 GetPoolAllocatedSize() { return _pool.AllocatedCount(); }
 	/// <summary>
 	/// Alloc을 받으면 레퍼런스가 1임. 
@@ -71,7 +68,12 @@ public:
 
 	void SetWstr(LPCWSTR arr, int size);
 	void SetCstr(LPCSTR arr, int size);
-
+	inline int CanPushSize() const
+	{
+		return static_cast<int>(BUFFER_SIZE - std::distance(_data, _rear));
+	}
+	//TODO:Private로 이동
+	long _refCount = 0;
 private:
 	//버퍼랑 데이터 위치는 고정. 헤더랑 딴 건 가변
 	CSendBuffer();
@@ -84,6 +86,8 @@ private:
 	CSendBuffer& operator=(const CSendBuffer& other) = delete;
 
 	CSendBuffer& operator=(CSendBuffer&& other) noexcept = delete;
+
+
 
 private:
 
@@ -103,15 +107,11 @@ private:
 	inline char* GetHead() const { return _head; }
 	inline char* GetDataPtr(void) const { return _data; }
 	inline void MoveWritePos(const int size) { _rear += size; }
-	inline int CanPushSize() const
-	{
-		return static_cast<int>(BUFFER_SIZE - distance(_data, _rear));
-	}
 
 
 	inline int CanPopSize() const
 	{
-		return static_cast<int>(distance(_front, _rear));
+		return static_cast<int>(std::distance(_front, _rear));
 	}
 
 	inline void CanPush(const int64 size) const
@@ -129,9 +129,8 @@ private:
 	void Encode(char staticKey);
 	
 
-
 private:
-	enum bufferOption { BUFFER_SIZE = 1024 };
+	enum bufferOption { BUFFER_SIZE = 2048 };
 
 
 	char _buffer[BUFFER_SIZE + sizeof(NetHeader)];
@@ -144,7 +143,7 @@ private:
 
 	static TlsPool<CSendBuffer, 0, false> _pool;
 
-	long _refCount = 0;
+
 
 	SRWLOCK _encodeLock;
 
@@ -165,15 +164,15 @@ private:
 	long debugIndex = 0;
 	RelastinReleaseEncrypt_D release_D[debugSize];
 
-	static void PoolDebug()
-	{
-		for ( auto node : _pool.allocated )
-		{
-			if ( node->_data._refCount == 1 )
-				DebugBreak();
-			int a = 0;
-		}
-	}
+	//static void PoolDebug()
+	//{
+	//	for ( auto node : _pool.allocated )
+	//	{
+	//		if ( node->_data._refCount == 1 )
+	//			DebugBreak();
+	//		int a = 0;
+	//	}
+	//}
 
 #endif
 };
@@ -181,7 +180,7 @@ private:
 template<typename T>
 inline CSendBuffer& CSendBuffer::operator<<(const T& value)
 {
-	static_assert( is_scalar_v<T> );
+	static_assert( std::is_scalar_v<T> );
 	CanPush(sizeof(T));
 
 	*( T* ) ( _rear ) = value;

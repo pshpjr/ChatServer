@@ -1,13 +1,16 @@
 ﻿#pragma once
+#include "Container.h"
 
 class CRingBuffer
 {
+	
+
+	//버퍼 사이즈는 2의 N승꼴
+	static constexpr int BUFFER_SIZE = 8192;
+	static constexpr int INDEX_MASK = BUFFER_SIZE - 1;
+
+	static_assert((BUFFER_SIZE& BUFFER_SIZE - 1) == 0);
 public:
-	//버퍼 사이즈는 10의 거듭제곱이어야 한다. 
-	CRingBuffer(int size = 10000);
-
-	~CRingBuffer();
-
 
 	/**
 	 * \
@@ -36,32 +39,32 @@ public:
 	 */
 	int Dequeue(int deqSize);
 
-
+	int GetBufferSize() const { return BUFFER_SIZE; }
 	/**
 	 * \brief
 	 * \return front의 주소
 	 */
-	char* GetFront() const
+	char* GetFront()
 	{
-		return &_buffer[_front];
+		return &_buffer[GetIndex(_front)];
 	}
-
+	int GetFrontIndex() const { return GetIndex(_front); }
 	/**
 	 * \brief
 	 * \return rear의 주소
 	 */
-	char* GetRear() const
+	char* GetRear()
 	{
-		return &_buffer[_rear];
+		return &_buffer[GetIndex(_rear)];
 	}
 
 	/**
 	 * \brief
 	 * \return 내부 버퍼의 시작 위치
 	 */
-	char* GetBuffer() const
+	char* GetBuffer()
 	{
-		return _buffer;
+		return &_buffer[0];
 	}
 
 	void Clear()
@@ -76,7 +79,7 @@ public:
 	 */
 	void MoveFront(const int size)
 	{
-		_front = (_front + size) % BUFFER_SIZE;
+		_front += size;
 	}
 
 	/**
@@ -85,7 +88,7 @@ public:
 	 */
 	void MoveRear(const int size)
 	{
-		_rear = (_rear + size) % BUFFER_SIZE;
+		_rear += size;
 	}
 
 
@@ -96,19 +99,23 @@ public:
 	 //rear+1 == front일 때 가득 찬 것이므로 1 빼야 함. 
 	uint32 FreeSize() const { return BUFFER_SIZE - Size() - 1; }
 
+	void Decode(char staticKey);
+	bool ChecksumValid();
+
+	inline static int GetIndex(int num)
+	{
+		return num & INDEX_MASK;
+	}
+
 private:
-
-	const int BUFFER_SIZE;
-	const int ALLOC_SIZE;
-
-	char* _buffer = nullptr;
+	std::array<char, BUFFER_SIZE> _buffer;
 
 	/**
 	 * \brief 데이터가 들어있는 위치
 	 */
-	int _front;
+	int _front = 0;
 	/**
 	 * \brief 데이터 삽입할 위치. 데이터는 전까지 있음.
 	 */
-	int _rear;
+	int _rear = 0;
 };

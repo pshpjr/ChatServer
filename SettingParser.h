@@ -19,7 +19,7 @@
 class SettingParser
 {
 public:
-
+	SettingParser() : _groupsName(MAXGROUPSIZE),_settingsContainer(MAXGROUPSIZE) { }
 	enum class ErrType
 	{
 		Success,
@@ -91,8 +91,8 @@ private:
 	size_t bufferSize = 0;
 
 	int32 _groupIndex = -1;
-	String _groupsName[MAXGROUPSIZE];
+	vector<String> _groupsName;
 	
-	HashMap<String, String> _settingsContainer[MAXGROUPSIZE];
+	vector<HashMap<String, String>> _settingsContainer;
 };
 

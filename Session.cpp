@@ -1,19 +1,25 @@
 ﻿#include "stdafx.h"
 #include "Session.h"
+#include <optional>
+
+
+
 
 #include "Container.h"
 #include "CSendBuffer.h"
 #include "IOCP.h"
-#include <optional>
+
 #include "Executables.h"
 #include "CRecvBuffer.h"
-Session::Session() : _sessionId(), _socket({}), _recvTempBuffer(), _sendingQ(), _owner(nullptr)
+#include "CoreGlobal.h"
+#include "CLogger.h"
+Session::Session() : _sessionId(), _socket({}),  _sendingQ(), _owner(nullptr)
 ,_recvExecute(*new RecvExecutable),_postSendExecute(*new PostSendExecutable),_sendExecute(*new SendExecutable), _releaseExecutable(*new ReleaseExecutable)
 {
 
 }
 
-Session::Session(Socket socket, SessionID sessionId, IOCP& owner) : _sessionId(sessionId), _socket(socket), _recvTempBuffer(), _sendingQ(), _owner(&owner)
+Session::Session(Socket socket, SessionID sessionId, IOCP& owner) : _sessionId(sessionId), _socket(socket),  _sendingQ(), _owner(&owner)
 , _recvExecute(*new RecvExecutable), _postSendExecute(*new PostSendExecutable), _sendExecute(*new SendExecutable), _releaseExecutable(*new ReleaseExecutable)
 {
 
@@ -92,6 +98,11 @@ void Session::RecvNotIncrease()
 		Release(L"tryRecvReleaseIOCanceled");
 		return;
 	}
+	if(_connect == false)
+	{
+		Release(L"RecvReleaseSessionClosed");
+		return;
+	}
 	int bufferCount = 1;
 	WSABUF recvWsaBuf[2] = {};
 	DWORD flags = 0;
@@ -116,20 +127,23 @@ void Session::RecvNotIncrease()
 	{
 		_recvExecute._recvBufSize[i] =  recvWsaBuf[i].len;
 	}
-	if ( recvWsaBuf[0].len + recvWsaBuf[1].len == 0 || bufferCount == 0 )
-	{
-		int a = 0;
-	}
 	ASSERT_CRASH(_recvExecute._recvBufSize[0] + _recvExecute._recvBufSize[1] != 0, "RecvBuffer is 0");
 
 	lastRecv = chrono::steady_clock::now();
 
+	//멀티스레딩 상황에서 recv의 에러 확인(ioPending)과 connect 확인 사이에 새로운 세션으로 변경될 수 있다.
+	auto beforeSessionId = _sessionId;
 	if (const int recvResult = _socket.Recv(recvWsaBuf, bufferCount, &flags, &_recvExecute._overlapped); recvResult == SOCKET_ERROR )
 	{
 		const int error = WSAGetLastError();
 		if ( error == WSA_IO_PENDING )
 		{
 			_recvExecute.isPending = 1;
+			if(_connect == false)
+			{
+				_owner->DisconnectSession(beforeSessionId);
+			}
+			
 			return;
 		}
 
@@ -138,6 +152,7 @@ void Session::RecvNotIncrease()
 			case WSAECONNABORTED:
 				__fallthrough;
 
+				//원격지에서 끊었다. 
 			case WSAECONNRESET:
 				__fallthrough;
 				break;
@@ -175,153 +190,6 @@ void Session::ResetTimeoutWait()
 }
 
 
-void Session::LanRecv()
-{
-	using Header = LANHeader;
-	int loopCount = 0;
-
-	while (true)
-	{
-		if (_recvQ.Size() < sizeof(Header))
-		{
-			break;
-		}
-
-
-		Header* header = (Header*)_recvTempBuffer;
-		_recvQ.Peek((char*)header, sizeof(Header));
-
-		if (const int totPacketSize = header->len + sizeof(Header); _recvQ.Size() < totPacketSize)
-		{
-			break;
-		}
-
-		Header* recvQHeader = (Header*)_recvQ.GetFront();
-
-		char* front;
-		char* rear;
-
-		//if can pop direct
-		if (_recvQ.DirectDequeueSize() >= header->len + sizeof(Header))
-		{
-			_recvQ.Dequeue(sizeof(Header));
-			front = _recvQ.GetFront();
-			rear = front + header->len;
-			header = recvQHeader;
-		}
-		else
-		{
-			front = (char*)header + sizeof(Header);
-			_recvQ.Dequeue(sizeof(Header));
-			_recvQ.Peek(front, header->len);
-			rear = front + header->len;
-		}
-
-
-		auto& buffer = *CRecvBuffer::Alloc(front, rear);
-		loopCount++;
-
-		_owner->onRecvPacket(*this, buffer);
-
-		buffer.Release(L"RecvRelease");
-
-		
-		_recvQ.Dequeue(header->len);
-	}
-
-	if (loopCount > 0)
-	{
-		_owner->IncreaseRecvCount(loopCount);
-	}
-}
-
-void Session::NetRecv()
-{
-	using Header = NetHeader;
-	int loopCount = 0;
-
-	while (true)
-	{
-		if (_recvQ.Size() < sizeof(Header))
-		{
-			break;
-		}
-
-		Header* header = (Header*)_recvTempBuffer;
-		_recvQ.Peek((char*)header, sizeof(Header));
-
-		if constexpr (is_same_v<Header, NetHeader>)
-		{
-			if (header->code != dfPACKET_CODE)
-			{
-				Close();
-				break;
-			}
-
-			if (header->len > _maxPacketLen)
-			{
-				Close();
-				break;
-			}
-		}
-
-		if (const int totPacketSize = header->len + sizeof(Header); _recvQ.Size() < totPacketSize)
-		{
-			break;
-		}
-
-		Header* recvQHeader = (Header*)_recvQ.GetFront();
-
-		char* front;
-		char* rear;
-
-		//if can pop direct
-		if (_recvQ.DirectDequeueSize() >= header->len + sizeof(Header))
-		{
-			_recvQ.Dequeue(sizeof(Header));
-			front = _recvQ.GetFront();
-			rear = front + header->len;
-			header = recvQHeader;
-		}
-		else
-		{
-			front = (char*)header + sizeof(Header);
-			_recvQ.Dequeue(sizeof(Header));
-			_recvQ.Peek(front, header->len);
-			rear = front + header->len;
-		}
-
-
-		auto& buffer = *CRecvBuffer::Alloc(front, rear);
-
-		if constexpr (is_same_v<Header, NetHeader>)
-		{
-			buffer.Decode(_staticKey, header);
-
-			if (!buffer.ChecksumValid(header))
-			{
-				//printf("checkSumInvalid %d %p\n", buffer._rear- buffer._front, buffer._front);
-
-				Close();
-				break;
-			}
-		}
-		loopCount++;
-
-		_owner->onRecvPacket(*this, buffer);
-
-		buffer.Release(L"RecvRelease");
-
-		
-		_recvQ.Dequeue(header->len);
-	}
-
-	if (loopCount > 0)
-	{
-		_owner->IncreaseRecvCount(loopCount);
-	}
-}
-
 optional<timeoutInfo> Session::CheckTimeout(const chrono::steady_clock::time_point now)
 {
 	if ( _timeout == 0 )
@@ -344,7 +212,7 @@ optional<timeoutInfo> Session::CheckTimeout(const chrono::steady_clock::time_poi
 	const auto sendWait = chrono::duration_cast< chrono::milliseconds >( now - _postSendExecute.lastSend );
 
 	optional<timeoutInfo> retVal {};
-	if ( needCheckSendTimeout && sendWait.count() > _timeout )
+	if ( _needCheckSendTimeout && sendWait.count() > _timeout )
 	{
 		retVal = { timeoutInfo::IOtype::send,sendWait.count(),_timeout };
 	}
@@ -366,17 +234,17 @@ void Session::Reset()
 	_postSendExecute.Clear();
 	_recvQ.Clear();
 	_isSending = false;
-	needCheckSendTimeout = false;
+	_needCheckSendTimeout = false;
 	_timeout = _defaultTimeout;
 
 	
-	//GroupID _groupID = 0;
+	_groupId = GroupID(0);
 
-	CRecvBuffer* recvBuffer;
-	while ( _groupRecvQ.Dequeue(recvBuffer) )
-	{
-		recvBuffer->Release(L"ResetRecvRelease");
-	}
+	//CRecvBuffer* recvBuffer;
+	//while ( _groupRecvQ.Dequeue(recvBuffer) )
+	//{
+	//	recvBuffer->Release(L"ResetRecvRelease");
+	//}
 
 	CSendBuffer* sendBuffer;
 	while ( _sendQ.Dequeue(sendBuffer) )
@@ -396,32 +264,15 @@ void Session::Reset()
 	_socket.Close();
 }
 
-bool Session::Release([[maybe_unused]] LPCWSTR content, [[maybe_unused]] int type)
+void Session::PostRelease()
 {
-	int refDecResult = InterlockedDecrement(&_refCount);
-
-#ifdef SESSION_DEBUG
-
-	auto index = InterlockedIncrement(&debugIndex);
-	release_D[index % debugSize] = { refDecResult,content,type };
-#endif
-
-	if ( refDecResult == 0 )
-	{
-		if ( InterlockedCompareExchange(&_refCount, RELEASE_FLAG, 0) == 0 )
-		{
-			//InterlockedIncrement(&_owner->_iocpCompBufferSize);
-			PostQueuedCompletionStatus(_owner->_iocp, -1, reinterpret_cast<ULONG_PTR>(this), &_releaseExecutable._overlapped);
-
-			return true;
-		}
-	}
-	return false;
+	PostQueuedCompletionStatus(_owner->_iocp, -1, reinterpret_cast<ULONG_PTR>(this), &_releaseExecutable._overlapped);
 }
 
 void Session::RealSend()
 {
-	if (const auto refIncResult = IncreaseRef(L"realSendInc"); refIncResult >= RELEASE_FLAG )
+	const auto refIncResult = IncreaseRef(L"realSendInc");
+	if ( refIncResult >= RELEASE_FLAG )
 	{
 		Release(L"realSendSessionIsRelease");
 		return;
@@ -429,10 +280,11 @@ void Session::RealSend()
 
 	int sendPackets = 0;
 	WSABUF sendWsaBuf[MAX_SEND_COUNT] = {};
-	for ( int i = 0; i < MAX_SEND_COUNT; i++ )
+
+	for (int i = 0; i < MAX_SEND_COUNT; i++)
 	{
 		CSendBuffer* buffer;
-		if ( !_sendQ.Dequeue(buffer) )
+		if (!_sendQ.Dequeue(buffer))
 		{
 			break;
 		}
@@ -440,9 +292,7 @@ void Session::RealSend()
 
 		_sendingQ[i] = buffer;
 
-
-
-		if ( _staticKey )
+		if (_staticKey)
 		{
 			buffer->TryEncode(_staticKey);
 		}
@@ -457,14 +307,9 @@ void Session::RealSend()
 		ASSERT_CRASH(sendWsaBuf[i].len > 0, "Out of Case");
 	}
 
-	if ( sendPackets == 0 )
-	{ 
-		InterlockedExchange8(&_isSending, false);
-		Release(L"realSendPacket0Release");
-		return;
-	}
+	ASSERT_CRASH(sendPackets != 0);
 
-	needCheckSendTimeout = true;
+	_needCheckSendTimeout = true;
 	_postSendExecute.lastSend = chrono::steady_clock::now();
 
 	constexpr DWORD flags = 0;
@@ -478,20 +323,20 @@ void Session::RealSend()
 		if ( error == WSA_IO_PENDING )
 		{
 			return;
-			return;
 		}
 
 		switch ( error )
 		{
 			case WSAECONNABORTED:
 				__fallthrough;
+				//원격지에서 끊었다. 
 			case WSAECONNRESET:
 				__fallthrough;
 				break;
 			default:
 				DebugBreak();
 		}
-		Close();
+		gLogger->Write(L"Disconnect", CLogger::LogLevel::Debug, L"SendFail errNo : %d, sessionID : %d", error, GetSessionId());
 		Release(L"SendErrorRelease");
 	}
 }

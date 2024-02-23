@@ -41,7 +41,7 @@ public:
 
 	long Size() const { return _size; }
 
-	int Enqueue(const T& data)
+	inline int Enqueue(const T& data)
 	{
 		Node* newNode = _pool.Alloc();
 		newNode->data = data;
@@ -86,7 +86,7 @@ public:
 		return loop;
 	}
 
-	int Dequeue(T& data)
+	inline int Dequeue(T& data)
 	{
 		if (_size == 0)
 		{

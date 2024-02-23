@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "TLSPool.h"
 #include "Protocol.h"
+#include <stdexcept>
 //#define SEND_DEBUG
 
 class Player;
@@ -69,7 +70,7 @@ public:
 	void SetCstr(LPCSTR arr, int size);
 	inline int CanPushSize() const
 	{
-		return static_cast<int>(BUFFER_SIZE - distance(_data, _rear));
+		return static_cast<int>(BUFFER_SIZE - std::distance(_data, _rear));
 	}
 	//TODO:Private로 이동
 	long _refCount = 0;
@@ -110,7 +111,7 @@ private:
 
 	inline int CanPopSize() const
 	{
-		return static_cast<int>(distance(_front, _rear));
+		return static_cast<int>(std::distance(_front, _rear));
 	}
 
 	inline void CanPush(const int64 size) const
@@ -179,7 +180,7 @@ private:
 template<typename T>
 inline CSendBuffer& CSendBuffer::operator<<(const T& value)
 {
-	static_assert( is_scalar_v<T> );
+	static_assert( std::is_scalar_v<T> );
 	CanPush(sizeof(T));
 
 	*( T* ) ( _rear ) = value;

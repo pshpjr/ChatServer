@@ -7,8 +7,16 @@
 #include <Protocol.h>
 #include <CLogger.h>
 #include "CoreGlobal.h"
-Group::Group() :_executable(*new GroupExecutable(this)),_iocp(nullptr),_owner(nullptr)
-,_nextUpdate(std::chrono::steady_clock::now() + chrono::milliseconds(_loopMs)) {};
+#include "Profiler.h"
+
+Group::Group() :_iocp(nullptr), _executable(*new GroupExecutable(this)), _nextUpdate(std::chrono::steady_clock::now() + chrono::milliseconds(_loopMs))
+, _owner(nullptr) {};
+
+bool Group::Enqueue(GroupJob job)
+{
+	_jobs.Enqueue(job);
+	Update();
+}
 
 bool Group::NeedUpdate()
 {
@@ -20,6 +28,9 @@ void Group::Update()
 	if (InterlockedExchange8(&_isRun, 1) == 1)
 		return;
 	
+	auto start = chrono::steady_clock::now();
+
+
 	HandleEnter();
 	HandlePacket();
 	if (NeedUpdate()) 
@@ -29,6 +40,18 @@ void Group::Update()
 	}
 	
 	HandleLeave();
+
+	auto end = chrono::steady_clock::now();
+
+	workTime += std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+	if (end > _nextMonitor)
+	{
+		oldWorkTime = workTime;
+		workTime = 0;
+		_nextMonitor += 1s;
+	}
+
 
 	InterlockedExchange8(&_isRun, 0);
 }
@@ -42,8 +65,6 @@ void Group::HandleEnter()
 		++count;
 		_sessions.insert(id);
 		OnEnter(id);
-		if(count == 100)
-			break;
 	}
 }
 void Group::HandleLeave()
@@ -56,7 +77,7 @@ void Group::HandleLeave()
 		if ( _sessions.erase(id) == 0 )
 		{
 			DebugBreak();
-		}
+		} 
 		
 		OnLeave(id);
 
@@ -64,21 +85,24 @@ void Group::HandleLeave()
 		{
 			_iocp->postReleaseSession(id);
 		}
-		if(count == 100)
-			break;
 	}
+	_handledLeave += count;
 }
 //onDisconnect랑 OnSessionLeave랑 순서가 안 맞을 수 있다. 
 void Group::HandlePacket()
 {
 	for (const auto sessionId : _sessions )
 	{
-		auto session = _iocp->FindSession(sessionId,L"HandlePacket");
-		if ( session == nullptr )
+		Session* session;
+		
+	
+		session = _iocp->FindSession(sessionId, L"HandlePacket");
+		if (session == nullptr)
 		{
-			LeaveSession(sessionId);
+			LeaveSession(sessionId,L"Invalid Session Leave");
 			continue;
 		}
+
 
 		if (const char sKey = session->_staticKey)
 		{
@@ -103,15 +127,16 @@ void Group::onRecvPacket(const Session& session, CRecvBuffer& buffer)
 	catch (const std::invalid_argument&)
 	{
 		_iocp->DisconnectSession(session.GetSessionId());
-		gLogger->Write(L"Recv Pop Err", LogLevel::Debug, L"ERR");
+		gLogger->Write(L"Recv Pop Err",CLogger::LogLevel::Debug, L"ERR");
 	}
 }
 
 
 //해당 세션이 언제 나갈지 모르는데 상관 없나?
 //어짜피 동시에 처리되는 건 아니니까 상관 x.
-void Group::LeaveSession(const SessionID id)
+void Group::LeaveSession(const SessionID id,String leaveCause)
 {
+	_debugLeave[InterlockedIncrement(&_leaveCount)] = { id,leaveCause,this_thread::get_id()};
 	_leaveSessions.Enqueue(id);
 }
 
@@ -128,6 +153,11 @@ void Group::SetLoopMs(int loopMS)
 void Group::SendPacket(const SessionID id, SendBuffer& buffer) const
 {
 	_iocp->SendPacket(id, buffer);
+}
+
+void Group::SendPackets(SessionID id, vector<SendBuffer>& buffer)
+{
+	_iocp->SendPackets(id, buffer);
 }
 
 void Group::MoveSession(const SessionID id, const GroupID dst) const
@@ -155,7 +185,7 @@ void Group::RecvHandler(Session& session, void* iocp)
 	{
 		if (session.GetGroupID() != _groupId)
 		{
-			LeaveSession(session.GetSessionId());
+			LeaveSession(session.GetSessionId(),L"InvalidGroupLeave");
 			break;
 		}
 
@@ -175,7 +205,7 @@ void Group::RecvHandler(Session& session, void* iocp)
 				int frontIndex = recvQ.GetFrontIndex();
 				std::string dump(recvQ.GetBuffer(), recvQ.GetBuffer() + recvQ.GetBufferSize());
 				SessionID id = session.GetSessionId();
-				gLogger->Write(L"Disconnect", LogLevel::Debug, L"Group WrongPacketCode, SessionID : %d\n frontIndex: %d \n %s ",id, frontIndex, dump);
+				gLogger->Write(L"Disconnect",CLogger::LogLevel::Debug, L"Group WrongPacketCode, SessionID : %d\n frontIndex: %d \n %s ",id, frontIndex, dump);
 				session.Close();
 				break;
 			}
@@ -185,7 +215,7 @@ void Group::RecvHandler(Session& session, void* iocp)
 				int frontIndex = recvQ.GetFrontIndex();
 				std::string dump(recvQ.GetBuffer(), recvQ.GetBuffer() + recvQ.GetBufferSize());
 				SessionID id = session.GetSessionId();
-				gLogger->Write(L"Disconnect", LogLevel::Debug, L"Group WrongPacketLen, SessionID : %d\n index: %d \n %s",id, frontIndex, dump);
+				gLogger->Write(L"Disconnect",CLogger::LogLevel::Debug, L"Group WrongPacketLen, SessionID : %d\n index: %d \n %s",id, frontIndex, dump);
 				session.Close();
 				break;
 			}
@@ -196,9 +226,7 @@ void Group::RecvHandler(Session& session, void* iocp)
 			break;
 		}
 
-		auto& buffer = *CRecvBuffer::Alloc(&recvQ, header.len);
-
-
+		CRecvBuffer buffer(&recvQ, header.len);
 		if constexpr (is_same_v<Header, NetHeader>)
 		{
 			recvQ.Decode(session._staticKey);
@@ -206,7 +234,7 @@ void Group::RecvHandler(Session& session, void* iocp)
 			if (!recvQ.ChecksumValid())
 			{
 				
-				gLogger->Write(L"Disconnect", LogLevel::Debug, L"Group Invalid Checksum %d",session.GetSessionId());
+				gLogger->Write(L"Disconnect", CLogger::LogLevel::Debug, L"Group Invalid Checksum %d",session.GetSessionId());
 				session.Close();
 				break;
 			}
@@ -214,10 +242,6 @@ void Group::RecvHandler(Session& session, void* iocp)
 		loopCount++;
 		recvQ.Dequeue(sizeof(Header));
 		onRecvPacket(session, buffer);
-
-
-
-		buffer.Release(L"RecvRelease");
 	}
 
 	if (loopCount > 0)

@@ -17,11 +17,6 @@ void GroupManager::MoveSession(const SessionID target, const GroupID dst)
 	session->SetGroupID(dst);
 	
 	AcquireSRWLockShared(&_groupLock);
-	if(src != 0)
-	{
-		const auto srcGroup = _groups.find(src);
-		srcGroup->second->LeaveSession(session->GetSessionId());
-	}
 	if(dst != 0)
 	{
 		const auto dstGroup = _groups.find(dst);
@@ -40,11 +35,11 @@ void GroupManager::Update()
 	AcquireSRWLockShared(&_groupLock);
 	for (auto& [groupId, groupPtr] : _groups)
 	{
-		if (groupPtr->NeedUpdate()) 
-		{
-			groupPtr->_executable.Clear();
-			_owner->PostExecutable((Executable*)(&(groupPtr->_executable)), 0);
-		}
+		//if (groupPtr->NeedUpdate()) 
+		//{
+		groupPtr->_executable.Clear();
+		_owner->PostExecutable((Executable*)(&(groupPtr->_executable)), 0);
+		//}
 	}
 	ReleaseSRWLockShared(&_groupLock);
 }

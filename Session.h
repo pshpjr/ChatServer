@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include <optional>
-
+#include <chrono>
 #include "CRingBuffer.h"
 #include "Socket.h"
 #include "TLSLockFreeQueue.h"
@@ -52,7 +52,8 @@ public:
 
 
 	inline long IncreaseRef(LPCWSTR content);
-	bool Release(LPCWSTR content = L"", int type = 0);
+	inline bool Release(LPCWSTR content = L"", int type = 0);
+
 
 	void EnqueueSendData(CSendBuffer* buffer);
 	void RegisterRecv();
@@ -63,7 +64,7 @@ public:
 
 	void RegisterIOCP(HANDLE iocpHandle);
 
-	SessionID GetSessionId() const { return _sessionId; }
+	inline SessionID GetSessionId() const { return _sessionId; }
 	String GetIp() const { return _socket.GetIp(); }
 	uint16 GetPort() const { return _socket.GetPort(); }
 
@@ -82,8 +83,8 @@ public:
 	void ResetTimeoutWait();
 
 	//0이면 아무 그룹 아님. 
-	GroupID GetGroupID() const { return _groupId; }
-	void SetGroupID(const GroupID id)
+	inline GroupID GetGroupID() const { return _groupId; }
+	inline void SetGroupID(const GroupID id)
 	{
 		InterlockedExchange(( long* ) &_groupId, id);
 	}
@@ -97,7 +98,7 @@ private:
 	//CONST
 	static constexpr unsigned long long ID_MASK = 0x000'7FFF'FFFF'FFFF;
 	static constexpr unsigned long long INDEX_MASK = 0x7FFF'8000'0000'0000;
-	static constexpr int MAX_SEND_COUNT = 512;
+	static constexpr int MAX_SEND_COUNT = 256;
 
 	static constexpr long RELEASE_FLAG = 0x0010'0000;
 
@@ -114,7 +115,7 @@ private:
 
 	//Group
 	GroupID _groupId = GroupID(0);
-	TlsLockFreeQueue<CRecvBuffer*> _groupRecvQ;
+	//TlsLockFreeQueue<CRecvBuffer*> _groupRecvQ;
 
 	IOCP* _owner;
 
@@ -181,3 +182,30 @@ long Session::IncreaseRef(LPCWSTR Content)
 #endif
 	return result;
 }
+
+inline bool Session::Release(LPCWSTR content, int type)
+{
+	int refDecResult = InterlockedDecrement(&_refCount);
+
+#ifdef SESSION_DEBUG
+
+	auto index = InterlockedIncrement(&debugIndex);
+	release_D[index % debugSize] = { refDecResult,content,type };
+#endif
+
+	if (refDecResult == 0)
+	{
+		if (InterlockedCompareExchange(&_refCount, RELEASE_FLAG, 0) == 0)
+		{
+			//InterlockedIncrement(&_owner->_iocpCompBufferSize);
+
+			if (GetGroupID() == 0)
+			{
+				PostRelease();
+			}
+			return true;
+		}
+	}
+	return false;
+}
+

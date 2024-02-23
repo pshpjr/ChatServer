@@ -1,14 +1,16 @@
 ﻿#include "stdafx.h"
 #include "CRecvBuffer.h"
+#include <stdexcept>
 
 #include "CRingBuffer.h"
 #include "Protocol.h"
+
 
 constexpr int RECV_INIT_SIZE = 2000;
 constexpr int RECV_INIT_MULTIPLIER = 3;
 
 
-TlsPool<CRecvBuffer, 0> CRecvBuffer::_pool(RECV_INIT_SIZE, RECV_INIT_MULTIPLIER);
+//TlsPool<CRecvBuffer, 0> CRecvBuffer::_pool(RECV_INIT_SIZE, RECV_INIT_MULTIPLIER);
 
 CRecvBuffer& CRecvBuffer::operator>>(String& value)
 {

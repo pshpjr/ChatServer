@@ -49,7 +49,7 @@ optional<String> RedisConnection::Get(const string& key)
 	{
 		String wKey(key.length(), L'\n');
 		wKey.assign(key.begin(), key.end());
-		gLogger->Write(L"Redis", LogLevel::Debug, L"invalid key %s",wKey.c_str());
+		gLogger->Write(L"Redis", CLogger::LogLevel::Debug, L"invalid key %s",wKey.c_str());
 
 		return{};
 	}

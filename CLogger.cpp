@@ -1,6 +1,8 @@
 ﻿#include "stdafx.h"
 #include "CLogger.h"
+#include <time.h>
 #include "strsafe.h"
+
 
 //TODO: fileName에 로그 남기기.
 CLogger::CLogger(LPCWCH fileName)
@@ -25,7 +27,7 @@ void CLogger::Write(const LPCWSTR type, LogLevel level, LPCWSTR format, ...)
 	if(const auto filenameResult = StringCchPrintfW(fileName, sizeof(fileName), L"%d-%d-%d_%s.txt",
 	                                                t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, type); filenameResult != S_OK)
 	{
-		Write(L"SYSTEM", LogLevel::Error, L"LOGGER : 파일 이름 버퍼보다 이름이 큽니다.\n");
+		Write(L"SYSTEM", CLogger::LogLevel::Error, L"LOGGER : 파일 이름 버퍼보다 이름이 큽니다.\n");
 	}
 
 
@@ -45,7 +47,7 @@ void CLogger::Write(const LPCWSTR type, LogLevel level, LPCWSTR format, ...)
 	                                             t.tm_hour, t.tm_min, t.tm_sec,
 	                                             _dic[static_cast<int>(level)]); headResult != S_OK)
 	{
-		Write(L"SYSTEM", LogLevel::Error, L"LOGGER : 헤더 버퍼보다 헤더가 큽니다.\n");
+		Write(L"SYSTEM", CLogger::LogLevel::Error, L"LOGGER : 헤더 버퍼보다 헤더가 큽니다.\n");
 	}
 
 	WCHAR logBuffer[2048];
@@ -55,7 +57,7 @@ void CLogger::Write(const LPCWSTR type, LogLevel level, LPCWSTR format, ...)
 	if(const auto logWriteResult = StringCchVPrintfW(logBuffer, 2048, format,va);
 		logWriteResult != S_OK)
 	{
-		Write(L"SYSTEM", LogLevel::Error, L"로그 버퍼보다 로그가 큽니다.\n");
+		Write(L"SYSTEM", CLogger::LogLevel::Error, L"로그 버퍼보다 로그가 큽니다.\n");
 	}
 
 	fwprintf(stream, L"%s %s\n", logHeader, logBuffer);

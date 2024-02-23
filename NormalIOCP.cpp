@@ -298,13 +298,14 @@ bool IOCP::SendPacket(const SessionID sessionId, SendBuffer& sendBuffer, int typ
 
 	ProcessBuffer(session, *buffer);
 
-	session.TrySend();
+	//session.TrySend();
 
-	//if ( session.CanSend())
-	//{
-	//	//InterlockedIncrement(&_iocpCompBufferSize);
-	//	PostQueuedCompletionStatus(_iocp, -1, ( ULONG_PTR ) &session, &session._sendExecute._overlapped);
-	//}
+	if ( session.CanSend())
+	{
+		session._sendExecute.Clear();
+		//InterlockedIncrement(&_iocpCompBufferSize);
+		PostQueuedCompletionStatus(_iocp, -1, ( ULONG_PTR ) &session, &session._sendExecute._overlapped);
+	}
 
 	session.Release(L"SendPacketRelease");
 	return true;
@@ -345,11 +346,10 @@ bool IOCP::SendPackets(const SessionID sessionId, vector<SendBuffer>& bufArr)
 		ProcessBuffer(session, *buffer);
 	}
 	
-	ASSERT_CRASH(session._sendQ.Size() != 0);
 	if (session.CanSend())
 	{
-		session.RealSend();
-		//PostQueuedCompletionStatus(_iocp, -1, ( ULONG_PTR ) &session, &session._sendExecute._overlapped);
+		session._sendExecute.Clear();
+		PostQueuedCompletionStatus(_iocp, -1, ( ULONG_PTR ) &session, &session._sendExecute._overlapped);
 	}
 
 	session.Release(L"SendPacketRelease");
@@ -387,7 +387,7 @@ WSAResult<SessionID>  IOCP::GetClientSession(const String& ip, const Port port)
 
 	if (auto connectionResult = s.Connect(ip, port); !connectionResult.HasValue() )
 	{
-		gLogger->Write(L"ClientClose", LogLevel::Debug, L"connect fail");
+		gLogger->Write(L"ClientClose", CLogger::LogLevel::Debug, L"connect fail");
 		s.Close();
 		freeIndex.Push(index);
 		
@@ -471,7 +471,7 @@ bool IOCP::DisconnectSession(const SessionID sessionId)
 	{
 		return false;
 	}
-	gLogger->Write(L"DisconnectSession", LogLevel::Debug, L"session ID : %d ",sessionId);
+	gLogger->Write(L"DisconnectSession", CLogger::LogLevel::Debug, L"session ID : %d ",sessionId);
 
 	auto& session = *result;
 
@@ -499,7 +499,7 @@ void IOCP::onRecvPacket(const Session& session, CRecvBuffer& buffer)
 	}
 	catch ( const std::invalid_argument& )
 	{
-		gLogger->Write(L"RecvErr", LogLevel::Debug, L"Can't pop : recv buffer is empty");
+		gLogger->Write(L"RecvErr", CLogger::LogLevel::Debug, L"Can't pop : recv buffer is empty");
 		DisconnectSession(session._sessionId);
 	}
 }
@@ -675,10 +675,10 @@ String IOCP::GetLibMonitorString() const
 				L"+  {:<14s} : {:>10d}, {:<14s} : {:>10d}\n"
 				L"+  {:<14s} : {:>10d}, {:<14s} : {:>10d}\n"
 				L"+  {:<14s} : {:>10d}, {:<14s} : {:>10d}\n"
+				//L"+  {:<14s} : {:>10d}, {:<14s} : {:>10d}\n"
 				L"+  {:<14s} : {:>10d}, {:<14s} : {:>10d}\n"
-				L"+  {:<14s} : {:>10d}, {:<14s} : {:>10d}\n"
-				L"+  {:<14s} : {:>10d}, {:<14s} : {:>10d}\n"
-				L"+  {:<14s} : {:>10d}, {:<14s} : {:>10d}\n"
+				//L"+  {:<14s} : {:>10d}, {:<14s} : {:>10d}\n"
+				//L"+  {:<14s} : {:>10d}, {:<14s} : {:>10d}\n"
 				L"----------------------------------------------------------------------------------\n"
 				, L"+++++", L"LIBS", L"+++++"
 				, L"VirtualMem", GetVirtualMemSize() / 1000'000., GetPeakVirtualMemSize() / 1000'000.
@@ -692,10 +692,10 @@ String IOCP::GetLibMonitorString() const
 				, L"Disconnect", GetDisconnectCount(), L"DisconnectTPS", GetDisconnectPerSec()
 				, L"SegmentTimeout", GetSegmentTimeout(), L"Timeout", GetTimeoutCount()
 				, L"GSendPool", CSendBuffer::_pool.GetGPoolSize(), L"GSendPoolEmpty", CSendBuffer::_pool.GetGPoolEmptyCount()
-				, L"GRecvPool", CRecvBuffer::_pool.GetGPoolSize(), L"GRecvPoolEmpty", CRecvBuffer::_pool.GetGPoolEmptyCount()
+				//, L"GRecvPool", CRecvBuffer::_pool.GetGPoolSize(), L"GRecvPoolEmpty", CRecvBuffer::_pool.GetGPoolEmptyCount()
 				, L"SendPoolAcq", CSendBuffer::_pool.GetAcquireCount(), L"SendPoolRel", CSendBuffer::_pool.GetReleaseCount()
-				, L"RecvPoolAcq", CRecvBuffer::_pool.GetAcquireCount(), L"RecvPoolRel", CRecvBuffer::_pool.GetReleaseCount()
-			     ,L"SendPoolGap", CSendBuffer::_pool.GetAcquireCount()- CSendBuffer::_pool.GetReleaseCount(),L"RecvPoolGap", CRecvBuffer::_pool.GetAcquireCount() - CRecvBuffer::_pool.GetReleaseCount()
+				//, L"RecvPoolAcq", CRecvBuffer::_pool.GetAcquireCount(), L"RecvPoolRel", CRecvBuffer::_pool.GetReleaseCount()
+			     //,L"SendPoolGap", CSendBuffer::_pool.GetAcquireCount()- CSendBuffer::_pool.GetReleaseCount(),L"RecvPoolGap", CRecvBuffer::_pool.GetAcquireCount() - CRecvBuffer::_pool.GetReleaseCount()
 	);
 
 
@@ -788,17 +788,19 @@ void IOCP::WorkerThread(LPVOID arg)
 		EASY_END_BLOCK;
 		Executable* overlapped = Executable::GetExecutable(overlap);
 		
+		if (transferred == 0 && session == nullptr)
+		{
+			PostQueuedCompletionStatus(_iocp, 0, 0, nullptr);
+			break;
+		}
+
 		if ( transferred == 0 && ret != 0 )
 		{
 			session->Release(L"ConnectEndRel", 0);
 			continue;
 		}
 
-		if(transferred==0&&session== nullptr)
-		{
-			PostQueuedCompletionStatus(_iocp, 0, 0, nullptr);
-			break;
-		}
+
 		auto errNo = 0;
 
 		if(transferred == 0 && session != nullptr)
@@ -818,7 +820,7 @@ void IOCP::WorkerThread(LPVOID arg)
 				auto recvWait = chrono::duration_cast<chrono::milliseconds>(now - session->lastRecv);
 				auto sendWait = session->_needCheckSendTimeout ? chrono::duration_cast<chrono::milliseconds>(now - session->_postSendExecute.lastSend) : 0ms;
 
-				gLogger->Write(L"ConnectionError", LogLevel::Error, L"SemaphoreTimeout  sessionID : %d, executableType : %s, sendWait : %d recvWait : %d", session->GetSessionId(), typeid(overlapped).name(), sendWait,recvWait);
+				gLogger->Write(L"ConnectionError", CLogger::LogLevel::Error, L"SemaphoreTimeout  sessionID : %d, executableType : %s, sendWait : %d recvWait : %d", session->GetSessionId(), typeid(overlapped).name(), sendWait,recvWait);
 				InterlockedIncrement(&_tcpSemaphoreTimeout);
 				break;
 			}
@@ -826,15 +828,15 @@ void IOCP::WorkerThread(LPVOID arg)
 			//WSA_OPERATION_ABORTED cancleIO로 인한 것.
 			//서버가 먼저 끊는 상황에서 발생.
 			case WSA_OPERATION_ABORTED:
-				gLogger->Write(L"ConnectionError", LogLevel::Error, L"Operation Aborted sessionID : %d, executableType : %s", session->GetSessionId(), typeid(overlapped).name());
+				gLogger->Write(L"ConnectionError", CLogger::LogLevel::Error, L"Operation Aborted sessionID : %d, executableType : %s", session->GetSessionId(), typeid(overlapped).name());
 				break;
 			//io 도중에 closeSocket 호출
 			//생기면 안 됨. 
 			case ERROR_CONNECTION_ABORTED:
-				gLogger->Write(L"ConnectionError", LogLevel::Error, L"Connection Aborted sessionID : %d, executableType : %s", session->GetSessionId(), typeid(overlapped).name());
+				gLogger->Write(L"ConnectionError", CLogger::LogLevel::Error, L"Connection Aborted sessionID : %d, executableType : %s", session->GetSessionId(), typeid(overlapped).name());
 				break;
 			case ERROR_NOT_FOUND:
-				gLogger->Write(L"ConnectionError", LogLevel::Error, L"Error Not Found sessionID : %d, executableType : %s", session->GetSessionId(), typeid(overlapped).name());
+				gLogger->Write(L"ConnectionError", CLogger::LogLevel::Error, L"Error Not Found sessionID : %d, executableType : %s", session->GetSessionId(), typeid(overlapped).name());
 				break;
 			[[unlikely]] default:
 				{

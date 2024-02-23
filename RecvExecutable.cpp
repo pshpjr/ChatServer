@@ -55,7 +55,7 @@ void RecvExecutable::RecvHandler(Session& session, void* iocp)
 			{
 				int frontIndex = recvQ.GetFrontIndex();
 				std::string dump(recvQ.GetBuffer(), recvQ.GetBuffer() + recvQ.GetBufferSize());
-				gLogger->Write(L"Disconnect", LogLevel::Debug, L"WrongPacketCode id : %d\n index: %d \n %s", session.GetSessionId(),frontIndex,dump);
+				gLogger->Write(L"Disconnect", CLogger::LogLevel::Debug, L"WrongPacketCode id : %d\n index: %d \n %s", session.GetSessionId(),frontIndex,dump);
 				session.Close();
 				break;
 			}
@@ -64,7 +64,7 @@ void RecvExecutable::RecvHandler(Session& session, void* iocp)
 			{
 				int frontIndex = recvQ.GetFrontIndex();
 				std::string dump(recvQ.GetBuffer(), recvQ.GetBuffer() + recvQ.GetBufferSize());
-				gLogger->Write(L"Disconnect", LogLevel::Debug, L"WrongPacketLen id : %d\n index: %d \n %s", session.GetSessionId(), frontIndex, dump);
+				gLogger->Write(L"Disconnect", CLogger::LogLevel::Debug, L"WrongPacketLen id : %d\n index: %d \n %s", session.GetSessionId(), frontIndex, dump);
 				session.Close();
 				break;
 			}
@@ -79,7 +79,8 @@ void RecvExecutable::RecvHandler(Session& session, void* iocp)
 			break;
 		}
 
-		auto& buffer = *CRecvBuffer::Alloc(&recvQ,header.len);
+		CRecvBuffer buffer(&recvQ, header.len);
+		//auto& buffer = *CRecvBuffer::Alloc(&recvQ,header.len);
 
 		if constexpr ( is_same_v<Header, NetHeader> )
 		{
@@ -87,7 +88,7 @@ void RecvExecutable::RecvHandler(Session& session, void* iocp)
 
 			if (!recvQ.ChecksumValid() )
 			{
-				gLogger->Write(L"Disconnect", LogLevel::Debug, L"Recv Invalid Checksum id : %d",session.GetSessionId());
+				gLogger->Write(L"Disconnect", CLogger::LogLevel::Debug, L"Recv Invalid Checksum id : %d",session.GetSessionId());
 				session.Close();
 				break;
 			}
@@ -97,8 +98,6 @@ void RecvExecutable::RecvHandler(Session& session, void* iocp)
 		server.onRecvPacket(session, buffer);
 
 		ASSERT_CRASH(buffer.CanPopSize() == 0,"UnuseData");
-		buffer.Release(L"RecvRelease");
-		
 	}
 
 	if ( loopCount > 0 )

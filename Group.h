@@ -58,17 +58,26 @@ public:
 	virtual void OnLeave(SessionID id) {};
 	virtual void OnRecv(SessionID id, CRecvBuffer& recvBuffer) {};
 	virtual ~Group() {};
-	GroupID GetID() const {return _groupId;}
+	GroupID GetGroupID() const {return _groupId;}
+
+
 protected:
 	void SendPacket(SessionID id, SendBuffer& buffer) const;
+	void SendPackets(SessionID id, vector<SendBuffer>& buffer);
 	void MoveSession(SessionID id, GroupID dst) const;
-	void LeaveSession(SessionID id);
+	void LeaveSession(SessionID id,String cause);
 	void EnterSession(SessionID id);
 	void SetLoopMs(int loopMS);
+	int Sessions() { return _sessions.size(); }
 	Group();
 	IOCP* _iocp;
 	int _loopMs = 10;
+
+	int GetWorkTime() const { return oldWorkTime; }
 private:
+
+	bool EnqJob();
+	bool DeqJob();
 
 	bool NeedUpdate();
 	void Update();
@@ -83,16 +92,29 @@ private:
 
 	void onRecvPacket(const Session& session, CRecvBuffer& buffer);
 	
-
+	long _leaveCount = 0;
+	long _handledLeave = 0;
 private:
 	GroupID _groupId = GroupID::InvalidGroupID();
 	GroupExecutable& _executable;
 	std::chrono::steady_clock::time_point _nextUpdate;
 	SessionSet _sessions;
+
+	TlsLockFreeQueue<GroupJob> _jobs;
+
 	TlsLockFreeQueue<SessionID> _enterSessions;
 	TlsLockFreeQueue<SessionID> _leaveSessions;
-	char _isRun = 0;
+	volatile char _isRun = 0;
 
 	GroupManager* _owner;
+
+	tuple<SessionID,String,thread::id> _debugLeave[1000];
+	int debugIndex;
+
+
+	//MONITOR
+	std::chrono::steady_clock::time_point _nextMonitor;
+	int workTime = 0;
+	int oldWorkTime = 0;
 };
 

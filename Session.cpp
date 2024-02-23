@@ -1,14 +1,18 @@
 ﻿#include "stdafx.h"
 #include "Session.h"
+#include <optional>
+
+
+
 
 #include "Container.h"
 #include "CSendBuffer.h"
 #include "IOCP.h"
-#include <optional>
+
 #include "Executables.h"
 #include "CRecvBuffer.h"
-#include <CoreGlobal.h>
-#include <CLogger.h>
+#include "CoreGlobal.h"
+#include "CLogger.h"
 Session::Session() : _sessionId(), _socket({}),  _sendingQ(), _owner(nullptr)
 ,_recvExecute(*new RecvExecutable),_postSendExecute(*new PostSendExecutable),_sendExecute(*new SendExecutable), _releaseExecutable(*new ReleaseExecutable)
 {
@@ -123,14 +127,9 @@ void Session::RecvNotIncrease()
 	{
 		_recvExecute._recvBufSize[i] =  recvWsaBuf[i].len;
 	}
-	if ( recvWsaBuf[0].len + recvWsaBuf[1].len == 0 || bufferCount == 0 )
-	{
-		int a = 0;
-	}
 	ASSERT_CRASH(_recvExecute._recvBufSize[0] + _recvExecute._recvBufSize[1] != 0, "RecvBuffer is 0");
 
 	lastRecv = chrono::steady_clock::now();
-
 
 	//멀티스레딩 상황에서 recv의 에러 확인(ioPending)과 connect 확인 사이에 새로운 세션으로 변경될 수 있다.
 	auto beforeSessionId = _sessionId;
@@ -241,11 +240,11 @@ void Session::Reset()
 	
 	_groupId = GroupID(0);
 
-	CRecvBuffer* recvBuffer;
-	while ( _groupRecvQ.Dequeue(recvBuffer) )
-	{
-		recvBuffer->Release(L"ResetRecvRelease");
-	}
+	//CRecvBuffer* recvBuffer;
+	//while ( _groupRecvQ.Dequeue(recvBuffer) )
+	//{
+	//	recvBuffer->Release(L"ResetRecvRelease");
+	//}
 
 	CSendBuffer* sendBuffer;
 	while ( _sendQ.Dequeue(sendBuffer) )
@@ -268,32 +267,6 @@ void Session::Reset()
 void Session::PostRelease()
 {
 	PostQueuedCompletionStatus(_owner->_iocp, -1, reinterpret_cast<ULONG_PTR>(this), &_releaseExecutable._overlapped);
-}
-
-bool Session::Release([[maybe_unused]] LPCWSTR content, [[maybe_unused]] int type)
-{
-	int refDecResult = InterlockedDecrement(&_refCount);
-
-#ifdef SESSION_DEBUG
-
-	auto index = InterlockedIncrement(&debugIndex);
-	release_D[index % debugSize] = { refDecResult,content,type };
-#endif
-
-	if ( refDecResult == 0 )
-	{
-		if ( InterlockedCompareExchange(&_refCount, RELEASE_FLAG, 0) == 0 )
-		{
-			//InterlockedIncrement(&_owner->_iocpCompBufferSize);
-
-			if(GetGroupID() == 0)
-			{
-				PostRelease();
-			}
-			return true;
-		}
-	}
-	return false;
 }
 
 void Session::RealSend()
@@ -363,7 +336,7 @@ void Session::RealSend()
 			default:
 				DebugBreak();
 		}
-		gLogger->Write(L"Disconnect", LogLevel::Debug, L"SendFail errNo : %d, sessionID : %d", error, GetSessionId());
+		gLogger->Write(L"Disconnect", CLogger::LogLevel::Debug, L"SendFail errNo : %d, sessionID : %d", error, GetSessionId());
 		Release(L"SendErrorRelease");
 	}
 }

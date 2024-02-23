@@ -86,10 +86,9 @@ protected:
 		}
 
 		auto& session = _sessions[id.index];
-		const auto result = session.IncreaseRef(content);
 
 		//릴리즈 중이거나 세션 변경되었으면 
-		if ( result > releaseFlag || session.GetSessionId().id != id.id )
+		if (session.IncreaseRef(content) > releaseFlag || session.GetSessionId().id != id.id )
 		{
 			//세션 릴리즈 해도 문제 없음. 플레그 서 있을거라 내가 올린 만큼 내려감. 
 			session.Release(L"sessionChangedRelease");

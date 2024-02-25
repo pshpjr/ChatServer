@@ -10,13 +10,13 @@
 void RecvExecutable::Execute(const ULONG_PTR key, const DWORD transferred, void* iocp)
 {
 	Session& session = *reinterpret_cast<Session*>(key);
-	session.ioCount++;
 
 	session._recvQ.MoveRear(transferred);
 
+	IOCP& server = *reinterpret_cast<IOCP*>(iocp);
 	if (session.GetGroupID() != 0) 
 	{
-
+		server._groupManager->OnRecv(session.GetSessionId(), session.GetGroupID());
 	}
 	else if ( const char sKey = session._staticKey )
 	{
@@ -40,6 +40,11 @@ void RecvExecutable::RecvHandler(Session& session, void* iocp)
 	CRingBuffer& recvQ = session._recvQ;
 	while ( true )
 	{
+		if (session.GetGroupID() != 0)
+		{
+			break;
+		}
+
 		if ( recvQ.Size() < sizeof(Header) )
 		{
 			break;

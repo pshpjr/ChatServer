@@ -12,10 +12,16 @@
 Group::Group() :_iocp(nullptr), _executable(*new GroupExecutable(this)), _nextUpdate(std::chrono::steady_clock::now() + chrono::milliseconds(_loopMs))
 , _owner(nullptr) {};
 
-bool Group::Enqueue(GroupJob job)
+bool Group::Enqueue(GroupJob job, bool update)
 {
 	_jobs.Enqueue(job);
-	Update();
+	
+	if (update && _isRun == 0)
+	{
+		Update();
+		return true;
+	}
+	return false;
 }
 
 bool Group::NeedUpdate()
@@ -31,90 +37,94 @@ void Group::Update()
 	auto start = chrono::steady_clock::now();
 
 
-	HandleEnter();
-	HandlePacket();
-	if (NeedUpdate()) 
+	while (hasJob() || NeedUpdate())
 	{
-		OnUpdate();
-		_nextUpdate += chrono::milliseconds(_loopMs);
+		HandleJob();
+
+		if (NeedUpdate())
+		{
+			OnUpdate();
+			_nextUpdate += chrono::milliseconds(_loopMs);
+		}
+
+		auto end = chrono::steady_clock::now();
+
+		workTime += std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+		if (end > _nextMonitor)
+		{
+			oldWorkTime = workTime;
+			workTime = 0;
+			_nextMonitor += 1s;
+		}
 	}
-	
-	HandleLeave();
-
-	auto end = chrono::steady_clock::now();
-
-	workTime += std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-
-	if (end > _nextMonitor)
-	{
-		oldWorkTime = workTime;
-		workTime = 0;
-		_nextMonitor += 1s;
-	}
-
 
 	InterlockedExchange8(&_isRun, 0);
 }
 
-void Group::HandleEnter()
-{
-	SessionID id;
-	int count = 0;
-	while ( _enterSessions.Dequeue(id) )
-	{
-		++count;
-		_sessions.insert(id);
-		OnEnter(id);
-	}
-}
-void Group::HandleLeave()
-{
-	SessionID id;
-	int count = 0;
-	while ( _leaveSessions.Dequeue(id) )
-	{
-		++count;
-		if ( _sessions.erase(id) == 0 )
-		{
-			DebugBreak();
-		} 
-		
-		OnLeave(id);
 
-		if(_iocp->isRelease(id))
-		{
-			_iocp->postReleaseSession(id);
-		}
-	}
-	_handledLeave += count;
-}
-//onDisconnect랑 OnSessionLeave랑 순서가 안 맞을 수 있다. 
-void Group::HandlePacket()
+bool Group::HandleJob()
 {
-	for (const auto sessionId : _sessions )
+	GroupJob job;
+	while (_jobs.Dequeue(job))
 	{
-		Session* session;
-		
-	
-		session = _iocp->FindSession(sessionId, L"HandlePacket");
-		if (session == nullptr)
+		switch (job.type) 
 		{
-			LeaveSession(sessionId,L"Invalid Session Leave");
-			continue;
-		}
+		case Group::GroupJob::type::Enter:
+		{
+			PRO_BEGIN(L"ENTER");
+			++_handledEnter;
 
+			ASSERT_CRASH(_sessions.find(job.sessionId) == _sessions.end());
+			//Write(job.sessionId, Group::jobType::Enter, InvalidGroupID(), L"Enter Handled");
+			_sessions.insert(job.sessionId);
 
-		if (const char sKey = session->_staticKey)
-		{
-			RecvHandler<NetHeader>(*session, _iocp);
+			OnEnter(job.sessionId);
 		}
-		else
+			break;
+		case Group::GroupJob::type::Leave:
 		{
-			RecvHandler<LANHeader>(*session, _iocp);
+			PRO_BEGIN(L"LEAVE");
+			++_handledLeave;
+			//Write(job.sessionId, Group::jobType::Leave, InvalidGroupID(), L"Leave Handled");
+			if (_sessions.erase(job.sessionId) == 0)
+			{
+				DebugBreak();
+			}
+			ASSERT_CRASH(_sessions.size() == _handledEnter - _handledLeave);
+			OnLeave(job.sessionId);
+
+			_iocp->CheckPostRelease(job.sessionId, _groupId);
 		}
-		
-		session->Release(L"HandlePacketRelease");
+			break;
+		case Group::GroupJob::type::Recv:
+		{
+			PRO_BEGIN(L"RECV");
+			Session* session;
+
+			session = _iocp->FindSession(job.sessionId, L"HandlePacket");
+			
+			if (session == nullptr)
+			{
+				//Write(job.sessionId, Group::jobType::Other, InvalidGroupID(), L"InvalidSession when recv");
+				continue;
+			}
+
+			if (const char sKey = session->_staticKey)
+			{
+				RecvHandler<NetHeader>(*session, _iocp);
+			}
+			else
+			{
+				RecvHandler<LANHeader>(*session, _iocp);
+			}
+
+			session->Release(L"HandlePacketRelease");
+		}
+			break;
+		}
 	}
+	return true;
 }
 
 void Group::onRecvPacket(const Session& session, CRecvBuffer& buffer)
@@ -134,15 +144,14 @@ void Group::onRecvPacket(const Session& session, CRecvBuffer& buffer)
 
 //해당 세션이 언제 나갈지 모르는데 상관 없나?
 //어짜피 동시에 처리되는 건 아니니까 상관 x.
-void Group::LeaveSession(const SessionID id,String leaveCause)
-{
-	_debugLeave[InterlockedIncrement(&_leaveCount)] = { id,leaveCause,this_thread::get_id()};
-	_leaveSessions.Enqueue(id);
+void Group::LeaveSession(const SessionID id, bool update)
+{ 
+	Enqueue({ Group::GroupJob::type::Leave, id },update);
 }
 
-void Group::EnterSession(const SessionID id)
+void Group::EnterSession(const SessionID id, bool update)
 {
-	_enterSessions.Enqueue(id);
+	Enqueue({ Group::GroupJob::type::Enter, id }, update);
 }
 
 void Group::SetLoopMs(int loopMS)
@@ -162,12 +171,17 @@ void Group::SendPackets(SessionID id, vector<SendBuffer>& buffer)
 
 void Group::MoveSession(const SessionID id, const GroupID dst) const
 {
-	_owner->MoveSession(id, dst);
+	_owner->MoveSession(id, dst,false);
 }
 
 void Group::Execute(IOCP* iocp) const
 {
 	_executable.Execute(0, executable::ExecutableTransfer::GROUP, iocp);
+}
+
+bool Group::hasJob() const
+{
+	return _jobs.Size() > 0;
 }
 
 
@@ -176,7 +190,6 @@ void Group::Execute(IOCP* iocp) const
 template <typename Header>
 void Group::RecvHandler(Session& session, void* iocp)
 {
-
 	IOCP& server = *static_cast<IOCP*>(iocp);
 	int loopCount = 0;
 
@@ -185,7 +198,7 @@ void Group::RecvHandler(Session& session, void* iocp)
 	{
 		if (session.GetGroupID() != _groupId)
 		{
-			LeaveSession(session.GetSessionId(),L"InvalidGroupLeave");
+			//Write(session.GetSessionId(), Other, session.GetGroupID(), L"Not this Group");
 			break;
 		}
 
@@ -230,7 +243,7 @@ void Group::RecvHandler(Session& session, void* iocp)
 		if constexpr (is_same_v<Header, NetHeader>)
 		{
 			recvQ.Decode(session._staticKey);
-
+			
 			if (!recvQ.ChecksumValid())
 			{
 				

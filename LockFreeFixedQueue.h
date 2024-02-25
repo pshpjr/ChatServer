@@ -58,7 +58,7 @@ public:
 
 	bool Dequeue(T& data)
 	{
-		volatile long head;
+		 long head;
 		for ( ;; )
 		{
 			head = headIndex;

@@ -40,7 +40,7 @@ class Session
 	friend class IOCP;
 	friend class Group;
 public:
-	int ioCount = 0;
+
 
 
 	Session();
@@ -52,7 +52,8 @@ public:
 
 
 	inline long IncreaseRef(LPCWSTR content);
-	inline bool Release(LPCWSTR content = L"", int type = 0);
+	bool Release(LPCWSTR content = L"", int type = 0);
+
 
 
 	void EnqueueSendData(CSendBuffer* buffer);
@@ -95,6 +96,12 @@ private:
 
 private:
 
+	long GetRefCount(SessionID id) {
+		//auto value = _refCount;
+		auto value =  InterlockedOr(&_refCount, 0); 
+		ASSERT_CRASH(_sessionId == id);
+		return value;
+	}
 	//CONST
 	static constexpr unsigned long long ID_MASK = 0x000'7FFF'FFFF'FFFF;
 	static constexpr unsigned long long INDEX_MASK = 0x7FFF'8000'0000'0000;
@@ -103,18 +110,21 @@ private:
 	static constexpr long RELEASE_FLAG = 0x0010'0000;
 
 	
-	//Network
-	SessionID _sessionId = {{0}};
+	//Network	
+	alignas(64) SessionID _sessionId = { {0} };
 	Socket _socket;
-
-
+	GroupID _groupId = GroupID(0);
+	long _refCount = RELEASE_FLAG;
+#ifdef SESSION_DEBUG
+	long DebugRef = 0;
+#endif
+	char _connect = false;
 
 	LockFreeFixedQueue<CSendBuffer*, MAX_SEND_COUNT> _sendQ;
 	//TlsLockFreeQueue<CSendBuffer*> _sendQ;
 	CSendBuffer* _sendingQ[MAX_SEND_COUNT];
 
-	//Group
-	GroupID _groupId = GroupID(0);
+
 	//TlsLockFreeQueue<CRecvBuffer*> _groupRecvQ;
 
 	IOCP* _owner;
@@ -128,12 +138,11 @@ private:
 
 
 	//Reference
-	long _refCount = RELEASE_FLAG;
 	char _isSending = false;
 
 	//Timeout
 	bool _needCheckSendTimeout = false;
-	char _connect = false;
+
 	int _defaultTimeout = 5000;
 	int _timeout = 5000;
 	CRingBuffer _recvQ;
@@ -149,14 +158,25 @@ private:
 
 	struct RelastinReleaseEncrypt_D
 	{
+		SessionID id;
+		GroupID dst = InvalidGroupID();
 		long refCount;
 		LPCWSTR location;
-		long long contentType;
+		GroupID groupId = InvalidGroupID();
 	};
 	static const int debugSize = 2000;
 
 	long debugIndex = 0;
 	RelastinReleaseEncrypt_D release_D[debugSize];
+
+	//세션 id, 종류
+	//tuple<SessionID, String, thread::id> _debugLeave[debugSize];
+	public:
+	void Write(long refCount, GroupID dst, LPCWSTR cause)
+	{
+		auto index = InterlockedIncrement(&debugIndex);
+		release_D[index % debugSize] = { GetSessionId(),dst,refCount, cause,GetGroupID()};
+	}
 
 #endif
 
@@ -164,8 +184,7 @@ private:
 	void WriteContentLog(unsigned int type)
 	{
 #ifdef SESSION_DEBUG
-
-		release_D[InterlockedIncrement(&debugIndex) % debugSize] = { _refCount,L"SendContent",type };
+		Write(_refCount, InvalidGroupID(), L"SendContent");
 #endif
 	}
 
@@ -177,35 +196,9 @@ long Session::IncreaseRef(LPCWSTR Content)
 	auto result = InterlockedIncrement(&_refCount);
 
 #ifdef SESSION_DEBUG
-	auto index = InterlockedIncrement(&debugIndex);
-	release_D[index % debugSize] = { result,content,0 };
+	Write(_refCount, InvalidGroupID(), Content);
+
 #endif
 	return result;
-}
-
-inline bool Session::Release(LPCWSTR content, int type)
-{
-	int refDecResult = InterlockedDecrement(&_refCount);
-
-#ifdef SESSION_DEBUG
-
-	auto index = InterlockedIncrement(&debugIndex);
-	release_D[index % debugSize] = { refDecResult,content,type };
-#endif
-
-	if (refDecResult == 0)
-	{
-		if (InterlockedCompareExchange(&_refCount, RELEASE_FLAG, 0) == 0)
-		{
-			//InterlockedIncrement(&_owner->_iocpCompBufferSize);
-
-			if (GetGroupID() == 0)
-			{
-				PostRelease();
-			}
-			return true;
-		}
-	}
-	return false;
 }
 

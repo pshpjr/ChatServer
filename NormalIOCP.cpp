@@ -300,6 +300,7 @@ bool IOCP::SendPacket(const SessionID sessionId, SendBuffer& sendBuffer, int typ
 
 	//session.TrySend();
 
+	
 	if ( session.CanSend())
 	{
 		session._sendExecute.Clear();
@@ -340,12 +341,28 @@ bool IOCP::SendPackets(const SessionID sessionId, vector<SendBuffer>& bufArr)
 	}
 	auto& session = *result;
 
+	int dataSize = 0;
 	for(auto& sendBuffer : bufArr)
 	{
 		auto buffer = sendBuffer.getBuffer();
 		ProcessBuffer(session, *buffer);
+
+		dataSize += sendBuffer.Size();
+
+		if (dataSize < 4096)
+		{
+			continue;
+		}
+
+		//session.TrySend();
+		//if (session.CanSend())
+		//{
+		//	session._sendExecute.Clear();
+		//	PostQueuedCompletionStatus(_iocp, -1, (ULONG_PTR)&session, &session._sendExecute._overlapped);
+		//}
+		dataSize = 0;
 	}
-	
+	//session.TrySend();
 	if (session.CanSend())
 	{
 		session._sendExecute.Clear();
@@ -413,6 +430,7 @@ WSAResult<SessionID>  IOCP::GetClientSession(const String& ip, const Port port)
 	_sessions[index].SetNetSession(_staticKey);
 	_sessions[index].RecvNotIncrease();
 	
+	InterlockedIncrement16(&_sessionCount);
 	return sessionId;
 }
 
@@ -485,7 +503,8 @@ bool IOCP::DisconnectSession(const SessionID sessionId)
 void IOCP::_onDisconnect(const SessionID sessionId)
 {
 
-	InterlockedDecrement16(&_sessionCount);
+	auto result = InterlockedDecrement16(&_sessionCount);
+	ASSERT_CRASH(result >= 0);
 	InterlockedIncrement64(&_disconnectCount);
 
 	OnDisconnect(sessionId);
@@ -542,6 +561,14 @@ void IOCP::SetSessionStaticKey(const SessionID id, const char staticKey)
 
 	session.SetNetSession(staticKey);
 	session.Release();
+}
+
+void IOCP::HandleInput()
+{
+	if (GetAsyncKeyState('D'))
+	{
+		Stop();
+	}
 }
 
 
@@ -897,7 +924,7 @@ void IOCP::AcceptThread(LPVOID arg)
 
 		
 		clientSocket.SetLinger(true);
-		//_listenSocket.SetNoDelay(true);
+		_listenSocket.SetNoDelay(true);
 		//_listenSocket.SetSendBuffer(0);
 
 		unsigned short sessionIndex;
@@ -913,16 +940,16 @@ void IOCP::AcceptThread(LPVOID arg)
 		sessionID.index = sessionIndex;
 
 		auto& session = _sessions[sessionIndex];
-
+		session.Reset();
+		
 		auto result = session.IncreaseRef(L"AcceptInc");
-
 		session.SetSessionId(sessionID);
 		session.SetSocket(clientSocket);
 		session.RegisterIOCP(_iocp);
 		session.SetNetSession(_staticKey);
 		session.OffReleaseFlag();
-		session._connect = true;
 
+		InterlockedExchange8(&session._connect, true);
 		OnConnect(session.GetSessionId(),clientSocket.GetSockAddress());
 		session.RecvNotIncrease();
 
@@ -1041,10 +1068,20 @@ void IOCP::MoveSession(const SessionID target, const GroupID dst) const
 	_groupManager->MoveSession(target, dst);
 }
 
-bool IOCP::isRelease(SessionID id)
+bool IOCP::CheckPostRelease(SessionID id, GroupID groupId)
 {
 	auto& session = _sessions[id.index];
-	return session._refCount >= releaseFlag;
+	if (session.GetGroupID() == groupId && session.GetRefCount(id) >= releaseFlag)
+	{
+		session.PostRelease();
+	}
+
+	return true;
+}
+
+void IOCP::GroupSessionDisconnect(Session* session)
+{
+	_groupManager->SessionDisconnected(session);
 }
 
 void IOCP::postReleaseSession(SessionID id)

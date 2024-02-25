@@ -80,7 +80,7 @@ protected:
 
 	inline Session* FindSession(const SessionID id, const LPCWSTR content = L"")
 	{
-		if ( id.index > MAX_SESSIONS || id.index <0 )
+		if ( id.index >= MAX_SESSIONS || id.index <0 )
 		{
 			return nullptr;
 		}

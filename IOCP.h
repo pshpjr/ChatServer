@@ -46,7 +46,7 @@ public:
 	void PostExecutable(Executable* exe, ULONG_PTR arg) const;
 
 	void SetSessionStaticKey(SessionID id, char staticKey);
-	
+	void HandleInput();
 	//connect
 	WSAResult<SessionID> GetClientSession(const String& ip, Port port);
 	bool IsValidSession(SessionID id);
@@ -99,8 +99,9 @@ public:
 	template <typename GroupType, typename ...Args>
 	GroupID CreateGroup(Args&&... args) const;
 	void MoveSession(SessionID target, GroupID dst) const;
-	bool isRelease(SessionID id);
+	bool CheckPostRelease(SessionID id, GroupID groupId);
 private:
+	void GroupSessionDisconnect(Session* session);
 	void postReleaseSession(SessionID id);
 	
 	//MONITOR

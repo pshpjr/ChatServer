@@ -65,6 +65,45 @@ void Session::EnqueueSendData(CSendBuffer* buffer)
 	_sendQ.Enqueue(buffer);
 }
 
+bool Session::Release(LPCWSTR content, int type)
+{
+	
+	int refDecResult = InterlockedDecrement(&_refCount);
+
+#ifdef SESSION_DEBUG
+	Write(_refCount, InvalidGroupID(), content);
+#endif
+
+	if (refDecResult == 0)
+	{
+		if (InterlockedCompareExchange(&_refCount, RELEASE_FLAG, 0) == 0)
+		{
+			
+			//InterlockedIncrement(&_owner->_iocpCompBufferSize);
+
+			//InterlockedOr((long*)&(_groupId), 0) == 0
+
+			if (GetGroupID() == 0)
+			{
+#ifdef SESSION_DEBUG
+				Write(_refCount, InvalidGroupID(), L"SessionGroup 0 PostRelease");
+#endif
+				PostRelease();
+			}
+			else
+			{
+#ifdef SESSION_DEBUG
+				Write(_refCount, InvalidGroupID(), L"SessionGroup other");
+#endif
+				_owner->_groupManager->SessionDisconnected(this);
+			}
+			return true;
+		}
+	}
+	return false;
+	
+}
+
 void Session::Close()
 {
 	InterlockedExchange8(&_connect, 0);
@@ -238,7 +277,7 @@ void Session::Reset()
 	_timeout = _defaultTimeout;
 
 	
-	_groupId = GroupID(0);
+
 
 	//CRecvBuffer* recvBuffer;
 	//while ( _groupRecvQ.Dequeue(recvBuffer) )
@@ -251,6 +290,7 @@ void Session::Reset()
 	{
 		sendBuffer->Release(L"ResetSendRelease");
 	}
+	SetGroupID(GroupID(0));
 	_recvQ.Clear();
 
 	const int notSend = InterlockedExchange(&_postSendExecute.dataNotSend, 0);
@@ -266,6 +306,10 @@ void Session::Reset()
 
 void Session::PostRelease()
 {
+#ifdef SESSION_DEBUG
+	ASSERT_CRASH(DebugRef == 0);
+	Write(-1, InvalidGroupID(), L"PostRelease");
+#endif
 	PostQueuedCompletionStatus(_owner->_iocp, -1, reinterpret_cast<ULONG_PTR>(this), &_releaseExecutable._overlapped);
 }
 
@@ -281,33 +325,34 @@ void Session::RealSend()
 	int sendPackets = 0;
 	WSABUF sendWsaBuf[MAX_SEND_COUNT] = {};
 
-	for (int i = 0; i < MAX_SEND_COUNT; i++)
+	while (sendPackets == 0) 
 	{
-		CSendBuffer* buffer;
-		if (!_sendQ.Dequeue(buffer))
+		for (int i = 0; i < MAX_SEND_COUNT; i++)
 		{
-			break;
+			CSendBuffer* buffer;
+			if (!_sendQ.Dequeue(buffer))
+			{
+				break;
+			}
+			sendPackets++;
+
+			_sendingQ[i] = buffer;
+
+			if (_staticKey)
+			{
+				buffer->TryEncode(_staticKey);
+			}
+			else
+			{
+				buffer->WriteLanHeader();
+			}
+
+			sendWsaBuf[i].buf = buffer->GetHead();
+			sendWsaBuf[i].len = buffer->SendDataSize();
+
+			ASSERT_CRASH(sendWsaBuf[i].len > 0, "Out of Case");
 		}
-		sendPackets++;
-
-		_sendingQ[i] = buffer;
-
-		if (_staticKey)
-		{
-			buffer->TryEncode(_staticKey);
-		}
-		else
-		{
-			buffer->WriteLanHeader();
-		}
-
-		sendWsaBuf[i].buf = buffer->GetHead();
-		sendWsaBuf[i].len = buffer->SendDataSize();
-
-		ASSERT_CRASH(sendWsaBuf[i].len > 0, "Out of Case");
 	}
-
-	ASSERT_CRASH(sendPackets != 0);
 
 	_needCheckSendTimeout = true;
 	_postSendExecute.lastSend = chrono::steady_clock::now();

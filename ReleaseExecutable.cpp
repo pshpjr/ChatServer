@@ -8,6 +8,8 @@ void ReleaseExecutable::Execute(const ULONG_PTR key, DWORD transferred, void* io
 	const auto session = reinterpret_cast<Session*>(key);
 	//InterlockedDecrement(&session->_owner->_iocpCompBufferSize);
 
+
+
 	session->_owner->_onDisconnect(session->GetSessionId());
 
 	session->Reset();

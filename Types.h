@@ -43,21 +43,28 @@ public:
 	friend std::equal_to<SessionID>;
 };
 
-class GroupID
-{
-public:
-	explicit constexpr GroupID(long id) :_id (id){}
 
-	static GroupID NextID() { return GroupID(InterlockedIncrement(&g_GroupID)); }
-	static consteval GroupID InvalidGroupID() { return GroupID(-1); }
-	operator long() const { return _id; }
+using GroupID = volatile long;
 
-	friend std::hash<GroupID>;
-	friend std::equal_to<GroupID>;
-private:
-	long _id;
-	inline static long g_GroupID = 0;
-};
+inline static long g_GroupID = 0;
+static GroupID NextID() { return GroupID(InterlockedIncrement(&g_GroupID)); }
+static consteval GroupID InvalidGroupID() { return GroupID{ -1 }; }
+
+
+//class GroupID
+//{
+//public:
+//	explicit constexpr GroupID(long id) :_id (id){}
+//
+//	
+//	
+//	operator long() const { return _id; }
+//
+//	friend std::hash<GroupID>;
+//	friend std::equal_to<GroupID>;
+//private:
+//
+//};
 
 using SocketID = uint64;
 
@@ -68,15 +75,7 @@ namespace std
 	public:
 		size_t operator()(const GroupID& id) const
 		{
-			return std::hash<long>()( id._id );
-		}
-	};
-	template<> class equal_to<GroupID>
-	{
-	public:
-		bool operator()(const GroupID& lhs, const GroupID& rhs) const
-		{
-			return lhs._id == rhs._id;
+			return std::hash<long>()( long(id) );
 		}
 	};
 

@@ -1,0 +1,186 @@
+﻿#pragma once
+#define _WINSOCKAPI_
+#include <Windows.h>
+
+#include <chrono>
+#include <list>
+#include <LockGuard.h>
+#include <shared_mutex>
+#include <thread>
+#include <Macro.h>
+class ProfileManager;
+class ProfileItem;
+
+
+constexpr int MAX_NAME = 64;
+constexpr int MAX_ITEM = 64;
+
+struct PROFILE_SAMPLE
+{
+    PROFILE_SAMPLE()
+        : iTotalTime(0)
+        , iMin(987654321)
+        , iMax(-1)
+    {
+    }
+
+    WCHAR szName[MAX_NAME] = L"";
+    long lFlag = false; // 프로파일의 사용 여부. (배열시에만)
+    // 프로파일 샘플 이름.
+
+    std::chrono::microseconds iTotalTime; // 전체 사용시간 카운터 Time.	(출력시 호출회수로 나누어 평균 구함)
+    std::chrono::microseconds iMin;
+    std::chrono::microseconds iMax;
+
+    __int64 iCall = 0; // 누적 호출 횟수.
+};
+
+
+class Profiler
+{
+    friend ProfileManager;
+
+public:
+    void ProfileDataOutText(LPWSTR szFileName);
+
+    void ProfileReset()
+    {
+        for (auto& profileSample : Profile_Samples)
+        {
+            profileSample.lFlag = false;
+        }
+    }
+
+    void ApplyProfile(const int& itemNumber, std::chrono::microseconds time);
+
+    int GetItemNumber(LPCWSTR name);
+
+private:
+    Profiler() = default;
+
+
+    PROFILE_SAMPLE Profile_Samples[MAX_ITEM];
+};
+
+class ProfileItem
+{
+public:
+    ProfileItem(LPCWSTR name);
+    ~ProfileItem();
+
+private:
+    std::chrono::steady_clock::time_point _start;
+    std::chrono::steady_clock::time_point _end;
+    WCHAR _name[MAX_NAME];
+};
+
+
+int call_profile_manager_destructor();
+
+class ProfileManager
+{
+    ProfileManager()
+    {
+        //InitializeSRWLock(&_profileListLock);
+        setTLSNum();
+        //_onexit(call_profile_manager_destructor); 
+    }
+
+public:
+    ~ProfileManager()
+    {
+        const time_t timer = time(nullptr);
+        tm t;
+        localtime_s(&t, &timer);
+        WCHAR buffer[100];
+        wsprintfW(buffer,
+            L"profile_%d-%d-%d_%2d%2d_%x.txt",
+            t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, std::this_thread::get_id());
+        ProfileDataOutText(buffer);
+        TlsFree(TLSNum);
+    }
+
+    static ProfileManager& Get()
+    {
+        static ProfileManager manager;
+        return manager;
+    }
+
+    Profiler& GetLocalProfiler()
+    {
+        auto ret = static_cast<Profiler*>(TlsGetValue(TLSNum));
+
+        if (ret == nullptr)
+        {
+            ret = new Profiler;
+            TlsSetValue(TLSNum, ret);
+
+            WRITE_LOCK;
+            _profilerList.push_front(ret);
+
+        }
+
+        return *ret;
+    }
+
+    void ProfileDataOutText(LPWSTR szFileName);
+
+    void DumpAndReset()
+    {
+        const time_t timer = time(nullptr);
+        tm t;
+        localtime_s(&t, &timer);
+        WCHAR buffer[100];
+        wsprintfW(buffer,
+            L"profile_%d-%d-%d_%2d%2d_%x.txt",
+            t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, std::this_thread::get_id());
+        ProfileDataOutText(buffer);
+
+        ProfileReset();
+    }
+
+
+    void ProfileReset()
+    {
+        READ_LOCK;
+        for (const auto& pro : _profilerList)
+        {
+            pro->ProfileReset();
+        }
+    }
+
+    void SetOptional(const std::wstring& optional);
+
+    void setTLSNum()
+    {
+        TLSNum = TlsAlloc();
+    }
+
+private:
+    USE_LOCK;
+
+    inline static std::once_flag _flag;
+    inline static ProfileManager* _instance;
+
+    std::list<Profiler*> _profilerList;
+
+    //SRWLOCK _profileListLock;
+    std::wstring optionalText;
+    DWORD TLSNum;
+};
+
+
+//#define PROFILE
+
+#ifdef PROFILE
+
+#define PROFILE_CONCATENATE_DETAIL(x, y) x##y
+#define PROFILE_CONCATENATE(x, y) PROFILE_CONCATENATE_DETAIL(x, y)
+#define PROFILE_MAKE_UNIQUE(x) PROFILE_CONCATENATE(x, __COUNTER__)
+
+#define PRO_BEGIN(TagName) ProfileItem PROFILE_MAKE_UNIQUE(t_)(L#TagName);
+#else
+
+#define PRO_BEGIN(TagName)
+#define PRO_END(TagName)
+#endif

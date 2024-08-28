@@ -6,20 +6,14 @@
 template <typename T, bool UsePlacement = false>
 class MultiThreadObjectPool
 {
+    using storageType = std::aligned_storage_t<sizeof(T),alignof(T)>;
     struct Node
     {
-        Node* head;
-        T data;
-        Node* next;
+        Node* head{nullptr};
+        storageType data;
+        Node* next{nullptr};
 
-        Node() : head(nullptr)
-               , next(nullptr)
-        {
-        }
-
-        explicit Node(const T& data) : head(nullptr)
-                                     , data(data)
-                                     , next(nullptr)
+        explicit Node(const T& data) : data(data)
         {
         }
     };
@@ -55,7 +49,8 @@ public:
         return _count;
     }
 
-    T* Alloc()
+    template<typename ...Args>
+    T* Alloc(Args... args)
     {
         Node* retNode;
 
@@ -66,6 +61,11 @@ public:
             Node* topNode = reinterpret_cast<Node*>((unsigned long long)top & lock_free_data::pointerMask);
             if (topNode == nullptr)
             {
+                retNode = createNode();
+                if constexpr (!UsePlacement)
+                {
+                    std::construct_at(reinterpret_cast<T*>(&retNode->data),std::forward<Args>(args)...);
+                }
                 break;
             }
 
@@ -76,16 +76,15 @@ public:
             {
                 retNode = reinterpret_cast<Node*>((unsigned long long)top & lock_free_data::pointerMask);
 
-                if constexpr (UsePlacement)
-                {
-                    new(&retNode->data) T();
-                }
                 InterlockedDecrement(&_count);
-                return &retNode->data;
             }
         }
 
-        retNode = createNode();
+        if constexpr (UsePlacement)
+        {
+            std::construct_at(reinterpret_cast<T*>(&retNode->data),std::forward<Args>(args)...);
+        }
+
         return &retNode->data;
     }
 
@@ -93,7 +92,7 @@ public:
     {
         if (UsePlacement)
         {
-            data->~T();
+            std::destroy_at(data);
         }
         Node* node = reinterpret_cast<Node*>((unsigned long long)data - offsetof(Node, data));
         //Node* newTop = ( Node* ) ( ( unsigned long long )( node ) | ( ( unsigned long long )( InterlockedIncrement16(&topCount) ) << 47 ) );
@@ -119,12 +118,7 @@ public:
 private:
     Node* createNode()
     {
-        Node* node = reinterpret_cast<Node*>(malloc(sizeof(Node)));
-        node->next = nullptr;
-        if constexpr (!UsePlacement)
-        {
-            new(&node->data) T();
-        }
+        Node* node = new Node();
         return node;
     }
 

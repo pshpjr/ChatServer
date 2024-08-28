@@ -4,22 +4,24 @@
 #ifndef MODERNOBJECTPOOL_H
 #define MODERNOBJECTPOOL_H
 
+#include <Types.h>
 #include <vector>
 #include <memory>
-#include <functional>
+
 #include <iostream>
-#include <cstdlib>
-#include <new>
 
 template<typename T>
 class ModernObjectPool {
+    using storageType = std::aligned_storage_t<sizeof(T),alignof(T)>;
+    using storagePtr = std::unique_ptr<storageType>;
 
 public:
     static void Deleter(T* obj, ModernObjectPool<T>* pool) {
         pool->Free(obj);
     }
 
-    explicit ModernObjectPool(size_t initialSize = 100) {
+    explicit ModernObjectPool(size_t initialSize = 100)
+    {
         expandPool(initialSize);
     }
 
@@ -27,32 +29,34 @@ public:
 
     void Free(T* obj)
     {
-        obj->~T();
-        pool.emplace_back(reinterpret_cast<storageType*>(obj));
+        std::destroy_at(obj);
+        _pool.emplace_back(reinterpret_cast<storageType*>(obj));
     }
 
     template <typename ...Args>
     PoolPtr<T> Alloc(Args... args) {
-        if (pool.empty()) {
-            expandPool(pool.size()+1);
+        if (_pool.empty()) {
+            expandPool(_pool.capacity()+1);
         }
         // 풀에서 객체를 가져옴
-        auto objRef = std::move(pool.back());
-        pool.pop_back();
+        T* objPtr = reinterpret_cast<T*>(_pool.back().release());
+        _pool.pop_back();
+        std::construct_at(objPtr, std::forward<Args>(args)...);
 
-        new (objRef.get()) T(std::forward<Args>(args)...);
-
-        return std::unique_ptr<T, std::function<void(T*)>>(
-            objRef.release(),
+        return PoolPtr<T>(
+            objPtr,
             [this](T* ptr) { Deleter(ptr, this); }
         );
     }
+    auto Size() const
+    {
+        return _pool.size();
+    }
 
-
-    template<typename Base,typename T>
+    template<typename Base>
     PoolPtr<Base>
-    Cast(PoolPtr<T>&& ptr) {
-        static_assert(std::is_base_of_v<Base,T>(),"Invalid Type");
+    Cast(PoolPtr<T> ptr) {
+        static_assert(std::is_base_of_v<Base,T>,"Invalid Type");
 
         Base* basePtr = static_cast<Base*>(ptr.release());
         return PoolPtr<Base>(
@@ -62,18 +66,15 @@ public:
     }
 
 private:
-    using storageType = std::aligned_storage_t<sizeof(T),alignof(T)>;
-    void expandPool(size_t count) {
 
-        // 해당 메모리 블록에 객체를 생성하고 풀에 추가
-        for (size_t i = 0; i < count; ++i) {
-            pool.emplace_back(storageType());
+    void expandPool(size_t count)
+    {
+        for(int i = 0; i< count ; ++i)
+        {
+            _pool.emplace_back(new storageType);
         }
-
     }
-
-
-    std::vector<std::unique_ptr<storageType>> pool;
+    std::vector<storagePtr> _pool;
 };
 
 

@@ -56,14 +56,24 @@ add_library(NetLib STATIC
         src/Utility.cpp
         include/ModernObjectPool.h
         include/ModernObjectPool.h
-        include/ModernObjectPool.h)
+        include/ModernObjectPool.h
+        tests/test_main.cpp)
 
 target_include_directories(NetLib PUBLIC include)
 target_include_directories(NetLib PUBLIC ../../packetParser)
 target_include_directories(NetLib PRIVATE include/externalHeader)
 
-file(GLOB EXTERNAL_LIBS "${CMAKE_CURRENT_SOURCE_DIR}/Libs/*.lib")
 
+file(GLOB EXTERNAL_LIBS "${CMAKE_CURRENT_SOURCE_DIR}/Libs/*.lib")
+include_directories(${CMAKE_SOURCE_DIR}/include)
 foreach(lib ${EXTERNAL_LIBS})
     target_link_libraries(NetLib PUBLIC ${lib})
 endforeach()
+
+#range-v3
+#find_package(range-v3 CONFIG REQUIRED HINTS "$ENV{VCPKG_ROOT}/packages/range-v3_x64-windows")
+find_package(range-v3 CONFIG REQUIRED )
+target_link_libraries(NetLib PUBLIC range-v3::meta range-v3::concepts range-v3::range-v3)
+
+enable_testing()
+add_subdirectory(tests)

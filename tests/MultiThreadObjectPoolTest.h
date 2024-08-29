@@ -53,11 +53,11 @@ TEST(MultiThreadObjectPool, DupAlloc)
     {
         auto t = pool.Alloc();
         auto t2 = pool.Alloc();
-        EXPECT_TRUE(pool.Size() == 1);
+        EXPECT_TRUE(pool.Size() == 0);
         pool.Free(t);
         pool.Free(t2);
     }
 
-    EXPECT_TRUE(pool.Size() == 3);
+    EXPECT_TRUE(pool.Size() == 2);
 }
 #endif //MULTITHREADOBJECTPOOLTEST_H

@@ -1,9 +1,11 @@
 ﻿#pragma once
 #include <cstdlib>
-#include "MyWindows.h"
+#include <concepts>
+#include <memory>
 #include "LockFreeData.h"
 
 template <typename T, bool UsePlacement = false>
+requires (UsePlacement || std::default_initializable<T>)
 class MultiThreadObjectPool
 {
     using storageType = std::aligned_storage_t<sizeof(T),alignof(T)>;
@@ -13,17 +15,23 @@ class MultiThreadObjectPool
         storageType data;
         Node* next{nullptr};
 
-        explicit Node(const T& data) : data(data)
+        Node() = default;
+
+        explicit Node(const T& data) : head(nullptr)
+                                     , data(data)
+                                     , next(nullptr)
         {
         }
     };
 
 public:
-    MultiThreadObjectPool(const int baseAllocSize) : _count(baseAllocSize)
+    template <typename ...Args>
+    requires (UsePlacement || sizeof...(Args) == 0)
+    explicit MultiThreadObjectPool(const int baseAllocSize,Args... args) : _count(baseAllocSize)
     {
         for (int i = 0; i < baseAllocSize; ++i)
         {
-            auto newNode = createNode();
+            auto newNode = createNode(std::forward<Args>(args)...);
             newNode->next = _top;
             _top = newNode;
         }
@@ -49,7 +57,8 @@ public:
         return _count;
     }
 
-    template<typename ...Args>
+    template <typename ...Args>
+    requires (UsePlacement || sizeof...(Args) == 0)
     T* Alloc(Args... args)
     {
         Node* retNode;
@@ -61,11 +70,6 @@ public:
             Node* topNode = reinterpret_cast<Node*>((unsigned long long)top & lock_free_data::pointerMask);
             if (topNode == nullptr)
             {
-                retNode = createNode();
-                if constexpr (!UsePlacement)
-                {
-                    std::construct_at(reinterpret_cast<T*>(&retNode->data),std::forward<Args>(args)...);
-                }
                 break;
             }
 
@@ -76,16 +80,17 @@ public:
             {
                 retNode = reinterpret_cast<Node*>((unsigned long long)top & lock_free_data::pointerMask);
 
+                if constexpr (UsePlacement)
+                {
+                    std::construct_at(reinterpret_cast<T*>(&retNode->data),std::forward<Args>(args)...);
+                }
                 InterlockedDecrement(&_count);
+                return reinterpret_cast<T*>(&retNode->data);
             }
         }
 
-        if constexpr (UsePlacement)
-        {
-            std::construct_at(reinterpret_cast<T*>(&retNode->data),std::forward<Args>(args)...);
-        }
-
-        return &retNode->data;
+        retNode = createNode(std::forward<Args>(args)...);
+        return reinterpret_cast<T*>(&retNode->data);
     }
 
     void Free(T* data)
@@ -116,14 +121,21 @@ public:
     }
 
 private:
-    Node* createNode()
+    template <typename ...Args>
+    requires (UsePlacement || sizeof...(Args) == 0)
+    Node* createNode(Args... args)
     {
         Node* node = new Node();
+        if constexpr (!UsePlacement)
+        {
+            std::construct_at(node,std::forward<Args>(args)...);
+        }
         return node;
     }
 
+
 private:
-    Node* _top;
+    Node* _top{nullptr};
 
     short topCount = 0;
     long _count = 0;

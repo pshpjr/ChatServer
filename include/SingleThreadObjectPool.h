@@ -9,40 +9,29 @@ class TlsPool;
 
 /**
  * \brief
- * \tparam data
- * \tparam dataId : short이내의 int 값이어야 함.
+ * \tparam T
+ * \tparam typeId : short이내의 int 값이어야 함.
  * \tparam usePlacement  : 매번 생성자 호출할건지 여부. 기본값은 false
  */
-template <typename data, int dataId, bool usePlacement = false>
+template <typename T, int typeId, bool usePlacement = false>
 class SingleThreadObjectPool
 {
-    friend class TlsPool<data, dataId, usePlacement>;
-
-    template <bool Condition>
-    struct Padding
-    {
-        char pad[64] = {0};
-    };
-
-    template <>
-    struct Padding<false>
-    {
-    };
+    friend class TlsPool<T, typeId, usePlacement>;
 
 public:
     struct Node
     {
-        data data;
+        T data;
         Node* tail = nullptr;
-        //Padding<(getBucketSize<3>() % 128) == 0)> dummy;
     };
 
-    SingleThreadObjectPool(int iBlockNum);
+
+    explicit SingleThreadObjectPool(int iBlockNum);
 
     virtual ~SingleThreadObjectPool();
 
     template <typename... Args>
-    data* Alloc(Args&&... args)
+    T* Alloc(Args&&... args)
     {
         Node* top = _top;
         Node* retNode = top;
@@ -52,14 +41,14 @@ public:
             --_objectCount;
             if constexpr (usePlacement)
             {
-                retNode = static_cast<Node*>(new(&retNode->data)data(forward<Args>(args)...));
+                retNode = static_cast<Node*>(new(&retNode->data)T(forward<Args>(args)...));
             }
 
             return &retNode->data;
         }
 
         _allocCount++;
-        return &(new Node(data{forward<Args>(args)...}))->data;
+        return &(new Node(T{forward<Args>(args)...}))->data;
 
 #ifdef MYDEBUG
 		retNode->_tail = ( Node* ) 0x3412;
@@ -68,7 +57,7 @@ public:
     }
 
 
-    bool Free(data* pdata);
+    bool Free(T* pdata);
 
     int GetAllocCount(void) const
     {
@@ -95,7 +84,7 @@ private:
     alignas( 64 ) Node* _top = nullptr;
     int _objectCount = 0;
     int _allocCount = 0;
-    static constexpr int _identifier = dataId << 16;
+    static constexpr int _identifier = typeId << 16;
     static int _instanceCount;
 };
 
@@ -103,7 +92,7 @@ private:
 template <typename Data, int DataId, bool UsePlacement>
 int SingleThreadObjectPool<Data, DataId, UsePlacement>::_instanceCount = 0;
 
-//placement가 false일 때 생성 속도가 좀 느려도(루프 두 번) 코드 깔끔한 게 더 좋을 것 같음. 
+//placement가 false일 때 생성 속도가 좀 느려도(루프 두 번) 코드 깔끔한 게 더 좋을 것 같음.
 template <typename data, int dataId, bool usePlacement>
 SingleThreadObjectPool<data, dataId, usePlacement>::SingleThreadObjectPool(const int iBlockNum)
 {

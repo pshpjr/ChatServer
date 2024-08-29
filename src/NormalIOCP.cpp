@@ -1148,7 +1148,8 @@ NormalIOCP::~NormalIOCP()
 
 
 NormalIOCP::NormalIOCP()
-    : _port(0),
+    : _listenSocket{std::make_unique<Socket>()},
+    _port(0),
 _freeIndex(std::make_unique<LockFreeStack<unsigned short>>())
     , _groupManager(nullptr)
     , _settingParser(std::make_unique<SettingParser>())

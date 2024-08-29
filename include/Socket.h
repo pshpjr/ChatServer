@@ -15,7 +15,7 @@ public:
      */
     Socket();
 
-    ~Socket();
+    ~Socket() = default;
 
     Socket(SOCKET socket, SOCKADDR_IN address);
 

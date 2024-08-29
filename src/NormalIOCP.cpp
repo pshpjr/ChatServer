@@ -318,16 +318,16 @@ bool IOCP::SendPacket(const SessionID sessionId, SendBuffer& sendBuffer, int typ
 
     ProcessBuffer(session, *buffer);
 
-    //session.TrySend();
+    session.TrySend();
 
 
-    if (session.CanSend())
-    {
-        session._sendExecute.Clear();
-        //InterlockedIncrement(&_iocpCompBufferSize);
-        PostQueuedCompletionStatus(_iocp, static_cast<DWORD>(-1), (ULONG_PTR)&session
-            , &session._sendExecute._overlapped);
-    }
+    // if (session.CanSend())
+    // {
+    //     session._sendExecute.Clear();
+    //     //InterlockedIncrement(&_iocpCompBufferSize);
+    //     PostQueuedCompletionStatus(_iocp, static_cast<DWORD>(-1), (ULONG_PTR)&session
+    //         , &session._sendExecute._overlapped);
+    // }
 
     session.Release(L"SendPacketRelease");
     return true;

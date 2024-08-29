@@ -13,6 +13,7 @@ struct DBConnection::Imple
 };
 
     DBConnection::DBConnection(const LPCSTR ip, const uint32 port, const LPCSTR id, const LPCSTR pass, const LPCSTR db)
+        :pImple(std::make_unique<Imple>())
 {
     mysql_init(&pImple->conn);
 

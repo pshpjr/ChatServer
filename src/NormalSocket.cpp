@@ -8,10 +8,6 @@ Socket::Socket()
 {
 }
 
-Socket::~Socket()
-{
-    closesocket(_socket);
-}
 
 Socket::Socket(const SOCKET socket, const SOCKADDR_IN address)
     : NormalSocket(socket, address)

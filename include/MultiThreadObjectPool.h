@@ -12,7 +12,7 @@ class MultiThreadObjectPool
     struct Node
     {
         Node* head{nullptr};
-        storageType data;
+        storageType data{};
         Node* next{nullptr};
 
         Node() = default;

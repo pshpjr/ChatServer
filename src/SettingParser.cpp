@@ -1,5 +1,6 @@
 ﻿#include "SettingParser.h"
 #include <CoreGlobal.h>
+#include <format>
 #include <fstream>
 #include <iostream>
 #include "CLogger.h"
@@ -22,7 +23,7 @@ void SettingParser::LoadSetting(const LPCTSTR location)
 
     if (!rawText.is_open())
     {
-        throw EFileOpen();
+        throw std::runtime_error(std::format("SettingParser::Couldn't open : {}",location));
     }
 
     const size_t fileSize = rawText.tellg();
@@ -31,7 +32,7 @@ void SettingParser::LoadSetting(const LPCTSTR location)
     _buffer = static_cast<LPWCH>(malloc(fileSize * 2 + 2));
     if (_buffer == nullptr)
     {
-        throw std::exception();
+        throw std::runtime_error(std::format("SettingParser::Malloc return null"));
     }
 
     bufferSize = fileSize + 1;
@@ -41,7 +42,7 @@ void SettingParser::LoadSetting(const LPCTSTR location)
     //파일 읽고 문자열 끝에 null 추가
     if (count != fileSize)
     {
-        throw EFileLoad();
+        throw std::runtime_error(std::format("SettingParser::Invalid file Size"));
     }
 
     _buffer[fileSize] = L'\0';
@@ -76,7 +77,7 @@ void SettingParser::Parse()
         // ':' 위치에 다른 거 있으면 에러
         if (op[0] != L':')
         {
-            throw EUnExpectOp();
+            throw std::runtime_error(std::format("SettingParser::Parsing error. expected ':',but found {}",op[0]));
         }
 
         if (GetTok(value) == false)

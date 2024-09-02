@@ -544,8 +544,9 @@ void IOCP::onRecvPacket(const Session& session, CRecvBuffer& buffer)
     {
         OnRecvPacket(session._sessionId, buffer);
     }
-    catch (const std::invalid_argument&)
+    catch (const std::invalid_argument& err)
     {
+        auto info = err.what();
         gLogger->Write(L"RecvErr", CLogger::LogLevel::Debug, L"Can't pop : recv buffer is empty");
         DisconnectSession(session._sessionId);
     }

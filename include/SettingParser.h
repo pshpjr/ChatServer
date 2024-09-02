@@ -1,8 +1,9 @@
 ﻿#pragma once
+#include <optional>
 #include "Types.h"
 #include "Container.h"
-#include "SettingParserException.h"
-#include <optional>
+#include "Macro.h"
+
 /*
 	파일 형식은
 
@@ -34,7 +35,7 @@ public:
         ,
     };
 
-    void Init(LPCWSTR location = L"serverSetting.txt");
+    void Init(psh::LPCWSTR location = L"serverSetting.txt");
 
     template <typename T>
     void GetValue(const String name, T& value)
@@ -74,7 +75,7 @@ public:
                 });
             value = move(str);
         }
-        else if constexpr (std::is_same_v<T, LPCWSTR>)
+        else if constexpr (std::is_same_v<T, psh::LPCWSTR>)
         {
             wcscpy_s(value, MAX_WORD_SIZE, resultStr.c_str());
         }
@@ -93,21 +94,21 @@ public:
 private:
     
     std::optional<String> GetValueImpl(const String& name) const;
-    void LoadSetting(LPCTSTR location);
+    void LoadSetting(psh::LPCWSTR location);
     void Parse();
-    bool GetTok(OUT LPTSTR word);
+    bool GetTok(OUT psh::LPWSTR word);
 
 private:
     static constexpr int MAX_WORD_SIZE = 100;
     static constexpr int MAXERRLEN = 100;
     static constexpr int MAXGROUPSIZE = 10;
 
-    LPWSTR _buffer = nullptr;
+    psh::LPWSTR _buffer = nullptr;
 
     size_t _bufferIndex = 0;
     size_t bufferSize = 0;
 
-    int32 _groupIndex = -1;
+    psh::int32 _groupIndex = -1;
     Vector<String> _groupsName;
     
     Vector<HashMap<String, String>> _settingsContainer;

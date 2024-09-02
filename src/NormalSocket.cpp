@@ -106,9 +106,9 @@ String Socket::GetIp() const
     return String(str);
 }
 
-uint16 Socket::GetPort() const
+psh::uint16 Socket::GetPort() const
 {
-    uint16 result;
+    psh::uint16 result;
     WSANtohs(_socket, _sockAddr.sin_port, &result);
     return result;
 }
@@ -129,7 +129,7 @@ bool Socket::IsValid() const
 }
 
 
-bool Socket::Bind(const String& ip, uint16 port)
+bool Socket::Bind(const String& ip, psh::uint16 port)
 {
     memset(&_sockAddr, 0, sizeof(_sockAddr));
     _sockAddr.sin_family = AF_INET;
@@ -155,7 +155,7 @@ Socket Socket::Accept() const
     return {clientSocket, clientAddr};
 }
 
-WSAResult<bool> Socket::Connect(const String& ip, uint16 port)
+WSAResult<bool> Socket::Connect(const String& ip, psh::uint16 port)
 {
     memset(&_sockAddr, 0, sizeof(_sockAddr));
     _sockAddr.sin_family = AF_INET;

@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "Types.h"
 #include "Container.h"
 
 class CRingBuffer
@@ -107,7 +108,7 @@ public:
      * \return
      */
     //rear+1 == front일 때 가득 찬 것이므로 1 빼야 함. 
-    uint32 FreeSize() const
+    psh::uint32 FreeSize() const
     {
         return BUFFER_SIZE - Size() - 1;
     }

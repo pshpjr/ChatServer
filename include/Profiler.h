@@ -1,13 +1,14 @@
 ﻿#pragma once
-#define _WINSOCKAPI_
-#include <Windows.h>
-
 #include <chrono>
 #include <list>
-#include <LockGuard.h>
 #include <shared_mutex>
 #include <thread>
-#include <Macro.h>
+
+#include "LockFreeData.h"
+#include "LockGuard.h"
+#include "Macro.h"
+#include "Types.h"
+
 class ProfileManager;
 class ProfileItem;
 
@@ -24,7 +25,7 @@ struct PROFILE_SAMPLE
     {
     }
 
-    WCHAR szName[MAX_NAME] = L"";
+    psh::WCHAR szName[MAX_NAME] = L"";
     long lFlag = false; // 프로파일의 사용 여부. (배열시에만)
     // 프로파일 샘플 이름.
 
@@ -53,7 +54,7 @@ public:
 
     void ApplyProfile(const int& itemNumber, std::chrono::microseconds time);
 
-    int GetItemNumber(LPCWSTR name);
+    int GetItemNumber(psh::LPCWSTR name);
 
 private:
     Profiler() = default;
@@ -65,13 +66,13 @@ private:
 class ProfileItem
 {
 public:
-    ProfileItem(LPCWSTR name);
+    ProfileItem(psh::LPCWSTR name);
     ~ProfileItem();
 
 private:
     std::chrono::steady_clock::time_point _start;
     std::chrono::steady_clock::time_point _end;
-    WCHAR _name[MAX_NAME];
+    psh::WCHAR _name[MAX_NAME];
 };
 
 
@@ -92,7 +93,7 @@ public:
         const time_t timer = time(nullptr);
         tm t;
         localtime_s(&t, &timer);
-        WCHAR buffer[100];
+        psh::WCHAR buffer[100];
         wsprintfW(buffer,
             L"profile_%d-%d-%d_%2d%2d_%x.txt",
             t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, std::this_thread::get_id());
@@ -130,7 +131,7 @@ public:
         const time_t timer = time(nullptr);
         tm t;
         localtime_s(&t, &timer);
-        WCHAR buffer[100];
+        psh::WCHAR buffer[100];
         wsprintfW(buffer,
             L"profile_%d-%d-%d_%2d%2d_%x.txt",
             t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, std::this_thread::get_id());

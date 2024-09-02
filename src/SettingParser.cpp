@@ -1,25 +1,27 @@
 ﻿#include "SettingParser.h"
-#include <CoreGlobal.h>
+
 #include <format>
 #include <fstream>
 #include <iostream>
-#include <Utility.h>
 
+#include "Types.h"
 #include "CLogger.h"
-#include "stdafx.h"
+#include "CoreGlobal.h"
+#include "Utility.h"
+
 
 #define WORD_START _buffer[_bufferIndex]
 #define WORD_END _buffer[wordEnd]
 
 
-void SettingParser::Init(const LPCWSTR location)
+void SettingParser::Init(const psh::LPCWSTR location)
 {
     LoadSetting(location);
     Parse();
     free(_buffer);
 }
 
-void SettingParser::LoadSetting(const LPCWSTR location)
+void SettingParser::LoadSetting(const psh::LPCWSTR location)
 {
     std::wifstream rawText{location, std::ios::binary | std::ios::ate};
 
@@ -32,7 +34,7 @@ void SettingParser::LoadSetting(const LPCWSTR location)
     const size_t fileSize = rawText.tellg();
 
     rawText.seekg(0);
-    _buffer = static_cast<LPWCH>(malloc(fileSize * 2 + 2));
+    _buffer = static_cast<psh::LPWCH>(malloc(fileSize * 2 + 2));
     if (_buffer == nullptr)
     {
         throw std::runtime_error(std::format("SettingParser::Malloc return null"));
@@ -54,12 +56,12 @@ void SettingParser::LoadSetting(const LPCWSTR location)
 //텍스트 파일은 키 : 값 쌍으로 이루어짐
 void SettingParser::Parse()
 {
-    WCHAR key[MAX_WORD_SIZE];
-    WCHAR value[MAX_WORD_SIZE];
+    psh::WCHAR key[MAX_WORD_SIZE];
+    psh::WCHAR value[MAX_WORD_SIZE];
 
     while (true)
     {
-        WCHAR op[MAX_WORD_SIZE];
+        psh::WCHAR op[MAX_WORD_SIZE];
 
         if (GetTok(key) == false)
         {
@@ -99,7 +101,7 @@ void SettingParser::Parse()
     }
 }
 
-bool SettingParser::GetTok(const LPWCH word)
+bool SettingParser::GetTok(const psh::LPWCH word)
 {
     //의미 있는 문자까지 이동. 널문자를 만나도 탈출
     while (_bufferIndex < bufferSize)
@@ -128,7 +130,7 @@ bool SettingParser::GetTok(const LPWCH word)
     {
         while (wordEnd < bufferSize)
         {
-            if (WORD_END == '\n')
+            if (WORD_END == L'\n')
             {
                 wordEnd++;
                 break;
@@ -188,7 +190,7 @@ bool SettingParser::GetTok(const LPWCH word)
     {
         const size_t wordSize = wordEnd - _bufferIndex;
         wcsncpy_s(word, MAX_WORD_SIZE, &WORD_START, wordSize);
-        word[wordSize] = '\0';
+        word[wordSize] = L'\0';
 
         _bufferIndex = wordEnd;
 
@@ -200,7 +202,7 @@ bool SettingParser::GetTok(const LPWCH word)
     while (wordEnd < bufferSize)
     {
         if (WORD_END == L'\n' || WORD_END == L' ' || WORD_END == 0x09 ||
-            WORD_END == 0x0a || WORD_END == 0x0d || WORD_END == TEXT('\0') ||
+            WORD_END == 0x0a || WORD_END == 0x0d || WORD_END == L'\0' ||
             WORD_END == L':' || WORD_END == L'{' || WORD_END == L'}')
         {
             break;
@@ -214,7 +216,7 @@ bool SettingParser::GetTok(const LPWCH word)
 
     const size_t wordSize = wordEnd - _bufferIndex;
     wcsncpy_s(word, MAX_WORD_SIZE, &WORD_START, wordSize);
-    word[wordSize] = '\0';
+    word[wordSize] = L'\0';
 
     _bufferIndex = wordEnd;
 

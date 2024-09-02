@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <memory>
+#define _WINSOCKAPI_
 #include <Windows.h>
 template <typename T, bool usePlacement = false>
 class LockPool

@@ -30,7 +30,7 @@ public:
         *buffer << value;
         return *this;
     }
-    void SetWstr(LPCWSTR arr, int size);
+    void SetWstr(psh::LPCWSTR arr, int size);
 
     void SetCstr(LPCSTR arr, int size);
 

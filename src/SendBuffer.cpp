@@ -45,12 +45,12 @@ CSendBuffer * SendBuffer::getBuffer() const
     return buffer;
 }
 
-void SendBuffer::SetWstr(LPCWSTR arr, int size)
+void SendBuffer::SetWstr(psh::LPCWSTR arr, int size)
 {
     buffer->SetWstr(arr, size);
 }
 
-void SendBuffer::SetCstr(LPCSTR arr, int size)
+void SendBuffer::SetCstr(psh::LPCSTR arr, int size)
 {
     buffer->SetCstr(arr, size);
 }

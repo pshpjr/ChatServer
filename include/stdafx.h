@@ -6,9 +6,6 @@
 
 
 #include "Container.h"
-//#include "Profiler.h"
 #include "BuildOption.h"
 #include "Macro.h"
 #include "Types.h"
-//#include "externalHeader/easy/profiler.h"
-//#pragma comment (lib,"easy_profiler_d.lib")

@@ -1,17 +1,19 @@
 ﻿#include "CLogger.h"
+
+#include <clocale>
 #include <time.h>
 #include "stdafx.h"
 #include "strsafe.h"
 
 
-CLogger::CLogger(LPCWSTR fileName, LogLevel level)
+CLogger::CLogger(psh::LPCWSTR fileName, LogLevel level)
 {
     _extraFileName = fileName;
     _logLevel = level;
     setlocale(LC_ALL, "");
 }
 
-void CLogger::Write(const LPCWSTR type, LogLevel level, LPCWSTR format, ...)
+void CLogger::Write(const psh::LPCWSTR type, LogLevel level, psh::LPCWSTR format, ...)
 {
     if (static_cast<int>(_logLevel) > static_cast<int>(level))
     {

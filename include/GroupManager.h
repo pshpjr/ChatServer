@@ -1,8 +1,7 @@
 ﻿#pragma once
 #include <memory>
-#include "Types.h"
+#include <type_traits>
 #include "Group.h"
-
 
 class GroupManager
 {

@@ -12,7 +12,7 @@ struct DBConnection::Imple
     MYSQL_ROW sql_row{};
 };
 
-    DBConnection::DBConnection(const LPCSTR ip, const uint32 port, const LPCSTR id, const LPCSTR pass, const LPCSTR db)
+    DBConnection::DBConnection(const psh::LPCSTR ip, const psh::uint32 port, const psh::LPCSTR id, const psh::LPCSTR pass, const psh::LPCSTR db)
         :pImple(std::make_unique<Imple>())
 {
     mysql_init(&pImple->conn);
@@ -42,7 +42,7 @@ DBConnection::~DBConnection()
     Close();
 }
 
-std::chrono::milliseconds DBConnection::Query(LPCSTR query, ...)
+std::chrono::milliseconds DBConnection::Query(psh::LPCSTR query, ...)
 {
     using std::string;
     using std::chrono::steady_clock;

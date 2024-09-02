@@ -1,11 +1,14 @@
 ﻿#pragma once
-#include <optional>
 #include <chrono>
-#include "Macro.h"
+#include <optional>
+
 #include "CRingBuffer.h"
-#include "Socket.h"
-#include "SessionData.h"
+#include "GroupTypes.h"
 #include "LockFreeFixedQueue.h"
+#include "Macro.h"
+#include "SessionTypes.h"
+#include "Socket.h"
+#include "Types.h"
 
 class CSendBuffer;
 class CRecvBuffer;
@@ -43,8 +46,8 @@ public:
     void PostRelease();
 
 
-    inline long IncreaseRef(LPCWSTR content);
-    bool Release(LPCWSTR content = L"", int type = 0);
+    inline long IncreaseRef(psh::LPCWSTR content);
+    bool Release(psh::LPCWSTR content = L"", int type = 0);
 
 
     void EnqueueSendData(CSendBuffer* buffer);
@@ -60,7 +63,7 @@ public:
 
     String GetIp() const;
 
-    uint16 GetPort() const;
+    psh::uint16 GetPort() const;
 
     void SetSocket(const Socket& socket);
 
@@ -160,7 +163,7 @@ private:
 		SessionID id;
 		GroupID dst = GroupID::InvalidGroupID();
 		long refCount;
-		LPCWSTR location;
+		psh::LPCWSTR location;
 		GroupID groupId = GroupID::InvalidGroupID();
 	};
 	static const int debugSize = 2000;
@@ -171,7 +174,7 @@ private:
 	//세션 id, 종류
 	//tuple<SessionID, String, thread::id> _debugLeave[debugSize];
 	public:
-	void Write(long refCount, GroupID dst, LPCWSTR cause)
+	void Write(long refCount, GroupID dst, psh::LPCWSTR cause)
 	{
 		auto index = InterlockedIncrement(&debugIndex);
 		release_D[index % debugSize] = { GetSessionId(),dst,refCount, cause,GetGroupID()};
@@ -184,7 +187,7 @@ private:
 };
 
 
-long Session::IncreaseRef(LPCWSTR content)
+long Session::IncreaseRef(psh::LPCWSTR content)
 {
     auto result = InterlockedIncrement(&_refCount);
 

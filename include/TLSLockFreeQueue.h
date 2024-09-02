@@ -154,7 +154,7 @@ private:
 
     alignas( 64 ) short _tailCount = 0;
     Node* _queueId;
-    static int64 _gid;
+    static psh::int64 _gid;
     static constexpr int DEBUG_SIZE = 1000;
     long long _debugIndex = 0;
     //debugData<T> debug[debugSize];
@@ -169,4 +169,4 @@ TlsPool<typename TLSLockFreeQueue<T>::Node, 0>
 TLSLockFreeQueue<T>::_tlsLfqNodePool (10000 , 10);
 
 template <typename T>
-int64 TLSLockFreeQueue<T>::_gid = 0;
+psh::int64 TLSLockFreeQueue<T>::_gid = 0;

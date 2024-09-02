@@ -5,14 +5,14 @@
 class DBConnection
 {
 public:
-    DBConnection(LPCSTR ip, uint32 port, LPCSTR id, LPCSTR pass, LPCSTR db);
+    DBConnection(psh::LPCSTR ip, psh::uint32 port, psh::LPCSTR id, psh::LPCSTR pass, psh::LPCSTR db);
 
     static void LibInit();
 
     ~DBConnection();
 
 
-    std::chrono::milliseconds Query(LPCSTR query, ...);
+    std::chrono::milliseconds Query(psh::LPCSTR query, ...);
 
     bool next();
 

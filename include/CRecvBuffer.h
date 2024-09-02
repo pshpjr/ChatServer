@@ -1,6 +1,5 @@
 ﻿#pragma once
-#include <CRingBuffer.h>
-//#include "TLSPool.h"
+#include "CRingBuffer.h"
 
 class CRecvBuffer
 {
@@ -15,20 +14,20 @@ public:
 
     CRecvBuffer& operator >>(String& value);
 
-    void GetWstr(const LPWSTR arr, int size);
-    void GetCstr(LPSTR arr, int size);
+    void GetWstr(const psh::LPWSTR arr, int size);
+    void GetCstr(psh::LPSTR arr, int size);
 
 
     //private:
     CRecvBuffer() = default;
 
-    CRecvBuffer(CRingBuffer* buffer, const int32 size);
+    CRecvBuffer(CRingBuffer* buffer, const psh::int32 size);
 
     ~CRecvBuffer() = default;
 
-    void CanPop(const uint64 popByte) const;
+    void CanPop(const psh::uint64 popByte) const;
 
-    //	static CRecvBuffer* Alloc(CRingBuffer* buffer, int32 size)
+    //	static CRecvBuffer* Alloc(CRingBuffer* buffer, psh::int32 size)
     //	{
     //		const auto ret = _pool.Alloc();
     //		ret->Clear();
@@ -71,7 +70,7 @@ public:
 private:
     void Clear();
     CRingBuffer* _buffer = nullptr;
-    int32 _size = 0;
+    psh::int32 _size = 0;
     long _refCount = 0;
 
     //static TlsPool<CRecvBuffer, 0, false> _pool;
@@ -81,7 +80,7 @@ private:
 	struct RelastinReleaseEncrypt_D
 	{
 		long refCount;
-		LPCWSTR location;
+		psh::LPCWSTR location;
 		long long contentType;
 	};
 	static const int debugSize = 1000;

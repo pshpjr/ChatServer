@@ -1,10 +1,6 @@
 ﻿#include "NormalIOCP.h"
 
 #include <synchapi.h>
-#pragma comment(lib,"Synchronization.lib")
-#pragma comment(lib,"Winmm.lib")
-
-//#include "externalHeader/easy/profiler.h"
 
 
 #include <CCpuUsage.h>
@@ -39,7 +35,7 @@ IOCP::IOCP(bool server)
         _isRunning = false;
     }
 
-    for (int16 i = MAX_SESSIONS - 1; i >= 0; i--)
+    for (psh::int16 i = MAX_SESSIONS - 1; i >= 0; i--)
     {
         ReleaseFreeIndex(i);
     }
@@ -76,8 +72,8 @@ bool IOCP::Init()
     return Init(_ip, _port, _backlog, _maxNetThread, _maxWorkerThread, _staticKey);
 }
 
-bool IOCP::ClientInit(uint16 maxRunningThread
-    , uint16 workerThread
+bool IOCP::ClientInit(psh::uint16 maxRunningThread
+    , psh::uint16 workerThread
     , char staticKey
     , bool useGroup
     , bool useMonitor
@@ -149,9 +145,9 @@ bool IOCP::ClientInit(uint16 maxRunningThread
 
 bool IOCP::Init(const String& ip
     , const Port port
-    , const uint16 backlog
-    , const uint16 maxRunningThread
-    , const uint16 workerThread
+    , const psh::uint16 backlog
+    , const psh::uint16 maxRunningThread
+    , const psh::uint16 workerThread
     , const char staticKey)
 {
     _maxWorkerThread = workerThread;
@@ -388,7 +384,7 @@ bool IOCP::SendPackets(const SessionID sessionId, std::vector<SendBuffer>& bufAr
     {
         session._sendExecute.Clear();
         PostQueuedCompletionStatus(_iocp, static_cast<DWORD>(-1), (ULONG_PTR)&session
-            , &session._sendExecute._overlapped);
+            , session._sendExecute.GetOverlapped());
     }
 
     session.Release(L"SendPacketRelease");
@@ -606,67 +602,67 @@ void IOCP::HandleInput()
 			Monitor
 *****************************/
 
-uint64 IOCP::GetAcceptCount() const
+psh::uint64 IOCP::GetAcceptCount() const
 {
     return _acceptCount;
 }
 
-uint64 IOCP::GetAcceptTps() const
+psh::uint64 IOCP::GetAcceptTps() const
 {
     return _acceptTps;
 }
 
-uint64 IOCP::GetRecvTps() const
+psh::uint64 IOCP::GetRecvTps() const
 {
     return _recvTps;
 }
 
-uint64 IOCP::GetSendTps() const
+psh::uint64 IOCP::GetSendTps() const
 {
     return _sendTps;
 }
 
-int16 IOCP::GetSessions() const
+psh::int16 IOCP::GetSessions() const
 {
     return _sessionCount;
 }
 
-uint64 IOCP::GetPacketPoolSize() const
+psh::uint64 IOCP::GetPacketPoolSize() const
 {
     return _packetPoolSize;
 }
 
-uint32 IOCP::GetPacketPoolEmptyCount() const
+psh::uint32 IOCP::GetPacketPoolEmptyCount() const
 {
     return _packetPoolEmpty;
 }
 
-uint64 IOCP::GetTimeoutCount() const
+psh::uint64 IOCP::GetTimeoutCount() const
 {
     return _timeoutSessions;
 }
 
-uint32 IOCP::GetPacketPoolAcquireCount()
+psh::uint32 IOCP::GetPacketPoolAcquireCount()
 {
     return CSendBuffer::_pool.GetAcquireCount();
 }
 
-uint32 IOCP::GetPacketPoolReleaseCount()
+psh::uint32 IOCP::GetPacketPoolReleaseCount()
 {
     return CSendBuffer::_pool.GetReleaseCount();
 }
 
-uint64 IOCP::GetDisconnectCount() const
+psh::uint64 IOCP::GetDisconnectCount() const
 {
     return _disconnectCount;
 }
 
-uint64 IOCP::GetDisconnectPerSec() const
+psh::uint64 IOCP::GetDisconnectPerSec() const
 {
     return _disconnectps;
 }
 
-uint32 IOCP::GetSegmentTimeout() const
+psh::uint32 IOCP::GetSegmentTimeout() const
 {
     return _tcpSemaphoreTimeout;
 }
@@ -1159,7 +1155,7 @@ _freeIndex(std::make_unique<LockFreeStack<unsigned short>>())
 {
 }
 
-std::optional<Session*> NormalIOCP::findSession(const SessionID id, const LPCWSTR content)
+std::optional<Session*> NormalIOCP::findSession(const SessionID id, const psh::LPCWSTR content)
 {
     auto& session = _sessions[id.index];
     const auto result = session.IncreaseRef(content);
@@ -1175,7 +1171,7 @@ std::optional<Session*> NormalIOCP::findSession(const SessionID id, const LPCWST
     return &session;
 }
 
-Session * NormalIOCP::FindSession(const SessionID id, const LPCWSTR content)
+Session * NormalIOCP::FindSession(const SessionID id, const psh::LPCWSTR content)
 {
     if (id.index >= MAX_SESSIONS || id.index < 0)
     {

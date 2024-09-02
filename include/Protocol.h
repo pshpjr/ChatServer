@@ -6,7 +6,7 @@
 #pragma pack(1)
 struct LANHeader
 {
-    uint16 len;
+    psh::uint16 len;
 };
 #pragma pack( )
 

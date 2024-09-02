@@ -1,9 +1,12 @@
 ﻿#pragma once
-#include <BuildOption.h>
-#include <Types.h>
+
+#include "BuildOption.h"
+#include "Types.h"
+#include "SocketTypes.h"
 #include SOCKET_HEADER
 
 class Address;
+
 
 class Socket : public SOCKET_CLASS
 {
@@ -23,13 +26,13 @@ public:
     static bool IsSameSubnet(const IN_ADDR& a, const IN_ADDR& b, char subnetMaskBits);
 
     bool Init();
-    bool Bind(const String& ip, uint16 port);
+    bool Bind(const String& ip, psh::uint16 port);
     bool Listen(int backlog) const;
     Socket Accept() const;
-    WSAResult<bool> Connect(const String& ip, uint16 port);
+    WSAResult<bool> Connect(const String& ip, psh::uint16 port);
     void CancelIO() const;
     void Close();
-    static IN_ADDR Ip2Address(const WCHAR* ip);
+    static IN_ADDR Ip2Address(const psh::WCHAR* ip);
 
     /// <summary>
     /// 
@@ -46,7 +49,7 @@ public:
 
     SOCKADDR_IN GetSockAddress() const;
     String GetIp() const;
-    uint16 GetPort() const;
+    psh::uint16 GetPort() const;
 
 private:
     SOCKET _beforeSocket = INVALID_SOCKET;

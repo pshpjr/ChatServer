@@ -16,7 +16,7 @@ class CSendBuffer final
     friend class Session;
 
 public:
-    static int64 GetPoolAllocatedSize()
+     psh::int64 GetPoolAllocatedSize()
     {
         return _pool.AllocatedCount();
     }
@@ -65,18 +65,18 @@ public:
         }
     }
 
-    uint16 GetDataSize() const
+    psh::uint16 GetDataSize() const
     {
-        return static_cast<uint16>(_rear - _data);
+        return static_cast<psh::uint16>(_rear - _data);
     }
 
     template <typename T>
     CSendBuffer& operator <<(const T& value);
     CSendBuffer& operator <<(LPWSTR value);
-    CSendBuffer& operator <<(LPCWSTR value);
+    CSendBuffer& operator <<(psh::LPCWSTR value);
     CSendBuffer& operator <<(const String& value);
 
-    void SetWstr(LPCWSTR arr, int size);
+    void SetWstr(psh::LPCWSTR arr, int size);
     void SetCstr(LPCSTR arr, int size);
 
     int CanPushSize() const
@@ -147,7 +147,7 @@ private:
         return static_cast<int>(std::distance(_front, _rear));
     }
 
-    void CanPush(const int64 byteSize) const
+    void CanPush(const psh::int64 byteSize) const
     {
         if (CanPushSize() < byteSize)
         {
@@ -157,7 +157,7 @@ private:
 
     //Encrypt
     void WriteLanHeader();
-    void WriteNetHeader(const uint8 code) const;
+    void WriteNetHeader(psh::uint8 code) const;
     void TryEncode(char staticKey);
     void Encode(char staticKey);
 
@@ -187,7 +187,7 @@ private:
 	struct RelastinReleaseEncrypt_D
 	{
 		long refCount;
-		LPCWSTR location;
+		psh::LPCWSTR location;
 		long long contentType;
 	};
 	static const int debugSize = 1000;

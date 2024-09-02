@@ -6,11 +6,11 @@ TlsPool<CSendBuffer, 0> CSendBuffer::_pool(SERIAL_INIT_SIZE, SERIAL_INIT_MULTIPL
 
 void CSendBuffer::WriteLanHeader()
 {
-    *(reinterpret_cast<uint16*>(_front) - 1) = GetDataSize();
-    _head = (char*)(reinterpret_cast<uint16*>(_front) - 1);
+    *(reinterpret_cast<psh::uint16*>(_front) - 1) = GetDataSize();
+    _head = (char*)(reinterpret_cast<psh::uint16*>(_front) - 1);
 }
 
-void CSendBuffer::WriteNetHeader(const uint8 code) const
+void CSendBuffer::WriteNetHeader(const psh::uint8 code) const
 {
     const char* checksumIndex = GetDataPtr();
 
@@ -101,7 +101,7 @@ CSendBuffer& CSendBuffer::operator<<(const LPWSTR value)
     return *this;
 }
 
-CSendBuffer& CSendBuffer::operator<<(const LPCWSTR value)
+CSendBuffer& CSendBuffer::operator<<(const psh::LPCWSTR value)
 {
     //insert null terminated string to buffer
     const size_t strlen = wcslen(value) + 1;
@@ -111,20 +111,20 @@ CSendBuffer& CSendBuffer::operator<<(const LPCWSTR value)
 
 CSendBuffer& CSendBuffer::operator<<(const String& value)
 {
-    operator<<(static_cast<uint16>(value.length()));
+    operator<<(static_cast<psh::uint16>(value.length()));
     SetWstr(value.c_str(), value.length());
 
     return *this;
 }
 
-void CSendBuffer::SetWstr(const LPCWSTR arr, const int size)
+void CSendBuffer::SetWstr(const psh::LPCWSTR arr, const int size)
 {
     CanPush(size);
     wmemcpy_s((LPWSTR)_rear, size, arr, size);
     _rear += size * sizeof(WCHAR);
 }
 
-void CSendBuffer::SetCstr(const LPCSTR arr, const int size)
+void CSendBuffer::SetCstr(const psh::LPCSTR arr, const int size)
 {
     CanPush(size);
     memcpy_s(_rear, size, arr, size);

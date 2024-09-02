@@ -1,5 +1,6 @@
 ﻿#pragma once
-#include "Windows.h"
+#define _WINSOCKAPI_
+#include <Windows.h>
 
 class SpinLock
 {

@@ -1,7 +1,6 @@
 ﻿#include "GroupManager.h"
 #include "GroupExecutable.h"
 #include "IOCP.h"
-#include "stdafx.h"
 
 
 void GroupManager::MoveSession(const SessionID target, const GroupID dst, bool update)
@@ -48,8 +47,8 @@ void GroupManager::Update()
     {
         if (groupPtr->NeedUpdate())
         {
-            groupPtr->_executable.Clear();
-            _owner->PostExecutable(&groupPtr->_executable, 0);
+            groupPtr->_executable->Clear();
+            _owner->PostExecutable(groupPtr->_executable.get(), 0);
         }
     }
     ReleaseSRWLockShared(&_groupLock);

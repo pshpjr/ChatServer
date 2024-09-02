@@ -5,10 +5,7 @@
 class SendExecutable final : public Executable
 {
 public:
-    SendExecutable()
-    {
-        _type = SEND;
-    }
+    SendExecutable():Executable{ioType::SEND}{};
 
     void Execute(ULONG_PTR key, DWORD transferred, void* iocp) override;
     ~SendExecutable() override = default;

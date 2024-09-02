@@ -1,9 +1,6 @@
 ﻿#include "Session.h"
 #include <optional>
-#include "stdafx.h"
 
-
-#include "Container.h"
 #include "CSendBuffer.h"
 #include "IOCP.h"
 
@@ -75,7 +72,7 @@ void Session::EnqueueSendData(CSendBuffer* buffer)
     _sendQ.Enqueue(buffer);
 }
 
-bool Session::Release(LPCWSTR content, int type)
+bool Session::Release(psh::LPCWSTR content, int type)
 {
     int refDecResult = InterlockedDecrement(&_refCount);
 
@@ -180,7 +177,7 @@ void Session::RecvNotIncrease()
 
 
     auto beforeSessionId = _sessionId;
-    if (const int recvResult = _socket.Recv(recvWsaBuf, bufferCount, &flags, &_recvExecute._overlapped);
+    if (const int recvResult = _socket.Recv(recvWsaBuf, bufferCount, &flags, _recvExecute.GetOverlapped());
         recvResult == SOCKET_ERROR)
     {
         const int error = WSAGetLastError();
@@ -236,7 +233,7 @@ String Session::GetIp() const
     return _socket.GetIp();
 }
 
-uint16 Session::GetPort() const
+psh::uint16 Session::GetPort() const
 {
     return _socket.GetPort();
 }
@@ -418,7 +415,7 @@ void Session::PostRelease()
 	Write(-1, GroupID::InvalidGroupID(), L"PostRelease");
 #endif
     PostQueuedCompletionStatus(_owner->_iocp, static_cast<DWORD>(-1), reinterpret_cast<ULONG_PTR>(this)
-        , &_releaseExecutable._overlapped);
+        , _releaseExecutable.GetOverlapped());
 }
 
 void Session::RealSend()
@@ -475,7 +472,7 @@ void Session::RealSend()
 
     _postSendExecute.dataNotSend = sendPackets;
 
-    if (const int sendResult = _socket.Send(sendWsaBuf, sendPackets, flags, &_postSendExecute._overlapped);
+    if (const int sendResult = _socket.Send(sendWsaBuf, sendPackets, flags, _postSendExecute.GetOverlapped());
         sendResult == SOCKET_ERROR)
     {
         const int error = WSAGetLastError();

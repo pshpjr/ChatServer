@@ -10,10 +10,9 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include "Types.h"
 
 
-template <typename Type, uint32 Size>
+template <typename Type, unsigned int Size>
 using Array = std::array<Type, Size>;
 
 template <typename Type>
@@ -48,7 +47,4 @@ using HashMap = std::unordered_map<Key, Type, Hasher, KeyEq>;
 template <typename Key, typename Hasher = std::hash<Key>, typename KeyEq = std::equal_to<Key>>
 using HashSet = std::unordered_set<Key, Hasher, KeyEq>;
 
-template <typename data>
-using SessionMap = std::unordered_map<SessionID, data>;
 
-using SessionSet = std::unordered_set<SessionID>;

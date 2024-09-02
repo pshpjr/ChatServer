@@ -1,8 +1,9 @@
 ﻿#pragma once
 
 #include "BuildOption.h"
-#include "SessionData.h"
 #include "GroupManager.h"
+#include "SessionTypes.h"
+
 #include IOCP_HEADER
 
 class SendBuffer;
@@ -28,12 +29,12 @@ public:
     IOCP(bool server = true);
 
     bool Init();
-    bool ClientInit(uint16 maxRunningThread, uint16 workerThread, char staticKey, bool useGroup, bool useMonitor,bool useTimeout);
+    bool ClientInit(psh::uint16 maxRunningThread, psh::uint16 workerThread, char staticKey, bool useGroup, bool useMonitor,bool useTimeout);
     bool Init(const String& ip
               , Port port
-              , uint16 backlog
-              , uint16 maxRunningThread
-              , uint16 workerThread
+              , psh::uint16 backlog
+              , psh::uint16 maxRunningThread
+              , psh::uint16 workerThread
               , char staticKey);
     void Start();
     void Stop();
@@ -119,19 +120,19 @@ public:
     }
 
     //MONITOR
-    uint64 GetAcceptCount() const;
-    uint64 GetAcceptTps() const;
-    uint64 GetRecvTps() const;
-    uint64 GetSendTps() const;
-    int16 GetSessions() const;
-    uint64 GetPacketPoolSize() const;
-    uint32 GetPacketPoolEmptyCount() const;
-    uint64 GetTimeoutCount() const;
-    static uint32 GetPacketPoolAcquireCount();
-    static uint32 GetPacketPoolReleaseCount();
-    uint64 GetDisconnectCount() const;
-    uint64 GetDisconnectPerSec() const;
-    uint32 GetSegmentTimeout() const;
+    psh::uint64 GetAcceptCount() const;
+    psh::uint64 GetAcceptTps() const;
+    psh::uint64 GetRecvTps() const;
+    psh::uint64 GetSendTps() const;
+    psh::int16 GetSessions() const;
+    psh::uint64 GetPacketPoolSize() const;
+    psh::uint32 GetPacketPoolEmptyCount() const;
+    psh::uint64 GetTimeoutCount() const;
+    static psh::uint32 GetPacketPoolAcquireCount();
+    static psh::uint32 GetPacketPoolReleaseCount();
+    psh::uint64 GetDisconnectCount() const;
+    psh::uint64 GetDisconnectPerSec() const;
+    psh::uint32 GetSegmentTimeout() const;
 
     size_t GetPageFaultCount() const;
     size_t GetPeakPMemSize() const;

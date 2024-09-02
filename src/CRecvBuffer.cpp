@@ -12,10 +12,10 @@ constexpr int RECV_INIT_MULTIPLIER = 3;
 
 CRecvBuffer& CRecvBuffer::operator>>(String& value)
 {
-    uint16 len = 0;
+    psh::uint16 len = 0;
     operator >>(len);
 
-    const unsigned int popBytes = len * sizeof(WCHAR);
+    const unsigned int popBytes = len * sizeof(psh::WCHAR);
     CanPop(popBytes);
     value.resize(len);
 
@@ -39,16 +39,16 @@ int CRecvBuffer::CanPopSize(void) const
 }
 
 
-void CRecvBuffer::GetWstr(const LPWSTR arr, const int strLen)
+void CRecvBuffer::GetWstr(const psh::LPWSTR arr, const int strLen)
 {
     CanPop(strLen);
-    _buffer->Peek(reinterpret_cast<char*>(arr), strLen * sizeof(WCHAR));
-    _buffer->Dequeue(strLen * sizeof(WCHAR));
+    _buffer->Peek(reinterpret_cast<char*>(arr), strLen * sizeof(psh::WCHAR));
+    _buffer->Dequeue(strLen * sizeof(psh::WCHAR));
 
-    _size -= strLen * sizeof(WCHAR);
+    _size -= strLen * sizeof(psh::WCHAR);
 }
 
-void CRecvBuffer::GetCstr(const LPSTR arr, const int size)
+void CRecvBuffer::GetCstr(const psh::LPSTR arr, const int size)
 {
     CanPop(size);
     _buffer->Peek(arr, size);
@@ -56,12 +56,12 @@ void CRecvBuffer::GetCstr(const LPSTR arr, const int size)
     _size -= size;
 }
 
-CRecvBuffer::CRecvBuffer(CRingBuffer *buffer, const int32 size): _buffer(buffer)
+CRecvBuffer::CRecvBuffer(CRingBuffer *buffer, const psh::int32 size): _buffer(buffer)
                                                              , _size(size)
 {
 }
 
-void CRecvBuffer::CanPop(const uint64 popByte) const
+void CRecvBuffer::CanPop(const psh::uint64 popByte) const
 {
     if (CanPopSize() < popByte)
     {

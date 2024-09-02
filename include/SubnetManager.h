@@ -1,8 +1,10 @@
 ﻿#pragma once
 #include <optional>
-#include<vector>
+
+#include <vector>
 
 #include "SettingParser.h"
+#include "SocketTypes.h"
 
 class SubnetManager
 {

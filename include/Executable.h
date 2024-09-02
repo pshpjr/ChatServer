@@ -1,81 +1,81 @@
 ﻿#pragma once
-#include "Container.h"
-
-
-namespace executable
-{
-    enum ExecutableTransfer
-    {
-        BASE = 1
-        , POST
-        , RECV
-        , SEND
-        , RELEASE
-        , WAIT
-        , GROUP
-    };
-}
+#include <array>
+#include <string>
+#include <cstddef>
+#include <WinSock2.h>
+#include <Windows.h>
 
 class Executable
 {
-public:
-    enum ioType
-    {
-        BASE = 1
-        , SEND
-        , RECV
-        , POSTRECV
-        , RELEASE
-        , GROUP
-        , CUSTOM
+    inline static std::array ioTypeToStr = {
+        std::wstring(L"BASE"),
+        std::wstring(L"SEND"),
+        std::wstring(L"RECV"),
+        std::wstring(L"POST_RECV"),
+        std::wstring(L"RELEASE"),
+        std::wstring(L"GROUP"),
+        std::wstring(L"CUSTOM")
     };
 
-    static const String GetIoType(Executable& executable)
+    class OverlappedIO
     {
-        return ioTypeToStr[executable._type];
-    }
+    public:
+        OverlappedIO() {
+            Clear();
+        }
 
+        void Clear() {
+            memset(&_overlapped, 0, sizeof(_overlapped));
+        }
 
-    Executable()
-        : _type(CUSTOM)
-        , _overlapped{0}
-    {
-    }
+        LPOVERLAPPED Get() {
+            return &_overlapped;
+        }
 
+    private:
+        OVERLAPPED _overlapped;
+    };
+
+public:
     virtual void Execute(ULONG_PTR arg, DWORD transferred, void* iocp) = 0;
     virtual ~Executable() = default;
+
+     enum class ioType
+     {
+         BASE = 0,
+         SEND,
+         RECV,
+         POSTRECV,
+         RELEASE,
+         GROUP,
+         CUSTOM
+     };
+
+    Executable(ioType type) : _type{type}
+    {
+    }
+
+    void Clear()
+    {
+        _overlapped.Clear();
+    }
+
+    LPOVERLAPPED GetOverlapped() {
+        return _overlapped.Get();
+    }
 
     static Executable* GetExecutable(OVERLAPPED* overlap)
     {
         return (Executable*)((char*)overlap - offsetof(Executable, _overlapped));
     }
 
-    void Clear()
+    static const std::wstring& GetIoType(const Executable& executable)
     {
-        memset(&_overlapped, 0, sizeof(_overlapped));
+        return ioTypeToStr[static_cast<char>(executable._type)];
     }
-
-    LPOVERLAPPED GetOverlapped()
-    {
-        return &_overlapped;
-    }
-
-    //Executable(const Executable& other) = delete;
-    //Executable(Executable&& other) noexcept = delete;
-    //Executable& operator=(const Executable& other) = delete;
-    //Executable& operator=(Executable&& other) noexcept = delete;
-    ioType _type;
-    OVERLAPPED _overlapped;
 
 private:
-    inline static const Array<String, 8> ioTypeToStr = {
-        L"empty"
-        , L"BASE"
-        , L"SEND"
-        , L"RECV"
-        , L"POST_RECV"
-        , L"RELEASE"
-        , L"GROUP"
-        , L"CUSTOM"
-    };
+    ioType _type{ioType::BASE};
+    OverlappedIO _overlapped{};
 };
+

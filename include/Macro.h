@@ -1,5 +1,18 @@
 ﻿#pragma once
-#include "MyWindows.h"
+#ifdef _WIN32
+#include <intrin.h> // For __debugbreak()
+#else
+#include <signal.h>
+#endif
+
+inline void trigger_debug_break() {
+#ifdef _WIN32
+	__debugbreak(); // For Windows
+#else
+	raise(SIGTRAP); // For Unix-like systems
+#endif
+}
+
 /*--------------------
 		DEBUG
 ---------------------*/
@@ -11,7 +24,7 @@
 #ifdef PSH_DEBUG
 #define CRASH(cause)								\
 	{																			\
-		__debugbreak();												\
+		trigger_debug_break();												\
 	}
 
 #define ASSERT_CRASH(expr,cause)			\
@@ -23,12 +36,12 @@
 	}while(false)
 #else
 
-#define ASSERT_CRASH(expr,cause)			\
-#define OUT
+#define ASSERT_CRASH(expr,cause) do {} while (false)
+
 
 
 #endif
-
+#define OUT
 
 /*---------------
 	  Crash

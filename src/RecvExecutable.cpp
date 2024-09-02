@@ -5,7 +5,7 @@
 #include "IOCP.h"
 #include "Protocol.h"
 #include "Session.h"
-#include "stdafx.h"
+
 
 void RecvExecutable::Execute(const ULONG_PTR key, const DWORD transferred, void* iocp)
 {

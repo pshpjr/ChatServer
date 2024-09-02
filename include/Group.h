@@ -1,36 +1,21 @@
 ﻿#pragma once
 
 #include <chrono>
-#include <queue>
-#include "Types.h"
-#include "Container.h"
-#include "TLSLockFreeQueue.h"
-#include "BuildOption.h"
-#include "Session.h"
+
+
+#include "GroupTypes.h"
+
+#include "SessionTypes.h"
+#include "LockFreeFixedQueue.h"
+
+
+class CLogger;
+class Session;
 class SendBuffer;
 class GroupManager;
 class GroupExecutable;
 class CRecvBuffer;
 class IOCP;
-
-namespace GroupInfo
-{
-    struct GroupIDHash
-    {
-        std::size_t operator()(const GroupID& s) const
-        {
-            return std::hash<unsigned long long>()(static_cast<long>(s));
-        }
-    };
-
-    // struct GroupIDEqual
-    // {
-    //     bool operator()(const SessionID& lhs, const SessionID& rhs) const
-    //     {
-    //         return lhs.id == rhs.id;
-    //     }
-    // };
-}
 
 
 /// <summary>
@@ -55,51 +40,32 @@ class Group
         GroupID dst = GroupID(0);
     };
 
-
     friend class GroupExecutable;
     friend class GroupManager;
 
 public:
+
+    Group();
+    virtual ~Group();
+    Group(const Group &other) = delete;
+    Group(Group &&other) noexcept = delete;
+    Group & operator=(const Group &other) = delete;
+    Group & operator=(Group &&other) noexcept = delete;
+
     /// <summary>
     /// OnCreate를 리턴한 이후부터 해당 그룹으로 이동 가능
     /// </summary>
-    virtual void OnCreate()
-    {
-    };
+    virtual void OnCreate();
+    virtual void OnUpdate(int milli);
+    virtual void OnEnter(SessionID id);
+    virtual void OnLeave(SessionID id, int wsaErrCode);
+    virtual void OnRecv(SessionID id, CRecvBuffer& recvBuffer);
 
-    virtual void OnUpdate(int milli)
-    {
-        UNREFERENCED_PARAMETER(milli);
-    };
 
-    virtual void OnEnter(SessionID id)
-    {
-        UNREFERENCED_PARAMETER(id);
-    };
-
-    virtual void OnLeave(SessionID id, int wsaErrCode)
-    {
-        UNREFERENCED_PARAMETER(id);
-    };
-
-    virtual void OnRecv(SessionID id, CRecvBuffer& recvBuffer)
-    {
-        UNREFERENCED_PARAMETER(id);
-        UNREFERENCED_PARAMETER(recvBuffer);
-    };
-
-    virtual ~Group() = default;
-
-    [[nodiscard]] GroupID GetGroupID() const
-    {
-        return _groupId;
-    }
-
-    [[nodiscard]] int GetQueued() const
-    {
-        return jobQSize;
-    }
-
+    [[nodiscard]] GroupID GetGroupID() const;
+    [[nodiscard]] int GetQueued() const;
+    void SendPacket(SessionID id, SendBuffer& buffer) const;
+    void SendPackets(SessionID id, Vector<SendBuffer>& buffer);
 
     //static constexpr int debugSize = 2001;
 
@@ -141,8 +107,7 @@ public:
     //	debugArr[id.index].arr[index].cause = cause;
 
     //}
-    void SendPacket(SessionID id, SendBuffer& buffer) const;
-    void SendPackets(SessionID id, Vector<SendBuffer>& buffer);
+
 
 protected:
     void MoveSession(SessionID id, GroupID dst) const;
@@ -150,31 +115,22 @@ protected:
     void EnterSession(SessionID id, bool update);
     void SetLoopMs(int loopMS);
 
-    [[nodiscard]] size_t Sessions() const
-    {
-        return _sessions.size();
-    }
+    [[nodiscard]] size_t Sessions() const;
 
-    Group();
+
     IOCP* _iocp;
     int _loopMs = 10;
 
-    [[nodiscard]] int64 GetWorkTime() const
-    {
-        return oldWorkTime;
-    }
+    [[nodiscard]] psh::int64 GetWorkTime() const;
 
-    [[nodiscard]] int64 GetJobTps() const
-    {
-        return oldHandledJob;
-    }
+    [[nodiscard]] psh::int64 GetJobTps() const;
 
-    [[nodiscard]] int32 GetEnterTps() const
+    [[nodiscard]] psh::int32 GetEnterTps() const
     {
         return _enterTps;
     }
 
-    [[nodiscard]] int32 GetLeaveTps() const
+    [[nodiscard]] psh::int32 GetLeaveTps() const
     {
         return _leaveTps;
     }
@@ -197,14 +153,15 @@ private:
 
 
 private:
+    std::unique_ptr<CLogger> _groupLogger;
     GroupID _groupId = GroupID::InvalidGroupID();
-    GroupExecutable& _executable;
+    std::unique_ptr<GroupExecutable> _executable;
     std::chrono::steady_clock::time_point _prevUpdate;
     std::chrono::steady_clock::time_point _nextUpdate;
 
     SessionSet _sessions;
+    std::unique_ptr<LockFreeFixedQueue<GroupJob,8192>> _jobs;
 
-    LockFreeFixedQueue<GroupJob, 8192> _jobs;
     //TlsLockFreeQueue<GroupJob> _jobs;
 
     volatile char _isRun = 0;
@@ -217,12 +174,12 @@ private:
 
     //MONITOR
     std::chrono::steady_clock::time_point _nextMonitor;
-    int64 workTime = 0;
-    int64 _handledJob = 0;
+    psh::int64 workTime = 0;
+    psh::int64 _handledJob = 0;
     long jobQSize = 0;
-    
-    int64 oldWorkTime = 0;
-    int64 oldHandledJob = 0;
+
+    psh::int64 oldWorkTime = 0;
+    psh::int64 oldHandledJob = 0;
     long _leaveTps = 0;
     long _handledLeave = 0;
     long _enterTps = 0;

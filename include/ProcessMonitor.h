@@ -2,10 +2,6 @@
 
 #include "Types.h"
 #include <Pdh.h>
-#pragma comment(lib,"Pdh.lib")
-
-
-
 
 class ProcessMonitor
 {

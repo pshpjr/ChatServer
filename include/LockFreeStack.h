@@ -1,5 +1,4 @@
 ﻿#pragma once
-#include "MyWindows.h"
 #include "MultiThreadObjectPool.h"
 #include "LockFreeData.h"
 

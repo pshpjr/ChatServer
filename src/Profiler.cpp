@@ -4,10 +4,8 @@
 #include <ctime>
 #include <fstream>
 #include <string>
-#include <thread>
 #include <vector>
-#include "MyWindows.h"
-#include "stdafx.h"
+
 
 void Profiler::ProfileDataOutText(const LPWSTR szFileName)
 {
@@ -52,7 +50,7 @@ void Profiler::ProfileDataOutText(const LPWSTR szFileName)
 }
 
 
-int Profiler::GetItemNumber(const LPCWSTR name)
+int Profiler::GetItemNumber(const psh::LPCWSTR name)
 {
     using namespace std::chrono;
 
@@ -98,7 +96,7 @@ void Profiler::ApplyProfile(const int& itemNumber, const std::chrono::microsecon
 #undef ITEM
 
 
-ProfileItem::ProfileItem(const LPCWSTR name)
+ProfileItem::ProfileItem(const psh::LPCWSTR name)
 {
     memcpy_s(_name, MAX_NAME, name, MAX_NAME);
     _start = std::chrono::steady_clock::now();

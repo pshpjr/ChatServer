@@ -1,13 +1,14 @@
-﻿#include "Executable.h"
-#pragma once
+﻿#ifndef GROUPEXECUTABLE_H
+#define GROUPEXECUTABLE_H
+#include "Executable.h"
+
 
 class Group;
 
 class GroupExecutable : public Executable
 {
 public:
-    GroupExecutable(Group* owner)
-        : _owner(owner)
+    GroupExecutable(Group* owner):Executable{ioType::GROUP},_owner{owner}
     {
     }
 
@@ -16,3 +17,4 @@ public:
 private:
     Group* _owner;
 };
+#endif // GROUPEXECUTABLE_H

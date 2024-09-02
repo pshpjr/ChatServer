@@ -62,6 +62,15 @@ add_library(NetLib STATIC
         src/WebHook.cpp
 )
 
+#define 추가
+#디버그 매크로 설정
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_definitions(NetLib PUBLIC DEBUG)
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+    target_compile_definitions(NetLib PUBLIC RELEASE)
+endif()
+
+
 ##### 외부 패키지
 #range-v3
 #find_package(range-v3 CONFIG REQUIRED HINTS "$ENV{VCPKG_ROOT}/packages/range-v3_x64-windows")

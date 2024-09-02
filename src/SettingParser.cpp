@@ -3,6 +3,8 @@
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <Utility.h>
+
 #include "CLogger.h"
 #include "stdafx.h"
 
@@ -17,13 +19,14 @@ void SettingParser::Init(const LPCWSTR location)
     free(_buffer);
 }
 
-void SettingParser::LoadSetting(const LPCTSTR location)
+void SettingParser::LoadSetting(const LPCWSTR location)
 {
     std::wifstream rawText{location, std::ios::binary | std::ios::ate};
 
+
     if (!rawText.is_open())
     {
-        throw std::runtime_error(std::format("SettingParser::Couldn't open : {}",location));
+        throw std::runtime_error(std::format("SettingParser::Couldn't open : {}", psh::util::WToS(location)));
     }
 
     const size_t fileSize = rawText.tellg();
@@ -77,7 +80,7 @@ void SettingParser::Parse()
         // ':' 위치에 다른 거 있으면 에러
         if (op[0] != L':')
         {
-            throw std::runtime_error(std::format("SettingParser::Parsing error. expected ':',but found {}",op[0]));
+            throw std::runtime_error(std::format("SettingParser::Parsing error. expected ':',but found {}",psh::util::WToS(String{op[0]})));
         }
 
         if (GetTok(value) == false)

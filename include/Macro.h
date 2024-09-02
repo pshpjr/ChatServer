@@ -3,8 +3,10 @@
 /*--------------------
 		DEBUG
 ---------------------*/
-#define OUT
+
+#ifdef DEBUG
 #define PSH_DEBUG
+#endif
 
 #ifdef PSH_DEBUG
 #define CRASH(cause)								\
@@ -22,7 +24,7 @@
 #else
 
 #define ASSERT_CRASH(expr,cause)			\
-
+#define OUT
 
 
 #endif

@@ -40,18 +40,18 @@ public:
     virtual void Execute(ULONG_PTR arg, DWORD transferred, void* iocp) = 0;
     virtual ~Executable() = default;
 
-     enum class ioType
+     enum class IoType
      {
-         BASE = 0,
-         SEND,
-         RECV,
-         POSTRECV,
-         RELEASE,
-         GROUP,
-         CUSTOM
+         Base = 0,
+         Send,
+         Recv,
+         Postrecv,
+         Release,
+         Group,
+         Custom
      };
 
-    Executable(ioType type) : _type{type}
+    Executable(IoType type) : _type{type}
     {
     }
 
@@ -75,7 +75,7 @@ public:
     }
 
 private:
-    ioType _type{ioType::BASE};
+    IoType _type{IoType::Base};
     OverlappedIO _overlapped{};
 };
 

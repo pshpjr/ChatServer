@@ -1,6 +1,5 @@
 ﻿#pragma once
 #include <Pdh.h>
-#pragma comment(lib,"Pdh.lib")
 
 class HardwareMonitor
 {

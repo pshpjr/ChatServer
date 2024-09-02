@@ -281,7 +281,7 @@ void Group::MoveSession(const SessionID id, const GroupID dst) const
 
 void Group::Execute(IOCP* iocp) const
 {
-    _executable->Execute(0, static_cast<int>(Executable::ioType::GROUP), iocp);
+    _executable->Execute(0, static_cast<int>(Executable::IoType::Group), iocp);
 }
 
 bool Group::hasJob() const

@@ -2,7 +2,6 @@
 #include "DBException.h"
 #include "Macro.h"
 #include "externalHeader/mysql.h"
-#pragma comment(lib,"libmysql.lib")
 
 struct DBConnection::Imple
 {

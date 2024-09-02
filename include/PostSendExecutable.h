@@ -5,7 +5,7 @@
 class PostSendExecutable final : public Executable
 {
 public:
-    PostSendExecutable():Executable{ioType::POSTRECV}{}
+    PostSendExecutable():Executable{IoType::Postrecv}{}
 
     void Execute(ULONG_PTR key, DWORD transferred, void* iocp) override;
     ~PostSendExecutable() override = default;

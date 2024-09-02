@@ -11,7 +11,6 @@
 
 #include "CLogger.h"
 #include "CoreGlobal.h"
-#include "CRecvBuffer.h"
 #include "CSendBuffer.h"
 #include "Executables.h"
 #include "GroupManager.h"
@@ -20,7 +19,6 @@
 #include "SendBuffer.h"
 #include "Session.h"
 #include "SettingParser.h"
-#include "Socket.h"
 
 /*****************************/
 //			INIT
@@ -28,7 +26,6 @@
 
 IOCP::IOCP(bool server)
 {
-    timeBeginPeriod(1);
     WSADATA wsaData;
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
     {

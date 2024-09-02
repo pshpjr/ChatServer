@@ -2,19 +2,6 @@
 
 #include <curl/curl.h>
 
-#ifdef _DEBUG
-#pragma comment(lib, "libcurld.lib")
-#else
-#pragma comment(lib, "libcurl.lib")
-#endif
-
-#pragma comment(lib, "dpp.lib")
-#pragma comment(lib, "wldap32.lib")
-#pragma comment(lib, "Ws2_32.lib")
-#pragma comment(lib, "CRYPT32.lib")
-#pragma comment(lib, "Normaliz.lib")
-#pragma comment(lib, "libcryptoMTd.lib")
-#pragma comment(lib, "libsslMTd.lib")
 
 #include <format>
 #include <string>

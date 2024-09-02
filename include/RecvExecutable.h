@@ -4,7 +4,7 @@ class Session;
 
 class RecvExecutable final : public Executable {
 public:
-    RecvExecutable() : Executable{ioType::RECV}{}
+    RecvExecutable() : Executable{IoType::Recv}{}
 
     void Execute(ULONG_PTR key, DWORD transferred, void* iocp) override;
     ~RecvExecutable() override = default;

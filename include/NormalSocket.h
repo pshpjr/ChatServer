@@ -1,6 +1,5 @@
 ﻿#pragma once
-#define _WINSOCKAPI_
-#include <WinSock2.h>
+#include "MyWindows.h"
 
 
 class NormalSocket

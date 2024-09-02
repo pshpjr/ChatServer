@@ -1,8 +1,6 @@
 ﻿#pragma once
 
-#define _WINSOCKAPI_
-#include <Windows.h>
-#pragma comment(lib, "Dbghelp.lib")
+#include "MyWindows.h"
 
 class CrashDump
 {

@@ -1,6 +1,5 @@
 ﻿#pragma once
-#define _WINSOCKAPI_
-#include <Windows.h>
+#include "MyWindows.h"
 
 /////////////////////////////////////////////////////////////////////////////
 // CCpuUsage CPUTime(); // CPUTime(hProcess)

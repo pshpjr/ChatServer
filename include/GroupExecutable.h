@@ -8,7 +8,7 @@ class Group;
 class GroupExecutable : public Executable
 {
 public:
-    GroupExecutable(Group* owner):Executable{ioType::GROUP},_owner{owner}
+    GroupExecutable(Group* owner):Executable{IoType::Group},_owner{owner}
     {
     }
 

@@ -2,7 +2,6 @@
 #include <Psapi.h>
 #include "stdafx.h"
 
-#pragma comment(lib, "Psapi.lib")
 
 void MemoryUsage::Update()
 {

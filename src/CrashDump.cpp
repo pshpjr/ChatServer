@@ -5,6 +5,7 @@
 #include <crtdbg.h>
 #include <DbgHelp.h>
 #include <cstdio>
+#include <stdlib.h>
 
 long CrashDump::_dumpCount = 0;
 

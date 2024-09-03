@@ -1,0 +1,68 @@
+name: Windows C++ Build and Release
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  release:
+    types: [created]
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install dependencies
+        run: |
+          choco install cmake -y
+          choco install ninja -y
+
+      # 디버그 빌드
+      - name: Configure CMake (Debug)
+        run: cmake -B build/debug -G "Ninja" -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build (Debug)
+        run: cmake --build build/debug --config Debug
+
+      # 릴리즈 빌드
+      - name: Configure CMake (Release)
+        run: cmake -B build/release -G "Ninja" -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (Release)
+        run: cmake --build build/release --config Release
+
+      # 디버그 빌드에서 테스트 실행
+      - name: Run Tests (Debug)
+        run: ctest --test-dir build/debug --output-on-failure
+
+      # 릴리즈 빌드에서 테스트 실행
+      - name: Run Tests (Release)
+        run: ctest --test-dir build/release --output-on-failure
+
+      # 아티팩트 아카이브 생성
+      - name: Archive Debug Build
+        run: tar -czvf build/debug-output.tar.gz -C build/debug .
+
+      - name: Archive Release Build
+        run: tar -czvf build/release-output.tar.gz -C build/release .
+
+      # GitHub Release에 업로드
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: build/release-output.tar.gz
+          asset_name: release-output.tar.gz
+          asset_content_type: application/gzip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}

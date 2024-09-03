@@ -27,16 +27,21 @@ jobs:
           choco install cmake -y
           choco install ninja -y
 
-      # 디버그 빌드
+      - name: Install vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git
+          ./vcpkg/bootstrap-vcpkg.bat
+
+      # CMake Configure with vcpkg-configuration.json
       - name: Configure CMake (Debug)
-        run: cmake -B build/debug -G "Ninja" -DCMAKE_BUILD_TYPE=Debug
+        run: cmake -B build/debug -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
 
       - name: Build (Debug)
         run: cmake --build build/debug --config Debug
 
       # 릴리즈 빌드
       - name: Configure CMake (Release)
-        run: cmake -B build/release -G "Ninja" -DCMAKE_BUILD_TYPE=Release
+        run: cmake -B build/release -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
 
       - name: Build (Release)
         run: cmake --build build/release --config Release

@@ -1,15 +1,18 @@
-name: Windows C++ Build
+name: Windows C++ Build and Release
 
 on:
   push:
     branches:
-      - master
+      - pshpjr-patch-1
   pull_request:
     branches:
-      - master
+      - pshpjr-patch-1
+  release:
+    types: [created]
 
 jobs:
   build:
+
     runs-on: windows-latest
 
     steps:
@@ -21,7 +24,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          # 필요한 경우 추가 패키지를 설치
           choco install cmake -y
           choco install ninja -y
 
@@ -39,10 +41,29 @@ jobs:
       - name: Build (Release)
         run: cmake --build build/release --config Release
 
-      # 디버그 빌드에서 테스트 실행
+      # 테스트 실행
       - name: Run Tests (Debug)
         run: ctest --test-dir build/debug --output-on-failure
 
-      # 릴리즈 빌드에서 테스트 실행
       - name: Run Tests (Release)
         run: ctest --test-dir build/release --output-on-failure
+
+      # include 디렉터리 및 릴리즈 빌드 파일 아카이브
+      - name: Archive Release Build and Include Files
+        run: |
+          mkdir -p build/artifacts
+          cp -r include build/artifacts/
+          cp build/release/*.lib build/artifacts/ || echo "No .lib files found"
+          cp build/release/*.dll build/artifacts/ || echo "No .dll files found"
+          tar -czvf build/release-package.tar.gz -C build/artifacts .
+
+      # GitHub Release에 업로드
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: build/release-package.tar.gz
+          asset_name: release-package.tar.gz
+          asset_content_type: application/gzip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}

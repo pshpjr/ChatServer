@@ -3,10 +3,10 @@ name: Windows C++ Build and Release
 on:
   push:
     branches:
-      - pshpjr-patch-1
+      - main
 
 jobs:
-  build:
+  build_and_release:
     runs-on: windows-latest
 
     steps:
@@ -74,12 +74,6 @@ jobs:
           cp build/release/*.dll build/artifacts/ || echo "No .dll files found"
           tar -czvf build/release-package.tar.gz -C build/artifacts .
 
-  release:
-    needs: build
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-
-    steps:
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1

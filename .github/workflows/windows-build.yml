@@ -65,7 +65,7 @@ jobs:
       # GitHub Release에 업로드
       - name: Create GitHub Release
         id: create_release
-        uses: gh-actions/create-release@v1
+        uses: actions/create-release@v1
         with:
           tag_name: ${{ github.run_number }}
           release_name: Release ${{ github.run_number }}

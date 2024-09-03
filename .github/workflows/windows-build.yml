@@ -3,57 +3,69 @@ name: Windows C++ Build and Release
 on:
   push:
     branches:
-      - pshpjr-patch-1
-  pull_request:
-    branches:
-      - pshpjr-patch-1
-  release:
-    types: [created]
+      - master
 
 jobs:
   build:
-
     runs-on: windows-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up MSVC
+      - name: Cache MSVC and Dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            C:\Program Files (x86)\Microsoft Visual Studio
+            C:\vcpkg
+          key: ms-vcpkg-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
+          restore-keys: |
+            ms-vcpkg-${{ runner.os }}-
+
+      - name: Install MSVC
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
           choco install cmake -y
           choco install ninja -y
 
+      - name: Cache vcpkg
+        uses: actions/cache@v3
+        with:
+          path: |
+            ${{ github.workspace }}/vcpkg
+            ${{ github.workspace }}/vcpkg/installed
+            ${{ github.workspace }}/vcpkg/downloads
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
+
       - name: Install vcpkg
+        if: steps.cache_vcpkg.outputs.cache-hit != 'true'
         run: |
           git clone https://github.com/microsoft/vcpkg.git
           ./vcpkg/bootstrap-vcpkg.bat
 
-      # CMake Configure with vcpkg-configuration.json
       - name: Configure CMake (Debug)
         run: cmake -B build/debug -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
 
       - name: Build (Debug)
         run: cmake --build build/debug --config Debug
 
-      # 릴리즈 빌드
       - name: Configure CMake (Release)
         run: cmake -B build/release -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
 
       - name: Build (Release)
         run: cmake --build build/release --config Release
 
-      # 테스트 실행
       - name: Run Tests (Debug)
         run: ctest --test-dir build/debug --output-on-failure
 
       - name: Run Tests (Release)
         run: ctest --test-dir build/release --output-on-failure
 
-      # include 디렉터리 및 릴리즈 빌드 파일 아카이브
       - name: Archive Release Build and Include Files
         run: |
           mkdir -p build/artifacts
@@ -62,25 +74,29 @@ jobs:
           cp build/release/*.dll build/artifacts/ || echo "No .dll files found"
           tar -czvf build/release-package.tar.gz -C build/artifacts .
 
-      # GitHub Release에 업로드
+  release:
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
         with:
-          tag_name: ${{ github.run_number }}
+          tag_name: release-${{ github.run_number }}
           release_name: Release ${{ github.run_number }}
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # GitHub Release에 업로드
       - name: Upload Release Assets
         uses: actions/upload-release-asset@v1
         with:
-          upload_url: ${{ github.event.release.upload_url }}
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: build/release-package.tar.gz
           asset_name: release-package.tar.gz
           asset_content_type: application/gzip
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

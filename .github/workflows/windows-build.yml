@@ -3,7 +3,7 @@ name: Windows C++ Build and Release
 on:
   push:
     branches:
-      - main
+      - pshpjr-patch-1
 
 jobs:
   build_and_release:

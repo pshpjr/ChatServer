@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - master
-  pull_request:
-    branches:
-      - master
 
 jobs:
   build_and_release:
@@ -16,52 +13,65 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Cache MSVC and Dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            C:\Program Files (x86)\Microsoft Visual Studio
-            C:\vcpkg
-          key: ms-vcpkg-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
-          restore-keys: |
-            ms-vcpkg-${{ runner.os }}-
+#      - name: Cache MSVC and Dependencies
+#        uses: actions/cache@v3
+#        with:
+#          path: |
+#            C:\Program Files (x86)\Microsoft Visual Studio
+#            C:\vcpkg
+#          key: ms-vcpkg-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
+#          restore-keys: |
+#            ms-vcpkg-${{ runner.os }}-
+
+#      - name: Cache Chocolatey Packages
+#        uses: actions/cache@v3
+#        with:
+#          path: |
+#            C:\ProgramData\chocolatey\lib
+#            C:\ProgramData\chocolatey\cache
+#          key: chocolatey-${{ runner.os }}-${{ hashFiles('**/chocolatey-packages.txt') }}
+#          restore-keys: |
+#            chocolatey-${{ runner.os }}-
+      - name: Install vcpkg
+        run: |
+          git clone https://github.com/Microsoft/vcpkg.git
+          ./vcpkg/bootstrap-vcpkg.sh
 
       - name: Install MSVC
         uses: ilammy/msvc-dev-cmd@v1
 
+#      - name: Install Dependencies
+#        id: install_dependencies
+#        run: |
+#          if (-not (Test-Path "C:\ProgramData\chocolatey\lib\cmake")) {
+#            choco install cmake -y
+#          }
+#          if (-not (Test-Path "C:\ProgramData\chocolatey\lib\ninja")) {
+#            choco install ninja -y
+#          }
+#          if (-not (Test-Path "C:\ProgramData\chocolatey\lib\windows-sdk-10.0")) {
+#            choco install windows-sdk-10.0 -y
+#          }
       - name: Install Dependencies
+        id: install_dependencies
         run: |
-          choco install cmake -y
-          choco install ninja -y
+            choco install cmake -y
+            choco install ninja -y
+#            choco install windows-sdk-10.0 -y
 
-      - name: Cache vcpkg
-        uses: actions/cache@v3
-        with:
-          path: |
-            ${{ github.workspace }}/vcpkg
-            ${{ github.workspace }}/vcpkg/installed
-            ${{ github.workspace }}/vcpkg/downloads
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
-          restore-keys: |
-            vcpkg-${{ runner.os }}-
-
-      - name: Install vcpkg
-        if: steps.cache_vcpkg.outputs.cache-hit != 'true'
+      - name: Configure CMake And Build (Debug)
         run: |
-          git clone https://github.com/microsoft/vcpkg.git
-          ./vcpkg/bootstrap-vcpkg.bat
+          cmake -B build/debug -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
+          cmake --build build/debug --config Debug
 
-      - name: Configure CMake (Debug)
-        run: cmake -B build/debug -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
+      - name: Check Debug Result
+        run: |
+          ls -R build/debug/
 
-      - name: Build (Debug)
-        run: cmake --build build/debug --config Debug
-
-      - name: Configure CMake (Release)
-        run: cmake -B build/release -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
-
-      - name: Build (Release)
-        run: cmake --build build/release --config Release
+      - name: Configure CMake And Build (Release)
+        run: |
+          cmake -B build/release -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
+          cmake --build build/release --config Release
 
       - name: Run Tests (Debug)
         run: ctest --test-dir build/debug --output-on-failure
@@ -72,9 +82,14 @@ jobs:
       - name: Archive Release Build and Include Files
         run: |
           mkdir -p build/artifacts
+          mkdir -p build/artifacts/lib
+          mkdir -p build/artifacts/lib/dlls
           cp -r include build/artifacts/
-          cp build/release/*.lib build/artifacts/ || echo "No .lib files found"
-          cp build/release/*.dll build/artifacts/ || echo "No .dll files found"
+          cp build/debug/*.lib build/artifacts/lib/ || echo "No Debug .lib files found"
+          cp build/debug/*.pdb build/artifacts/lib/ || echo "No Debug .pdb files found"
+          cp build/release/*.lib build/artifacts/lib/ || echo "No .lib files found"
+          cp build/release/*.dll build/artifacts/lib/ || echo "No .dll files found"
+          cp lib/dlls/* build/artifacts/lib/dlls/ || echo "No dlls"
           tar -czvf build/release-package.tar.gz -C build/artifacts .
 
       - name: Create GitHub Release

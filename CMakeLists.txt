@@ -1,21 +1,24 @@
 cmake_minimum_required(VERSION 3.28)
+
+# 프로젝트 설정
 project(NetLib)
 
-#cmake 관련 속성 설정
+# C++ 표준 설정
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_TOOLCHAIN_FILE "C:/Users/$ENV{USERNAME}/.vcpkg-clion/vcpkg/scripts/buildsystems/vcpkg.cmake")
 
-#컴파일 설정
-add_compile_options(/D_UNICODE /DUNICODE)
-if(MSVC)
-    add_compile_options(-translateInclude)
-    add_compile_options(/D_UNICODE /DUNICODE /utf-8)
-endif()
+# 컴파일러 플래그 및 링크 플래그 설정
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Zi")
+set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /DEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2")
 
+# 유니코드 매크로 정의
+add_compile_definitions(_UNICODE UNICODE)
 
-#소스 추가
+# PDB 출력 경로 설정
+set(CMAKE_PDB_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/")
+
+# 소스 파일 추가
 add_library(NetLib STATIC
-        src/Utility.cpp
         src/CCpuUsage.cpp
         src/CLogger.cpp
         src/CoreGlobal.cpp
@@ -52,75 +55,71 @@ add_library(NetLib STATIC
         src/SingleThreadQ.cpp
         src/SpinLock.cpp
         src/SpinLockPool.cpp
-        src/stdafx.cpp
         src/SubnetManager.cpp
         src/TLSLockFreeQueue.cpp
         src/TLSLockFreeQueue2.cpp
         src/TLSLockFreeStack.cpp
         src/TLSPool.cpp
+        src/Utility.cpp
         src/WebHook.cpp
-        include/GroupTypes.h
-        include/SocketTypes.h
+        src/stdafx.cpp
 )
 
-#define 추가
-#디버그 매크로 설정
-# 디버그 및 릴리스 매크로 설정
-if (CMAKE_CONFIGURATION_TYPES)  # Multi-config generators
+# 빌드 타입에 따른 매크로 정의
+if (CMAKE_CONFIGURATION_TYPES)
     target_compile_definitions(NetLib PRIVATE $<$<CONFIG:Debug>:DEBUG> $<$<CONFIG:Release>:RELEASE>)
 else()
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-        target_compile_definitions(NetLib PUBLIC DEBUG)
+        target_compile_definitions(NetLib PRIVATE DEBUG)
     elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
-        target_compile_definitions(NetLib PUBLIC RELEASE)
+        target_compile_definitions(NetLib PRIVATE RELEASE)
     endif()
 endif()
 
+# 라이브러리 링크 설정 (공용)
+target_link_libraries(NetLib PUBLIC
+        ws2_32
+        wsock32
+        Winmm
+        Pdh
+        Synchronization
+        Dbghelp
+        Psapi
+        kernel32
+)
+file(GLOB PUB_LIBS "${CMAKE_CURRENT_SOURCE_DIR}/lib/*.lib")
+foreach(lib ${PUB_LIBS})
+    target_link_libraries(NetLib INTERFACE ${lib})
+endforeach()
 
-##### 외부 패키지
+
+# 빌드 타입에 따른 외부 라이브러리 링크
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    file(GLOB EXTERNAL_LIBS "${CMAKE_CURRENT_SOURCE_DIR}/lib/debug/*.lib")
+elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
+    file(GLOB EXTERNAL_LIBS "${CMAKE_CURRENT_SOURCE_DIR}/lib/release/*.lib")
+endif()
+
+foreach(lib ${EXTERNAL_LIBS})
+    target_link_libraries(NetLib INTERFACE ${lib})
+endforeach()
+
+# 외부 패키지 링크 설정
 find_package(range-v3 REQUIRED)
 target_link_libraries(NetLib PUBLIC range-v3)
 
-#인클루드 설정
-
+# 인클루드 디렉토리 설정
 target_include_directories(NetLib PUBLIC include)
 target_include_directories(NetLib PUBLIC include/externalHeader)
 
-#라이브러리 링킹
-file(GLOB EXTERNAL_LIBS "${CMAKE_CURRENT_SOURCE_DIR}/lib/*.lib")
-foreach(lib ${EXTERNAL_LIBS})
-    target_link_libraries(NetLib PUBLIC ${lib})
-endforeach()
-
-target_link_libraries(NetLib PUBLIC Pdh.lib)
-target_link_libraries(NetLib PUBLIC Synchronization.lib)
-target_link_libraries(NetLib PUBLIC Winmm.lib)
-target_link_libraries(NetLib PUBLIC Ws2_32.lib)
-target_link_libraries(NetLib PUBLIC Dbghelp.lib)
-target_link_libraries(NetLib PUBLIC Psapi.lib)
-
-
-if (CMAKE_CONFIGURATION_TYPES)
-    target_link_libraries(NetLib PUBLIC $<$<CONFIG:Debug>:cpp_redis_d.lib> $<$<CONFIG:Release>:cpp_redis.lib>)
-    target_link_libraries(NetLib PUBLIC $<$<CONFIG:Debug>:tacopie_d.lib> $<$<CONFIG:Release>:tacopie.lib>)
-else()
-    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-        target_link_libraries(NetLib PUBLIC cpp_redis_d.lib)
-        target_link_libraries(NetLib PUBLIC tacopie_d.lib)
-        target_link_libraries(NetLib PUBLIC libcurld.lib)
-    elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
-        target_link_libraries(NetLib PUBLIC cpp_redis.lib)
-        target_link_libraries(NetLib PUBLIC tacopie.lib)
-        target_link_libraries(NetLib PUBLIC libcurl.lib)
-    endif()
-endif()
-
-#출력 파일 이름과 경로 설정
+# 출력 파일 이름과 경로 설정
 set_target_properties(NetLib PROPERTIES
         OUTPUT_NAME_DEBUG NetLib_d
         OUTPUT_NAME_RELEASE NetLib
+        COMPILE_PDB_NAME "NetLib"
+        LINK_PDB_NAME "NetLib"
 )
 
-
+# 테스트 설정
 enable_testing()
 add_subdirectory(tests)

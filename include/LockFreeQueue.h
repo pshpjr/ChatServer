@@ -64,7 +64,7 @@ public:
         while (true)
         {
             Node* tail = _tail;
-            Node* tailNode = static_cast<Node*>(static_cast<unsigned long long>(tail) & lock_free_data::_tailCount);
+            Node* tailNode = static_cast<Node*>(static_cast<unsigned long long>(tail) & lock_free_data::pointerMask);
 
             if (tailNode->next == nullptr)
             {
@@ -105,10 +105,10 @@ public:
         while (true)
         {
             Node* head = _head;
-            Node* headNode = static_cast<Node*>(static_cast<unsigned long long>(head) & lock_free_data::_tailCount);
+            Node* headNode = static_cast<Node*>(static_cast<unsigned long long>(head) & lock_free_data::pointerMask);
 
             Node* next = headNode->next;
-            Node* nextNode = static_cast<Node*>(static_cast<unsigned long long>(next) & lock_free_data::_tailCount);
+            Node* nextNode = static_cast<Node*>(static_cast<unsigned long long>(next) & lock_free_data::pointerMask);
 
             if (next == nullptr)
             {
@@ -120,7 +120,7 @@ public:
             if (InterlockedCompareExchangePointer(static_cast<PVOID*>(&_head), next, head) == head)
             {
                 Node* tail = _tail;
-                Node* tailNode = static_cast<Node*>(static_cast<unsigned long long>(tail) & lock_free_data::_tailCount);
+                Node* tailNode = static_cast<Node*>(static_cast<unsigned long long>(tail) & lock_free_data::pointerMask);
                 if (tail == head)
                 {
                     //내가 뺀 애가 tail이면 풀에 넣기 전에 수정해줘야 함. 아니면 꼬임.

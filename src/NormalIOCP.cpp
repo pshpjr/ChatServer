@@ -1,14 +1,13 @@
 ﻿#include "NormalIOCP.h"
 
 #include <synchapi.h>
-
-
-#include <CCpuUsage.h>
 #include <chrono>
 #include <format>
-#include <MemoryUsage.h>
 #include <process.h>
 
+#include "MyWindows.h"
+#include "CCpuUsage.h"
+#include "MemoryUsage.h"
 #include "CLogger.h"
 #include "CoreGlobal.h"
 #include "CSendBuffer.h"
@@ -711,7 +710,7 @@ size_t IOCP::GetNonPagedPoolUsage() const
 
 String IOCP::GetLibMonitorString() const
 {
-    return std::format(L"==================================================================================\n"
+    return std::format (L"==================================================================================\n"
         L" {:<11s}{:^55s}{:>11s}\n"
         L"----------------------------------------------------------------------------------\n"
         L"+  {:<14s} : {:>6.2f}MB / {:<6.2f}MB | {:<14s} : {:>6.2f}MB / {:<6.2f}MB \n"

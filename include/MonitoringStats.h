@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include <algorithm>
 class MonitoringStats
 {
 public:
@@ -6,8 +7,8 @@ public:
     {
         _count++;
         _sum += data;
-        _max = max(data, _max);
-        _min = min(data, _min);
+        _max = std::max(data, _max);
+        _min = std::min(data, _min);
     }
 
     void Clear()

@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - master
-  pull_request:
-    branches:
-      - master
 
 jobs:
   build_and_release:
@@ -72,9 +69,11 @@ jobs:
       - name: Archive Release Build and Include Files
         run: |
           mkdir -p build/artifacts
+          mkdir -p build/artifacts/lib
           cp -r include build/artifacts/
-          cp build/release/*.lib build/artifacts/ || echo "No .lib files found"
-          cp build/release/*.dll build/artifacts/ || echo "No .dll files found"
+          cp build/debug/*.lib build/artifacts/lib/ || echo "No Debug .lib files found"
+          cp build/release/*.lib build/artifacts/lib/ || echo "No .lib files found"
+          cp build/release/*.dll build/artifacts/lib/ || echo "No .dll files found"
           tar -czvf build/release-package.tar.gz -C build/artifacts .
 
       - name: Create GitHub Release

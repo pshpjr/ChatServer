@@ -70,8 +70,8 @@ jobs:
         run: |
           mkdir -p build/artifacts
           cp -r include build/artifacts/
-          cp build/release/*.lib build/artifacts/ || echo "No .lib files found"
-          cp build/release/*.dll build/artifacts/ || echo "No .dll files found"
+          cp build/release/*.lib build/artifacts/lib || echo "No .lib files found"
+          cp build/release/*.dll build/artifacts/lib || echo "No .dll files found"
           tar -czvf build/release-package.tar.gz -C build/artifacts .
 
       - name: Create GitHub Release

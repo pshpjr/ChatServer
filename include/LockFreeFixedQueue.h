@@ -1,5 +1,7 @@
 ﻿#pragma once
+#include "MyWindows.h"
 #include "Container.h"
+
 
 template <typename T, int BufferSize>
 class LockFreeFixedQueue
@@ -42,7 +44,6 @@ public:
     bool Enqueue(const T& data)
     {
         const long tail = InterlockedIncrement(&tailIndex) - 1;
-
         //while () {};
 
         if (buffer[tail & indexMask].isUsed == 1)
@@ -86,6 +87,7 @@ public:
         {
             __debugbreak();
         }
+
         return true;
     }
 

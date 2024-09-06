@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include <new.h>
 #include "Macro.h"
+#include <cstddef>
 class Node;
 
 template <typename Data, int DataId, bool UsePlacement>

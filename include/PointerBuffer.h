@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include <type_traits>
-
+#include "Container.h"
 template <typename T, int N>
 
 class PointerBuffer

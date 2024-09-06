@@ -6,7 +6,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_TOOLCHAIN_FILE "C:/Users/$ENV{USERNAME}/.vcpkg-clion/vcpkg/scripts/buildsystems/vcpkg.cmake")
 
 #컴파일 설정
-add_compile_options(/D_UNICODE /DUNICODE)
 if(MSVC)
     add_compile_options(-translateInclude)
     add_compile_options(/D_UNICODE /DUNICODE /utf-8)
@@ -114,7 +113,6 @@ set_target_properties(NetLib PROPERTIES
         OUTPUT_NAME_DEBUG NetLib_d
         OUTPUT_NAME_RELEASE NetLib
 )
-
 
 enable_testing()
 add_subdirectory(tests)

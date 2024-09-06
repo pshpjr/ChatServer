@@ -15,7 +15,6 @@ endif()
 
 #소스 추가
 add_library(NetLib STATIC
-        src/Utility.cpp
         src/CCpuUsage.cpp
         src/CLogger.cpp
         src/CoreGlobal.cpp
@@ -52,15 +51,14 @@ add_library(NetLib STATIC
         src/SingleThreadQ.cpp
         src/SpinLock.cpp
         src/SpinLockPool.cpp
-        src/stdafx.cpp
         src/SubnetManager.cpp
         src/TLSLockFreeQueue.cpp
         src/TLSLockFreeQueue2.cpp
         src/TLSLockFreeStack.cpp
         src/TLSPool.cpp
+        src/Utility.cpp
         src/WebHook.cpp
-        include/GroupTypes.h
-        include/SocketTypes.h
+        src/stdafx.cpp
 )
 
 #define 추가
@@ -99,20 +97,16 @@ target_link_libraries(NetLib PUBLIC Ws2_32.lib)
 target_link_libraries(NetLib PUBLIC Dbghelp.lib)
 target_link_libraries(NetLib PUBLIC Psapi.lib)
 
-
-if (CMAKE_CONFIGURATION_TYPES)
-    target_link_libraries(NetLib PUBLIC $<$<CONFIG:Debug>:cpp_redis_d.lib> $<$<CONFIG:Release>:cpp_redis.lib>)
-    target_link_libraries(NetLib PUBLIC $<$<CONFIG:Debug>:tacopie_d.lib> $<$<CONFIG:Release>:tacopie.lib>)
-else()
-    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-        target_link_libraries(NetLib PUBLIC cpp_redis_d.lib)
-        target_link_libraries(NetLib PUBLIC tacopie_d.lib)
-        target_link_libraries(NetLib PUBLIC libcurld.lib)
-    elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
-        target_link_libraries(NetLib PUBLIC cpp_redis.lib)
-        target_link_libraries(NetLib PUBLIC tacopie.lib)
-        target_link_libraries(NetLib PUBLIC libcurl.lib)
-    endif()
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    file(GLOB EXTERNAL_LIBS "${CMAKE_CURRENT_SOURCE_DIR}/lib/debug/*.lib")
+    foreach(lib ${EXTERNAL_LIBS})
+        target_link_libraries(NetLib PUBLIC ${lib})
+    endforeach()
+elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
+    file(GLOB EXTERNAL_LIBS "${CMAKE_CURRENT_SOURCE_DIR}/lib/release/*.lib")
+    foreach(lib ${EXTERNAL_LIBS})
+        target_link_libraries(NetLib PUBLIC ${lib})
+    endforeach()
 endif()
 
 #출력 파일 이름과 경로 설정

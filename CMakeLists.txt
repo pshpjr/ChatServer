@@ -3,7 +3,7 @@ project(NetLib)
 
 #cmake 관련 속성 설정
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_TOOLCHAIN_FILE "C:/Users/$ENV{USERNAME}/.vcpkg-clion/vcpkg/scripts/buildsystems/vcpkg.cmake")
+#set(CMAKE_TOOLCHAIN_FILE "C:/Users/$ENV{USERNAME}/.vcpkg-clion/vcpkg/scripts/buildsystems/vcpkg.cmake")
 
 #컴파일 설정
 if(MSVC)

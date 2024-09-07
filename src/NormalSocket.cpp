@@ -1,6 +1,9 @@
 ﻿#include "NormalSocket.h"
+
+#include <WS2tcpip.h>
+
+#include "Macro.h"
 #include "Socket.h"
-#include "stdafx.h"
 
 
 Socket::Socket()

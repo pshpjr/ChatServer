@@ -74,7 +74,7 @@ else()
 endif()
 
 #공용 라이브러리 추가
-target_link_libraries(NetLib PUBLIC
+target_link_libraries(NetLib INTERFACE
         Ws2_32
         Winmm
         Pdh
@@ -87,12 +87,12 @@ target_link_libraries(NetLib PUBLIC
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     file(GLOB EXTERNAL_LIBS "${CMAKE_CURRENT_SOURCE_DIR}/lib/debug/*.lib")
     foreach(lib ${EXTERNAL_LIBS})
-        target_link_libraries(NetLib PUBLIC ${lib})
+        target_link_libraries(NetLib INTERFACE ${lib})
     endforeach()
 elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
     file(GLOB EXTERNAL_LIBS "${CMAKE_CURRENT_SOURCE_DIR}/lib/release/*.lib")
     foreach(lib ${EXTERNAL_LIBS})
-        target_link_libraries(NetLib PUBLIC ${lib})
+        target_link_libraries(NetLib INTERFACE ${lib})
     endforeach()
 endif()
 

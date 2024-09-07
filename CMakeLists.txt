@@ -60,8 +60,6 @@ add_library(NetLib STATIC
         src/stdafx.cpp
 )
 
-#define 추가
-#디버그 매크로 설정
 # 디버그 및 릴리스 매크로 설정
 if (CMAKE_CONFIGURATION_TYPES)  # Multi-config generators
     target_compile_definitions(NetLib PRIVATE $<$<CONFIG:Debug>:DEBUG> $<$<CONFIG:Release>:RELEASE>)
@@ -73,29 +71,17 @@ else()
     endif()
 endif()
 
+#공용 라이브러리 추가
+target_link_libraries(NetLib PUBLIC
+        Ws2_32
+        Winmm
+        Pdh
+        Synchronization
+        Dbghelp
+        Psapi
+)
 
-##### 외부 패키지
-find_package(range-v3 REQUIRED)
-target_link_libraries(NetLib PUBLIC range-v3)
-
-#인클루드 설정
-
-target_include_directories(NetLib PUBLIC include)
-target_include_directories(NetLib PUBLIC include/externalHeader)
-
-#라이브러리 링킹
-file(GLOB EXTERNAL_LIBS "${CMAKE_CURRENT_SOURCE_DIR}/lib/*.lib")
-foreach(lib ${EXTERNAL_LIBS})
-    target_link_libraries(NetLib PUBLIC ${lib})
-endforeach()
-
-target_link_libraries(NetLib PUBLIC Pdh)
-target_link_libraries(NetLib PUBLIC Synchronization)
-target_link_libraries(NetLib PUBLIC Winmm)
-target_link_libraries(NetLib PUBLIC Ws2_32)
-target_link_libraries(NetLib PUBLIC Dbghelp)
-target_link_libraries(NetLib PUBLIC Psapi)
-
+#상황별 라이브러리 추가
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     file(GLOB EXTERNAL_LIBS "${CMAKE_CURRENT_SOURCE_DIR}/lib/debug/*.lib")
     foreach(lib ${EXTERNAL_LIBS})
@@ -107,6 +93,14 @@ elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
         target_link_libraries(NetLib PUBLIC ${lib})
     endforeach()
 endif()
+
+##### 외부 패키지
+find_package(range-v3 REQUIRED)
+target_link_libraries(NetLib PUBLIC range-v3)
+
+#인클루드 설정
+target_include_directories(NetLib PUBLIC include)
+target_include_directories(NetLib PUBLIC include/externalHeader)
 
 #출력 파일 이름과 경로 설정
 set_target_properties(NetLib PROPERTIES

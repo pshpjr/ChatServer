@@ -66,11 +66,20 @@ jobs:
           git clone https://github.com/microsoft/vcpkg.git
           ./vcpkg/bootstrap-vcpkg.bat
 
+      #디버깅용
+      - name: Print Library Paths
+        run: |
+          where ws2_32.lib
+          echo %LIB%
+
       - name: Configure CMake And Build (Debug)
         run: |
           cmake -B build/debug -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
           cmake --build build/debug --config Debug
-          ls build/debug/*.pdb
+
+      - name: Check Debug Result
+        run: |
+          ls build/debug/
           ls build/debug/CMakeFiles/
 
       - name: Configure CMake And Build (Debug)
@@ -93,7 +102,7 @@ jobs:
           cp build/debug/*.pdb build/artifacts/lib/ || echo "No Debug .pdb files found"
           cp build/release/*.lib build/artifacts/lib/ || echo "No .lib files found"
           cp build/release/*.dll build/artifacts/lib/ || echo "No .dll files found"
-          cp lib/dlls/* build/artifacts/lib/dlls || echo "No dlls"
+          cp lib/dlls/* build/artifacts/lib/dlls/ || echo "No dlls"
           tar -czvf build/release-package.tar.gz -C build/artifacts .
 
       - name: Create GitHub Release

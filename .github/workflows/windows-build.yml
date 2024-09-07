@@ -66,8 +66,7 @@ jobs:
 
       - name: Check Debug Result
         run: |
-          ls build/debug/
-          ls build/debug/CMakeFiles/
+          ls -R build/debug/
 
       - name: Configure CMake And Build (Release)
         run: |

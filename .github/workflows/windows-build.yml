@@ -39,15 +39,15 @@ jobs:
       - name: Install Dependencies
         id: install_dependencies
         run: |
-          if [ ! -d "C:/ProgramData/chocolatey/lib/cmake" ]; then
+          if (-not (Test-Path "C:\ProgramData\chocolatey\lib\cmake")) {
             choco install cmake -y
-          fi
-          if [ ! -d "C:/ProgramData/chocolatey/lib/ninja" ]; then
+          }
+          if (-not (Test-Path "C:\ProgramData\chocolatey\lib\ninja")) {
             choco install ninja -y
-          fi
-          if [ ! -d "C:/ProgramData/chocolatey/lib/windows-sdk-10.0" ]; then
+          }
+          if (-not (Test-Path "C:\ProgramData\chocolatey\lib\windows-sdk-10.0")) {
             choco install windows-sdk-10.0 -y
-          fi
+          }
 
       - name: Cache vcpkg
         uses: actions/cache@v3

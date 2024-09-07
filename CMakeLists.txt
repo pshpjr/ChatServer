@@ -66,6 +66,8 @@ if (CMAKE_CONFIGURATION_TYPES)  # Multi-config generators
 else()
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
         target_compile_definitions(NetLib PUBLIC DEBUG)
+        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Zi")
+        set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /DEBUG")
     elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
         target_compile_definitions(NetLib PUBLIC RELEASE)
     endif()

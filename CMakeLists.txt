@@ -4,6 +4,12 @@ project(NetLib)
 #cmake 관련 속성 설정
 set(CMAKE_CXX_STANDARD 20)
 #set(CMAKE_TOOLCHAIN_FILE "C:/Users/$ENV{USERNAME}/.vcpkg-clion/vcpkg/scripts/buildsystems/vcpkg.cmake")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Zi")
+set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /DEBUG")
+
+# 릴리즈 빌드 플래그 설정
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2")
+set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE}")
 
 #컴파일 설정
 if(MSVC)
@@ -61,20 +67,18 @@ add_library(NetLib STATIC
 )
 
 # 디버그 및 릴리스 매크로 설정
-if (CMAKE_CONFIGURATION_TYPES)  # Multi-config generators
+if (CMAKE_CONFIGURATION_TYPES)
     target_compile_definitions(NetLib PRIVATE $<$<CONFIG:Debug>:DEBUG> $<$<CONFIG:Release>:RELEASE>)
 else()
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-        target_compile_definitions(NetLib PUBLIC DEBUG)
-        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Zi")
-        set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /DEBUG")
+        target_compile_definitions(NetLib PRIVATE DEBUG)
     elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
-        target_compile_definitions(NetLib PUBLIC RELEASE)
+        target_compile_definitions(NetLib PRIVATE RELEASE)
     endif()
 endif()
 
 #공용 라이브러리 추가
-target_link_libraries(NetLib INTERFACE
+target_link_libraries(NetLib PUBLIC
         Ws2_32
         Winmm
         Pdh

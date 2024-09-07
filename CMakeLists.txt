@@ -1,6 +1,4 @@
 cmake_minimum_required(VERSION 3.28)
-project(NetLib)
-
 #cmake 관련 속성 설정
 set(CMAKE_CXX_STANDARD 20)
 #set(CMAKE_TOOLCHAIN_FILE "C:/Users/$ENV{USERNAME}/.vcpkg-clion/vcpkg/scripts/buildsystems/vcpkg.cmake")
@@ -17,6 +15,7 @@ if(MSVC)
     add_compile_options(/D_UNICODE /DUNICODE /utf-8)
 endif()
 
+project(NetLib)
 
 #소스 추가
 add_library(NetLib STATIC

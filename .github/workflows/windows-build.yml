@@ -32,6 +32,10 @@ jobs:
 #          key: chocolatey-${{ runner.os }}-${{ hashFiles('**/chocolatey-packages.txt') }}
 #          restore-keys: |
 #            chocolatey-${{ runner.os }}-
+      - name: Install vcpkg
+        run: |
+          git clone https://github.com/Microsoft/vcpkg.git
+          ./vcpkg/bootstrap-vcpkg.sh
 
       - name: Install MSVC
         uses: ilammy/msvc-dev-cmd@v1
@@ -54,9 +58,6 @@ jobs:
             choco install cmake -y
             choco install ninja -y
 #            choco install windows-sdk-10.0 -y
-
-      - name: Check Ninja Version
-        run: ninja --version
 
       - name: Configure CMake And Build (Debug)
         run: |

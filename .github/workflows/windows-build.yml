@@ -55,6 +55,9 @@ jobs:
             choco install ninja -y
 #            choco install windows-sdk-10.0 -y
 
+      - name: Check Ninja Version
+        run: ninja --version
+
       - name: Configure CMake And Build (Debug)
         run: |
           cmake -B build/debug -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake

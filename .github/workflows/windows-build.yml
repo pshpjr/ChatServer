@@ -23,14 +23,31 @@ jobs:
           restore-keys: |
             ms-vcpkg-${{ runner.os }}-
 
+      - name: Cache Chocolatey Packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            C:\ProgramData\chocolatey\lib
+            C:\ProgramData\chocolatey\cache
+          key: chocolatey-${{ runner.os }}-${{ hashFiles('**/chocolatey-packages.txt') }}
+          restore-keys: |
+            chocolatey-${{ runner.os }}-
+
       - name: Install MSVC
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Install Dependencies
+        id: install_dependencies
         run: |
-          choco install cmake -y
-          choco install ninja -y
-          choco install windows-sdk-10.0
+          if [ ! -d "C:/ProgramData/chocolatey/lib/cmake" ]; then
+            choco install cmake -y
+          fi
+          if [ ! -d "C:/ProgramData/chocolatey/lib/ninja" ]; then
+            choco install ninja -y
+          fi
+          if [ ! -d "C:/ProgramData/chocolatey/lib/windows-sdk-10.0" ]; then
+            choco install windows-sdk-10.0 -y
+          fi
 
       - name: Cache vcpkg
         uses: actions/cache@v3

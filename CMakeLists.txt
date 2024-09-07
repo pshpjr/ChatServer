@@ -8,12 +8,7 @@ set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /DEBUG")
 # 릴리즈 빌드 플래그 설정
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE}")
-
-#컴파일 설정
-if(MSVC)
-    add_compile_options(-translateInclude)
-    add_compile_options(/D_UNICODE /DUNICODE /utf-8)
-endif()
+add_compile_definitions(_UNICODE UNICODE)
 
 project(NetLib)
 

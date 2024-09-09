@@ -80,6 +80,11 @@ target_link_libraries(NetLib PUBLIC
         Dbghelp
         Psapi
 )
+file(GLOB PUB_LIBS "${CMAKE_CURRENT_SOURCE_DIR}/lib/*.lib")
+foreach(lib ${PUB_LIBS})
+    target_link_libraries(NetLib INTERFACE ${lib})
+endforeach()
+
 
 #상황별 라이브러리 추가
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")

@@ -1,18 +1,23 @@
 cmake_minimum_required(VERSION 3.28)
-#cmake 관련 속성 설정
-set(CMAKE_CXX_STANDARD 20)
-#set(CMAKE_TOOLCHAIN_FILE "C:/Users/$ENV{USERNAME}/.vcpkg-clion/vcpkg/scripts/buildsystems/vcpkg.cmake")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Zi")
-set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /DEBUG")
 
-# 릴리즈 빌드 플래그 설정
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2")
-set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE}")
-add_compile_definitions(_UNICODE UNICODE)
-
+# 프로젝트 설정
 project(NetLib)
 
-#소스 추가
+# C++ 표준 설정
+set(CMAKE_CXX_STANDARD 20)
+
+# 컴파일러 플래그 및 링크 플래그 설정
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Zi")
+set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /DEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2")
+
+# 유니코드 매크로 정의
+add_compile_definitions(_UNICODE UNICODE)
+
+# PDB 출력 경로 설정
+set(CMAKE_PDB_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/")
+
+# 소스 파일 추가
 add_library(NetLib STATIC
         src/CCpuUsage.cpp
         src/CLogger.cpp
@@ -60,7 +65,7 @@ add_library(NetLib STATIC
         src/stdafx.cpp
 )
 
-# 디버그 및 릴리스 매크로 설정
+# 빌드 타입에 따른 매크로 정의
 if (CMAKE_CONFIGURATION_TYPES)
     target_compile_definitions(NetLib PRIVATE $<$<CONFIG:Debug>:DEBUG> $<$<CONFIG:Release>:RELEASE>)
 else()
@@ -71,14 +76,16 @@ else()
     endif()
 endif()
 
-#공용 라이브러리 추가
+# 라이브러리 링크 설정 (공용)
 target_link_libraries(NetLib PUBLIC
-        Ws2_32
+        ws2_32
+        wsock32
         Winmm
         Pdh
         Synchronization
         Dbghelp
         Psapi
+        kernel32
 )
 file(GLOB PUB_LIBS "${CMAKE_CURRENT_SOURCE_DIR}/lib/*.lib")
 foreach(lib ${PUB_LIBS})
@@ -86,32 +93,33 @@ foreach(lib ${PUB_LIBS})
 endforeach()
 
 
-#상황별 라이브러리 추가
+# 빌드 타입에 따른 외부 라이브러리 링크
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     file(GLOB EXTERNAL_LIBS "${CMAKE_CURRENT_SOURCE_DIR}/lib/debug/*.lib")
-    foreach(lib ${EXTERNAL_LIBS})
-        target_link_libraries(NetLib INTERFACE ${lib})
-    endforeach()
 elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
     file(GLOB EXTERNAL_LIBS "${CMAKE_CURRENT_SOURCE_DIR}/lib/release/*.lib")
-    foreach(lib ${EXTERNAL_LIBS})
-        target_link_libraries(NetLib INTERFACE ${lib})
-    endforeach()
 endif()
 
-##### 외부 패키지
+foreach(lib ${EXTERNAL_LIBS})
+    target_link_libraries(NetLib INTERFACE ${lib})
+endforeach()
+
+# 외부 패키지 링크 설정
 find_package(range-v3 REQUIRED)
 target_link_libraries(NetLib PUBLIC range-v3)
 
-#인클루드 설정
+# 인클루드 디렉토리 설정
 target_include_directories(NetLib PUBLIC include)
 target_include_directories(NetLib PUBLIC include/externalHeader)
 
-#출력 파일 이름과 경로 설정
+# 출력 파일 이름과 경로 설정
 set_target_properties(NetLib PROPERTIES
         OUTPUT_NAME_DEBUG NetLib_d
         OUTPUT_NAME_RELEASE NetLib
+        COMPILE_PDB_NAME "NetLib"
+        LINK_PDB_NAME "NetLib"
 )
 
+# 테스트 설정
 enable_testing()
 add_subdirectory(tests)

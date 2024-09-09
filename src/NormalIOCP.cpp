@@ -5,6 +5,7 @@
 #include <format>
 #include <process.h>
 
+#include "MyWindows.h"
 #include "CCpuUsage.h"
 #include "MemoryUsage.h"
 #include "CLogger.h"

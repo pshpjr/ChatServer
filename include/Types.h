@@ -69,7 +69,9 @@ template <typename T> using  PoolPtr = std::unique_ptr<T,std::function<void(T*)>
 
 using String = std::wstring;
 using StringView = std::wstring_view;
+using WsaErrCode = int;
+
 
 template <typename T>
-using WSAResult = psh::util::Result<T, int>;
+using WSAResult = psh::util::Result<T, WsaErrCode>;
 

@@ -2,14 +2,13 @@
 
 #include <chrono>
 
-
+#include "CLogger.h"
 #include "GroupTypes.h"
 
 #include "SessionTypes.h"
 #include "LockFreeFixedQueue.h"
 
 
-class CLogger;
 class Session;
 class SendBuffer;
 class GroupManager;

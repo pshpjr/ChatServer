@@ -39,10 +39,10 @@ public:
     /// </summary>
     /// <returns>이상 없으면 0, 아니면 에러코드</returns>
     bool IsValid() const;
-    int Send(LPWSABUF buf, DWORD bufCount, DWORD flag, LPWSAOVERLAPPED lpOverlapped) const;
-    int Recv(LPWSABUF buf, DWORD bufCount, LPDWORD flag, LPWSAOVERLAPPED lpOverlapped) const;
+    WsaErrCode Send(LPWSABUF buf, DWORD bufCount, DWORD flag, LPWSAOVERLAPPED lpOverlapped) const;
+    WsaErrCode Recv(LPWSABUF buf, DWORD bufCount, LPDWORD flag, LPWSAOVERLAPPED lpOverlapped) const;
 
-    static int LastError();
+    WsaErrCode LastError();
     void SetLinger(bool on) const;
     void SetNoDelay(bool on) const;
     void SetSendBuffer(int size) const;

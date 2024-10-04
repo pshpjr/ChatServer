@@ -4,6 +4,7 @@
 
 #ifndef UTILITY_H
 #define UTILITY_H
+#include <stdexcept>
 #include <string>
 #include <variant>
 
@@ -15,62 +16,61 @@ namespace psh::util
 
 namespace psh::util
 {
-    template <typename T,typename E>
+    template <typename T, typename E>
     class Result {
     public:
         using valueType = T;
-        using errorType = E;  // Assuming error codes are represented by integers
+        using errorType = E;
 
-        // Enum to track the current state of the Result
         enum class State {
             HasValue,
             HasError
         };
 
-        Result(valueType value)
-            : state_(State::HasValue), variant_(std::move(value)) {
-        }
+        Result(const valueType& value)
+            : _state(State::HasValue), _variant(value) {}
 
-        Result(errorType error)
-            : state_(State::HasError), variant_(error) {
-        }
+        Result(valueType&& value)
+            : _state(State::HasValue), _variant(std::move(value)) {}
 
-        operator bool()
-        {
-            return state_ == State::HasValue;
+        Result(const errorType& error)
+            : _state(State::HasError), _variant(error) {}
+
+        Result(errorType&& error)
+            : _state(State::HasError), _variant(std::move(error)) {}
+
+        operator bool() const {
+            return _state == State::HasValue;
         }
 
         bool HasValue() const {
-            return state_ == State::HasValue;
+            return _state == State::HasValue;
         }
 
-        valueType Value() {
-            if (state_ == State::HasValue) {
-                return std::get<valueType>(variant_);
+        valueType& Value() {
+            if (_state == State::HasValue) {
+                return std::get<valueType>(_variant);
             } else {
-                throw std::exception("Error: Result does not contain a value");
+                throw std::logic_error("Error: Result does not contain a value");
             }
         }
 
         bool HasError() const {
-            return state_ == State::HasError;
+            return _state == State::HasError;
         }
 
-        errorType Error() {
-            if (state_ == State::HasError) {
-                return std::get<errorType>(variant_);
+        errorType& Error() {
+            if (_state == State::HasError) {
+                return std::get<errorType>(_variant);
             } else {
-                throw std::exception("Error: Result does not contain an error");
+                throw std::logic_error("Error: Result does not contain an error");
             }
         }
 
     private:
-        State state_;
-        std::variant<valueType, errorType> variant_;
+        State _state;
+        std::variant<valueType, errorType> _variant;
     };
-
-
-
 }
 
 

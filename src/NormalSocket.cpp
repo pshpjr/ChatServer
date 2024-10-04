@@ -62,18 +62,18 @@ void Socket::Close()
     closesocket(_beforeSocket);
 }
 
-int Socket::Send(const LPWSABUF buf, const DWORD bufCount, const DWORD flag, const LPWSAOVERLAPPED lpOverlapped) const
+WsaErrCode Socket::Send(const LPWSABUF buf, const DWORD bufCount, const DWORD flag, const LPWSAOVERLAPPED lpOverlapped) const
 {
     return WSASend(_socket, buf, bufCount, nullptr, flag, lpOverlapped, nullptr);
 }
 
-int Socket::Recv(const LPWSABUF buf, const DWORD bufCount, const LPDWORD flag, const LPWSAOVERLAPPED lpOverlapped) const
+WsaErrCode Socket::Recv(const LPWSABUF buf, const DWORD bufCount, const LPDWORD flag, const LPWSAOVERLAPPED lpOverlapped) const
 {
     return WSARecv(_socket, buf, bufCount, nullptr, flag, lpOverlapped, nullptr);
 }
 
 
-int Socket::LastError()
+WsaErrCode Socket::LastError()
 {
     return WSAGetLastError();
 }
@@ -167,7 +167,7 @@ WSAResult<bool> Socket::Connect(const String& ip, psh::uint16 port)
 
     if (SOCKET_ERROR == connect(_socket, (SOCKADDR*)&_sockAddr, sizeof(_sockAddr)))
     {
-        const int result = WSAGetLastError();
+        const WsaErrCode result = WSAGetLastError();
         return result;
     }
 

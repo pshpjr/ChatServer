@@ -41,7 +41,7 @@ namespace psh::util
         }
 
         bool HasValue() const {
-            return this;
+            return state_ == State::HasValue;
         }
 
         valueType Value() {

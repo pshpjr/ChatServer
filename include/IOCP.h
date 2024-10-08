@@ -39,7 +39,7 @@ public:
     void Start();
     void Stop();
     void Wait();
-    bool SendPacket(SessionID sessionId, SendBuffer& sendBuffer, int type = 0);
+    bool SendPacket(SessionID sessionId, const SendBuffer &sendBuffer, int type = 0);
     bool SendPacketBlocking(SessionID sessionId, SendBuffer& sendBuffer, int type = 0);
     //deprecate
     bool SendPackets(SessionID sessionId, Vector<SendBuffer>& bufArr);

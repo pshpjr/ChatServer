@@ -264,7 +264,7 @@ int Group::GetQueued() const
     return jobQSize;
 }
 
-void Group::SendPacket(const SessionID id, SendBuffer& buffer) const
+void Group::SendPacket(const SessionID id, const SendBuffer& buffer) const
 {
     _iocp->SendPacket(id,buffer);
     //그룹의 경우에는 직접 send 때리는 것이 더 좋을 수 있다. 그룹은 iocp 스레드에서 돌고 있음.

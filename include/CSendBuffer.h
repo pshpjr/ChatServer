@@ -84,13 +84,7 @@ public:
         return static_cast<int>(BUFFER_SIZE - std::distance(_data, _rear));
     }
 
-    //TODO:Private로 이동
-    long _refCount = 0;
 
-private:
-    //버퍼랑 데이터 위치는 고정. 헤더랑 딴 건 가변
-    CSendBuffer();
-    ~CSendBuffer() = default;
 
     CSendBuffer(const CSendBuffer& other) = delete;
 
@@ -99,6 +93,12 @@ private:
     CSendBuffer& operator=(const CSendBuffer& other) = delete;
 
     CSendBuffer& operator=(CSendBuffer&& other) noexcept = delete;
+private:
+
+    CSendBuffer();
+    ~CSendBuffer() = default;
+
+
 
 private:
     bool CopyData(CSendBuffer& dst) const;
@@ -162,6 +162,7 @@ private:
     void Encode(char staticKey);
 
 private:
+    long _refCount = 0;
     enum bufferOption { BUFFER_SIZE = 2048 };
 
 

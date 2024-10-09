@@ -1,82 +1,80 @@
 //
 // Created by Park on 24. 8. 22.
-//
 #ifndef MODERNOBJECTPOOL_H
 #define MODERNOBJECTPOOL_H
 
 #include <Types.h>
 #include <vector>
 #include <memory>
-
 #include <iostream>
 
+
+/**
+ * unique_ptr로 관리되는 객체를 리턴하는 풀.
+ * 알아서 소멸 시 이 풀로 반환됨
+ */
 template<typename T>
 class ModernObjectPool {
-    using storageType = std::aligned_storage_t<sizeof(T),alignof(T)>;
+    // 클래스 내부의 타입 정의 및 상수
+    using storageType = std::aligned_storage_t<sizeof(T), alignof(T)>;
     using storagePtr = std::unique_ptr<storageType>;
 
 public:
+    // Destruct 함수는 객체를 풀에 반환하는 역할을 함
     static void Deleter(T* obj, ModernObjectPool<T>* pool) {
         pool->Free(obj);
     }
 
-    explicit ModernObjectPool(size_t initialSize = 100)
-    {
+    // 생성자: 첫 초기 사이즈만큼 풀을 확장함
+    explicit ModernObjectPool(size_t initialSize = 100) {
         expandPool(initialSize);
     }
 
+    // 소멸자: 기본 소멸자 사용
     ~ModernObjectPool() = default;
 
-    void Free(T* obj)
-    {
+    // 공용 멤버 함수: 객체를 풀에 반환
+    void Free(T* obj) {
         std::destroy_at(obj);
         _pool.emplace_back(reinterpret_cast<storageType*>(obj));
     }
 
+    // 객체를 풀에서 할당, 가변 인수를 받아 객체를 생성
     template <typename ...Args>
     PoolPtr<T> Alloc(Args... args) {
         if (_pool.empty()) {
-            expandPool(_pool.capacity()+1);
+            expandPool(_pool.capacity() + 1);
         }
         // 풀에서 객체를 가져옴
         T* objPtr = reinterpret_cast<T*>(_pool.back().release());
         _pool.pop_back();
         std::construct_at(objPtr, std::forward<Args>(args)...);
-
-        return PoolPtr<T>(
-            objPtr,
-            [this](T* ptr) { Deleter(ptr, this); }
-        );
+        return PoolPtr<T>(objPtr, [this](T* ptr) { Deleter(ptr, this); });
     }
-    auto Size() const
-    {
+
+    // 현재 풀에 남아있는 객체 수를 반환
+    auto Size() const {
         return _pool.size();
     }
 
+    // 템플릿 함수: Base 타입을 사용하여 객체를 캐스팅
     template<typename Base>
-    PoolPtr<Base>
-    Cast(PoolPtr<T> ptr) {
-        static_assert(std::is_base_of_v<Base,T>,"Invalid Type");
-
+    PoolPtr<Base> Cast(PoolPtr<T> ptr) {
+        static_assert(std::is_base_of_v<Base, T>, "Invalid Type");
         Base* basePtr = static_cast<Base*>(ptr.release());
-        return PoolPtr<Base>(
-            basePtr,
-            [this](Base* basePtr) { Deleter(static_cast<T*>(basePtr), this); }
-        );
+        return PoolPtr<Base>(basePtr, [this](Base* basePtr) { Deleter(static_cast<T*>(basePtr), this); });
     }
 
 private:
-
-    void expandPool(size_t count)
-    {
-        for(int i = 0; i< count ; ++i)
-        {
+    // 비공용 멤버 함수: 풀을 확장
+    void expandPool(size_t count) {
+        for (size_t i = 0; i < count; ++i) {
             _pool.emplace_back(new storageType);
         }
     }
+
+    // 멤버 변수: 저장된 객체를 관리하는 벡터
     std::vector<storagePtr> _pool;
 };
-
-
 
 #endif //MODERNOBJECTPOOL_H

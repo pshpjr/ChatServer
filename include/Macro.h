@@ -5,7 +5,8 @@
 #include <signal.h>
 #endif
 
-inline void trigger_debug_break() {
+inline void trigger_debug_break()
+{
 #ifdef _WIN32
 	__debugbreak(); // For Windows
 #else
@@ -17,7 +18,7 @@ inline void trigger_debug_break() {
 		DEBUG
 ---------------------*/
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(_DEBUG)
 #define PSH_DEBUG
 #endif
 
@@ -37,7 +38,6 @@ inline void trigger_debug_break() {
 #else
 
 #define ASSERT_CRASH(expr,cause) do {} while (false)
-
 
 
 #endif
@@ -80,6 +80,9 @@ virtual ~class_name() = default;								\
 // class_name& operator=(const class_name& other) = delete;		\
 // class_name& operator=(class_name&& other) noexcept = delete;
 
+
+
 #define DECLARE_PTR_IMPL(class_name, suffix) class class_name; using class_name##suffix = std::shared_ptr<class_name>;
 
+//classRef 형태로 shared_ptr 정의.
 #define DECLARE_PTR(class_name) DECLARE_PTR_IMPL(class_name,Ref)

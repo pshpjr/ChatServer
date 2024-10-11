@@ -41,13 +41,13 @@ DBConnection::~DBConnection()
     Close();
 }
 
-std::chrono::milliseconds DBConnection::Query(psh::LPCSTR query, ...)
+std::chrono::microseconds DBConnection::Query(psh::LPCSTR query, ...)
 {
     using std::string;
     using std::chrono::steady_clock;
     using std::chrono::duration_cast;
     using std::chrono::duration;
-    using std::chrono::milliseconds;
+    using std::chrono::microseconds;
     using namespace std::chrono_literals;
 
     std::string queryString;
@@ -81,7 +81,7 @@ std::chrono::milliseconds DBConnection::Query(psh::LPCSTR query, ...)
 
             default:
             {
-                const auto dur = duration_cast<milliseconds>(steady_clock::now() - start);
+                const auto dur = duration_cast<std::chrono::milliseconds>(steady_clock::now() - start);
                 const string errStr = std::to_string(dur.count()) + err;
                 throw DBErr(errStr.c_str(), num, dur);
             }
@@ -91,7 +91,7 @@ std::chrono::milliseconds DBConnection::Query(psh::LPCSTR query, ...)
     pImple->sql_result = mysql_store_result(pImple->connection);
 
 
-    return duration_cast<milliseconds>(steady_clock::now() - start);
+    return duration_cast<microseconds>(steady_clock::now() - start);
 }
 
 bool DBConnection::next()

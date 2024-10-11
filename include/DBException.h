@@ -8,8 +8,11 @@ public:
     DBErr(const char* errStr, const unsigned int errNo, const std::chrono::milliseconds dur)
         : _errString(errStr)
         , _errNo(errNo)
-        , _dur(dur)
+        , _dur(dur) {}
+
+    [[nodiscard]] const char* what() const override
     {
+        return _errString.c_str();
     }
 
     std::string& getErrStr()

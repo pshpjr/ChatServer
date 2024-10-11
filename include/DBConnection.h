@@ -12,7 +12,7 @@ public:
     ~DBConnection();
 
 
-    std::chrono::milliseconds Query(psh::LPCSTR query, ...);
+    std::chrono::microseconds Query(psh::LPCSTR query, ...);
 
     bool next();
 

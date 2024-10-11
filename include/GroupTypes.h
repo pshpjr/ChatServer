@@ -6,13 +6,14 @@
 #define GROUPTYPES_H
 #include "Types.h"
 #include "MyWindows.h"
+#include <format>
 
 class GroupID
 {
 public:
-    explicit constexpr GroupID(const int id) : _id(id)
-    {
-    }
+    explicit constexpr GroupID(const int id)
+        : _id(id) {}
+
     static GroupID NextID()
     {
         return GroupID(InterlockedIncrement(&g_GroupID));
@@ -47,7 +48,6 @@ private:
 };
 
 
-
 namespace std
 {
     template <>
@@ -60,5 +60,22 @@ namespace std
         }
     };
 
+    //GroupID 포멧터 사용 가능하게
+    template <>
+    struct std::formatter<GroupID, wchar_t>
+    {
+        std::formatter<long, wchar_t> long_formatter;
+
+        constexpr auto parse(std::wformat_parse_context& ctx) -> decltype(ctx.begin())
+        {
+            return long_formatter.parse(ctx);
+        }
+
+        auto format(const GroupID& gid, std::wformat_context& ctx) const -> decltype(ctx.out())
+        {
+            long id = static_cast<long>(gid);
+            return long_formatter.format(id, ctx);
+        }
+    };
 }
 #endif //GROUPTYPES_H

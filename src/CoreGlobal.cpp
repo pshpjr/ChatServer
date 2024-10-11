@@ -16,7 +16,10 @@ class CoreGlobal
 public:
     CoreGlobal()
     {
+#ifndef _DEBUG
         gCrashDump = new CrashDump();
+#endif
+
         gLogger = new CLogger();
         gSettingParser = new SettingParser();
     }
@@ -25,6 +28,8 @@ public:
     {
         delete gSettingParser;
         delete gLogger;
+#ifndef _DEBUG
         delete gCrashDump;
+#endif
     }
 } gCoreGlobal;

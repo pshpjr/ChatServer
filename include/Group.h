@@ -43,13 +43,12 @@ class Group
     friend class GroupManager;
 
 public:
-
     Group();
     virtual ~Group();
-    Group(const Group &other) = delete;
-    Group(Group &&other) noexcept = delete;
-    Group & operator=(const Group &other) = delete;
-    Group & operator=(Group &&other) noexcept = delete;
+    Group(const Group& other) = delete;
+    Group(Group&& other) noexcept = delete;
+    Group& operator=(const Group& other) = delete;
+    Group& operator=(Group&& other) noexcept = delete;
 
     /// <summary>
     /// OnCreate를 리턴한 이후부터 해당 그룹으로 이동 가능
@@ -63,7 +62,7 @@ public:
 
     [[nodiscard]] GroupID GetGroupID() const;
     [[nodiscard]] int GetQueued() const;
-    void SendPacket(SessionID id, const SendBuffer &buffer) const;
+    void SendPacket(SessionID id, const SendBuffer& buffer) const;
     void SendPackets(SessionID id, Vector<SendBuffer>& buffer);
 
     //static constexpr int debugSize = 2001;
@@ -107,7 +106,6 @@ public:
 
     //}
 
-
 protected:
     void MoveSession(SessionID id, GroupID dst) const;
     void LeaveSession(SessionID id, bool update, int wsaErrCode);
@@ -133,6 +131,7 @@ protected:
     {
         return _leaveTps;
     }
+
 private:
     bool Enqueue(GroupJob job, bool update = true);
 
@@ -149,8 +148,6 @@ private:
 
     void onRecvPacket(const Session& session, CRecvBuffer& buffer);
 
-
-
 private:
     std::unique_ptr<CLogger> _groupLogger;
     GroupID _groupId = GroupID::InvalidGroupID();
@@ -159,7 +156,7 @@ private:
     std::chrono::steady_clock::time_point _nextUpdate;
 
     SessionSet _sessions;
-    std::unique_ptr<LockFreeFixedQueue<GroupJob,8192>> _jobs;
+    std::unique_ptr<LockFreeFixedQueue<GroupJob, 8192>> _jobs;
 
     //TlsLockFreeQueue<GroupJob> _jobs;
 
@@ -183,6 +180,4 @@ private:
     long _handledLeave = 0;
     long _enterTps = 0;
     long _handledEnter = 0;
-
-
 };

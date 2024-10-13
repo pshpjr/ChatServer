@@ -8,8 +8,6 @@ set(CMAKE_CXX_STANDARD 20)
 
 # 컴파일러 플래그 및 링크 플래그 설정
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Zi")
-set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /DEBUG")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2")
 
 # 유니코드 매크로 정의
 add_compile_definitions(_UNICODE UNICODE)
@@ -68,13 +66,13 @@ add_library(NetLib STATIC
 # 빌드 타입에 따른 매크로 정의
 if (CMAKE_CONFIGURATION_TYPES)
     target_compile_definitions(NetLib PRIVATE $<$<CONFIG:Debug>:DEBUG> $<$<CONFIG:Release>:RELEASE>)
-else()
+else ()
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
         target_compile_definitions(NetLib PRIVATE DEBUG)
     elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
         target_compile_definitions(NetLib PRIVATE RELEASE)
-    endif()
-endif()
+    endif ()
+endif ()
 
 # 라이브러리 링크 설정 (공용)
 target_link_libraries(NetLib PUBLIC
@@ -88,9 +86,9 @@ target_link_libraries(NetLib PUBLIC
         kernel32
 )
 file(GLOB PUB_LIBS "${CMAKE_CURRENT_SOURCE_DIR}/lib/*.lib")
-foreach(lib ${PUB_LIBS})
+foreach (lib ${PUB_LIBS})
     target_link_libraries(NetLib INTERFACE ${lib})
-endforeach()
+endforeach ()
 
 
 # 빌드 타입에 따른 외부 라이브러리 링크
@@ -98,11 +96,11 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     file(GLOB EXTERNAL_LIBS "${CMAKE_CURRENT_SOURCE_DIR}/lib/debug/*.lib")
 elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
     file(GLOB EXTERNAL_LIBS "${CMAKE_CURRENT_SOURCE_DIR}/lib/release/*.lib")
-endif()
+endif ()
 
-foreach(lib ${EXTERNAL_LIBS})
+foreach (lib ${EXTERNAL_LIBS})
     target_link_libraries(NetLib INTERFACE ${lib})
-endforeach()
+endforeach ()
 
 # 외부 패키지 링크 설정
 find_package(range-v3 REQUIRED)

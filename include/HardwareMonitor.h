@@ -1,6 +1,9 @@
 ﻿#pragma once
 #include <Pdh.h>
 
+#include "Types.h"
+
+
 class HardwareMonitor
 {
 public:
@@ -45,6 +48,7 @@ private:
 
     double _sendKBytes = 0;
     double _recvKBytes = 0;
+
 
     PDH_HQUERY _hwQuery;
 

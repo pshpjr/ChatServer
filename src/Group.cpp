@@ -1,6 +1,7 @@
 ﻿#include "Group.h"
 
 #include <memory>
+#include <range/v3/algorithm/max.hpp>
 
 #include "CLogger.h"
 #include "CRecvBuffer.h"
@@ -19,10 +20,8 @@ Group::Group()
     , _nextUpdate(_prevUpdate + std::chrono::milliseconds(_loopMs))
     , _owner(nullptr)
     , _nextMonitor(_prevUpdate + std::chrono::seconds(1))
-    ,_groupLogger(std::make_unique<CLogger>(L"GroupLogger",CLogger::LogLevel::Debug))
-,_jobs(std::make_unique<LockFreeFixedQueue<GroupJob,8192>>())
-{
-}
+    , _groupLogger(std::make_unique<CLogger>(L"GroupLogger", CLogger::LogLevel::Debug))
+    , _jobs(std::make_unique<LockFreeFixedQueue<GroupJob, 8192>>()) {}
 
 Group::~Group() = default;
 
@@ -34,13 +33,26 @@ psh::int64 Group::GetWorkTime() const
 psh::int64 Group::GetJobTps() const
 {
     return oldHandledJob;
+}
+
+psh::int64 Group::GetMaxWorkTime() const
+{
+    return oldMaxWorkTime;
+}
+
+psh::int32 Group::GetEnterTps() const
+{
+    return _enterTps;
+}
+
+psh::int32 Group::GetLeaveTps() const
+{
+    return _leaveTps;
 };
 
 bool Group::Enqueue(GroupJob job, bool update)
 {
-    while (!_jobs->Enqueue(job))
-    {
-    }
+    while (!_jobs->Enqueue(job)) {}
 
     if (update && _isRun == 0)
     {
@@ -90,23 +102,18 @@ void Group::Update()
     }
 
     auto end = steady_clock::now();
-
-    workTime += duration_cast<milliseconds>(end - start).count();
-
+    auto curWorkTime = duration_cast<milliseconds>(end - start).count();
+    maxWorkTime = std::max(maxWorkTime, curWorkTime);
+    workTime += curWorkTime;
 
     if (end > _nextMonitor)
     {
-        oldWorkTime = workTime;
-        workTime = 0;
+        oldMaxWorkTime = std::exchange(maxWorkTime, 0);
+        oldWorkTime = std::exchange(workTime, 0);
+        oldHandledJob = std::exchange(_handledJob, 0);
+        _enterTps = std::exchange(_handledEnter, 0);
+        _leaveTps = std::exchange(_handledLeave, 0);
         jobQSize = _jobs->Size();
-
-        oldHandledJob = _handledJob;
-        _handledJob = 0;
-
-        _enterTps = _handledEnter;
-        _handledEnter = 0;
-        _leaveTps = _handledLeave;
-        _handledLeave = 0;
 
         _nextMonitor += 1s;
     }
@@ -126,62 +133,62 @@ bool Group::HandleJob()
         {
         case GroupJob::type::Enter:
             {
-            ++_handledEnter;
+                ++_handledEnter;
 
-            //Write(job.sessionId, Group::jobType::Enter, InvalidGroupID(), L"Enter Handled");
-            _sessions.insert(job.sessionId);
+                //Write(job.sessionId, Group::jobType::Enter, InvalidGroupID(), L"Enter Handled");
+                _sessions.insert(job.sessionId);
 
-            OnEnter(job.sessionId);
+                OnEnter(job.sessionId);
             }
             break;
         case GroupJob::type::Leave:
             {
-            ++_handledLeave;
-            //Write(job.sessionId, Group::jobType::Leave, InvalidGroupID(), L"Leave Handled");
-            if (_sessions.erase(job.sessionId) == 0)
-            {
-                __debugbreak();
-            }
-            OnLeave(job.sessionId, job.errCode);
+                ++_handledLeave;
+                //Write(job.sessionId, Group::jobType::Leave, InvalidGroupID(), L"Leave Handled");
+                if (_sessions.erase(job.sessionId) == 0)
+                {
+                    __debugbreak();
+                }
+                OnLeave(job.sessionId, job.errCode);
 
-            _iocp->CheckPostRelease(job.sessionId, _groupId);
+                _iocp->CheckPostRelease(job.sessionId, _groupId);
             }
             break;
 
         case GroupJob::type::Move:
             {
-            //Write(job.sessionId, Group::jobType::Leave, InvalidGroupID(), L"Leave Handled");
-            if (_sessions.erase(job.sessionId) == 0)
-            {
-                __debugbreak();
-            }
-            OnLeave(job.sessionId, job.errCode);
+                //Write(job.sessionId, Group::jobType::Leave, InvalidGroupID(), L"Leave Handled");
+                if (_sessions.erase(job.sessionId) == 0)
+                {
+                    __debugbreak();
+                }
+                OnLeave(job.sessionId, job.errCode);
 
-            _iocp->CheckPostRelease(job.sessionId, _groupId);
+                _iocp->CheckPostRelease(job.sessionId, _groupId);
             }
             break;
         case GroupJob::type::Recv:
             {
-            Session* session;
+                Session* session;
 
-            session = _iocp->FindSession(job.sessionId, L"HandlePacket");
+                session = _iocp->FindSession(job.sessionId, L"HandlePacket");
 
-            if (session == nullptr)
-            {
-                //Write(job.sessionId, Group::jobType::Other, InvalidGroupID(), L"InvalidSession when recv");
-                continue;
-            }
+                if (session == nullptr)
+                {
+                    //Write(job.sessionId, Group::jobType::Other, InvalidGroupID(), L"InvalidSession when recv");
+                    continue;
+                }
 
-            if (const char sKey = session->_staticKey)
-            {
-                RecvHandler<NetHeader>(*session, _iocp);
-            }
-            else
-            {
-                RecvHandler<LANHeader>(*session, _iocp);
-            }
-            session->RecvNotIncrease();
-            session->Release(L"HandlePacketRelease");
+                if (const char sKey = session->_staticKey)
+                {
+                    RecvHandler<NetHeader>(*session, _iocp);
+                }
+                else
+                {
+                    RecvHandler<LANHeader>(*session, _iocp);
+                }
+                session->RecvNotIncrease();
+                session->Release(L"HandlePacketRelease");
             }
             break;
         }
@@ -227,9 +234,7 @@ size_t Group::Sessions() const
     return _sessions.size();
 }
 
-void Group::OnCreate()
-{
-}
+void Group::OnCreate() {}
 
 void Group::OnUpdate(int milli)
 {
@@ -246,12 +251,11 @@ void Group::OnLeave(SessionID id, int wsaErrCode)
     UNREFERENCED_PARAMETER(id);
 }
 
-void Group::OnRecv(SessionID id, CRecvBuffer &recvBuffer)
+void Group::OnRecv(SessionID id, CRecvBuffer& recvBuffer)
 {
     UNREFERENCED_PARAMETER(id);
     UNREFERENCED_PARAMETER(recvBuffer);
 }
-
 
 
 GroupID Group::GetGroupID() const
@@ -266,7 +270,7 @@ int Group::GetQueued() const
 
 void Group::SendPacket(const SessionID id, const SendBuffer& buffer) const
 {
-    _iocp->SendPacket(id,buffer);
+    _iocp->SendPacket(id, buffer);
     //그룹의 경우에는 직접 send 때리는 것이 더 좋을 수 있다. 그룹은 iocp 스레드에서 돌고 있음.
     // _iocp->SendPacketBlocking(id, buffer);
 }
@@ -323,7 +327,7 @@ void Group::RecvHandler(Session& session, void* iocp)
                 int frontIndex = recvQ.GetFrontIndex();
                 SessionID id = session.GetSessionId();
                 _groupLogger->Write(L"Disconnect", CLogger::LogLevel::Debug
-                    , L"Group WrongPacketCode, SessionID : %d\n frontIndex: %d \n", id, frontIndex);
+                                    , L"Group WrongPacketCode, SessionID : %d\n frontIndex: %d \n", id, frontIndex);
                 session.Close();
                 break;
             }
@@ -333,7 +337,7 @@ void Group::RecvHandler(Session& session, void* iocp)
                 int frontIndex = recvQ.GetFrontIndex();
                 SessionID id = session.GetSessionId();
                 _groupLogger->Write(L"Disconnect", CLogger::LogLevel::Debug
-                    , L"Group WrongPacketLen, SessionID : %d\n index: %d \n", id, frontIndex);
+                                    , L"Group WrongPacketLen, SessionID : %d\n index: %d \n", id, frontIndex);
                 session.Close();
                 break;
             }
@@ -353,7 +357,7 @@ void Group::RecvHandler(Session& session, void* iocp)
             if (!recvQ.ChecksumValid())
             {
                 _groupLogger->Write(L"Disconnect", CLogger::LogLevel::Debug, L"Group Invalid Checksum %d"
-                    , session.GetSessionId());
+                                    , session.GetSessionId());
                 session.Close();
                 break;
             }

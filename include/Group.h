@@ -122,15 +122,11 @@ protected:
 
     [[nodiscard]] psh::int64 GetJobTps() const;
 
-    [[nodiscard]] psh::int32 GetEnterTps() const
-    {
-        return _enterTps;
-    }
+    [[nodiscard]] psh::int64 GetMaxWorkTime() const;
 
-    [[nodiscard]] psh::int32 GetLeaveTps() const
-    {
-        return _leaveTps;
-    }
+    [[nodiscard]] psh::int32 GetEnterTps() const;
+
+    [[nodiscard]] psh::int32 GetLeaveTps() const;
 
 private:
     bool Enqueue(GroupJob job, bool update = true);
@@ -171,11 +167,13 @@ private:
     //MONITOR
     std::chrono::steady_clock::time_point _nextMonitor;
     psh::int64 workTime = 0;
+    psh::int64 maxWorkTime = 0;
     psh::int64 _handledJob = 0;
     long jobQSize = 0;
 
     psh::int64 oldWorkTime = 0;
     psh::int64 oldHandledJob = 0;
+    psh::int64 oldMaxWorkTime = 0;
     long _leaveTps = 0;
     long _handledLeave = 0;
     long _enterTps = 0;

@@ -40,4 +40,5 @@ private:
 
     PDH_HQUERY _pPageFault{};
     PDH_HQUERY _pUseMemory{};
+    PDH_HQUERY _pCpuTotal{};
 };

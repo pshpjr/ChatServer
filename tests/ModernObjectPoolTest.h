@@ -12,6 +12,7 @@ TEST(ModernObjectPool, Init)
     ModernObjectPool<int> pool(100);
     EXPECT_TRUE(pool.Size() == 100);
 }
+
 TEST(ModernObjectPool, Alloc)
 {
     ModernObjectPool<int> pool(1);
@@ -27,6 +28,7 @@ TEST(ModernObjectPool, Free)
     }
     EXPECT_TRUE(pool.Size() == 100);
 }
+
 TEST(ModernObjectPool, MemReuse)
 {
     void* fstPtr = nullptr;
@@ -53,5 +55,6 @@ TEST(ModernObjectPool, DupAlloc)
 
     EXPECT_TRUE(pool.Size() == 3);
 }
+
 
 #endif //MODERNOBJECTPOOLTEST_H

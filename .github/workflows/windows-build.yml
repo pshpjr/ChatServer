@@ -13,25 +13,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-#      - name: Cache MSVC and Dependencies
-#        uses: actions/cache@v3
-#        with:
-#          path: |
-#            C:\Program Files (x86)\Microsoft Visual Studio
-#            C:\vcpkg
-#          key: ms-vcpkg-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
-#          restore-keys: |
-#            ms-vcpkg-${{ runner.os }}-
+      #      - name: Cache MSVC and Dependencies
+      #        uses: actions/cache@v3
+      #        with:
+      #          path: |
+      #            C:\Program Files (x86)\Microsoft Visual Studio
+      #            C:\vcpkg
+      #          key: ms-vcpkg-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
+      #          restore-keys: |
+      #            ms-vcpkg-${{ runner.os }}-
 
-#      - name: Cache Chocolatey Packages
-#        uses: actions/cache@v3
-#        with:
-#          path: |
-#            C:\ProgramData\chocolatey\lib
-#            C:\ProgramData\chocolatey\cache
-#          key: chocolatey-${{ runner.os }}-${{ hashFiles('**/chocolatey-packages.txt') }}
-#          restore-keys: |
-#            chocolatey-${{ runner.os }}-
+      #      - name: Cache Chocolatey Packages
+      #        uses: actions/cache@v3
+      #        with:
+      #          path: |
+      #            C:\ProgramData\chocolatey\lib
+      #            C:\ProgramData\chocolatey\cache
+      #          key: chocolatey-${{ runner.os }}-${{ hashFiles('**/chocolatey-packages.txt') }}
+      #          restore-keys: |
+      #            chocolatey-${{ runner.os }}-
       - name: Install vcpkg
         run: |
           git clone https://github.com/Microsoft/vcpkg.git
@@ -40,24 +40,24 @@ jobs:
       - name: Install MSVC
         uses: ilammy/msvc-dev-cmd@v1
 
-#      - name: Install Dependencies
-#        id: install_dependencies
-#        run: |
-#          if (-not (Test-Path "C:\ProgramData\chocolatey\lib\cmake")) {
-#            choco install cmake -y
-#          }
-#          if (-not (Test-Path "C:\ProgramData\chocolatey\lib\ninja")) {
-#            choco install ninja -y
-#          }
-#          if (-not (Test-Path "C:\ProgramData\chocolatey\lib\windows-sdk-10.0")) {
-#            choco install windows-sdk-10.0 -y
-#          }
+      #      - name: Install Dependencies
+      #        id: install_dependencies
+      #        run: |
+      #          if (-not (Test-Path "C:\ProgramData\chocolatey\lib\cmake")) {
+      #            choco install cmake -y
+      #          }
+      #          if (-not (Test-Path "C:\ProgramData\chocolatey\lib\ninja")) {
+      #            choco install ninja -y
+      #          }
+      #          if (-not (Test-Path "C:\ProgramData\chocolatey\lib\windows-sdk-10.0")) {
+      #            choco install windows-sdk-10.0 -y
+      #          }
       - name: Install Dependencies
         id: install_dependencies
         run: |
-            choco install cmake -y
-            choco install ninja -y
-#            choco install windows-sdk-10.0 -y
+          choco install cmake -y
+          choco install ninja -y
+      #            choco install windows-sdk-10.0 -y
 
       - name: Configure CMake And Build (Debug)
         run: |
@@ -90,6 +90,8 @@ jobs:
           cp build/release/*.lib build/artifacts/lib/ || echo "No .lib files found"
           cp build/release/*.dll build/artifacts/lib/ || echo "No .dll files found"
           cp lib/dlls/* build/artifacts/lib/dlls/ || echo "No dlls"
+          cp lib/debug/*.lib build/artifacts/lib/debug/ || echo "No Debug .lib files found in lib/debug"
+          cp lib/release/*.lib build/artifacts/lib/release/ || echo "No Release .lib files found in lib/release"
           tar -czvf build/release-package.tar.gz -C build/artifacts .
 
       - name: Create GitHub Release

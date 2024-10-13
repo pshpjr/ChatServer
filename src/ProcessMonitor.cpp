@@ -12,14 +12,14 @@ ProcessMonitor::ProcessMonitor(String ProcessName)
 
     PdhOpenQuery(nullptr, NULL, &_swQuery);
 
-    PdhAddCounter(_swQuery, std::format(L"\\Process({:s})\\% Processor Time", ProcessName).c_str(), NULL, &_pCpuTotal);
-    PdhAddCounter(_swQuery, std::format(L"\\Process({:s})\\% Privileged Time", ProcessName).c_str(), NULL
-                  , &_pCpuKernel);
-    PdhAddCounter(_swQuery, std::format(L"\\Process({:s})\\% User Time", ProcessName).c_str(), NULL, &_pCpuUser);
-    PdhAddCounter(_swQuery, std::format(L"\\Process({:s})\\Page Faults/sec", ProcessName).c_str(), NULL
-                  , &_pPageFault);
-    PdhAddCounter(_swQuery, std::format(L"\\Process({:s})\\Private Bytes", ProcessName).c_str(), NULL
-                  , &_pUseMemory);
+    PdhAddCounterW(_swQuery, std::format(L"\\Process({:s})\\% Processor Time", ProcessName).c_str(), NULL, &_pCpuTotal);
+    PdhAddCounterW(_swQuery, std::format(L"\\Process({:s})\\% Privileged Time", ProcessName).c_str(), NULL
+                   , &_pCpuKernel);
+    PdhAddCounterW(_swQuery, std::format(L"\\Process({:s})\\% User Time", ProcessName).c_str(), NULL, &_pCpuUser);
+    PdhAddCounterW(_swQuery, std::format(L"\\Process({:s})\\Page Faults/sec", ProcessName).c_str(), NULL
+                   , &_pPageFault);
+    PdhAddCounterW(_swQuery, std::format(L"\\Process({:s})\\Private Bytes", ProcessName).c_str(), NULL
+                   , &_pUseMemory);
 }
 
 double ProcessMonitor::TotalProcessTime() const

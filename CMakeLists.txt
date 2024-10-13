@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.28)
 
 # 프로젝트 설정
 project(NetLib)
-
 # C++ 표준 설정
 set(CMAKE_CXX_STANDARD 20)
 

@@ -5,7 +5,7 @@
 class DBErr : public std::exception
 {
 public:
-    DBErr(const char* errStr, const unsigned int errNo, const std::chrono::milliseconds dur, std::string query)
+    DBErr(std::string errStr, const unsigned int errNo, const std::chrono::milliseconds dur, std::string query)
         : _errString(std::format("ErrNo : {} Err : {} Query : {}, duration : {}", errNo, errStr, _query, dur.count()))
         , _errNo(errNo)
         , _dur(dur)

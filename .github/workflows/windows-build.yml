@@ -84,14 +84,16 @@ jobs:
           mkdir -p build/artifacts
           mkdir -p build/artifacts/lib
           mkdir -p build/artifacts/lib/dlls
+          mkdir -p build/artifacts/lib/debug
+          mkdir -p build/artifacts/lib/release
           cp -r include build/artifacts/
           cp build/debug/*.lib build/artifacts/lib/ || echo "No Debug .lib files found"
           cp build/debug/*.pdb build/artifacts/lib/ || echo "No Debug .pdb files found"
           cp build/release/*.lib build/artifacts/lib/ || echo "No .lib files found"
           cp build/release/*.dll build/artifacts/lib/ || echo "No .dll files found"
           cp lib/dlls/* build/artifacts/lib/dlls/ || echo "No dlls"
-          cp lib/debug/*.lib build/artifacts/lib/debug/ || echo "No Debug .lib files found in lib/debug"
-          cp lib/release/*.lib build/artifacts/lib/release/ || echo "No Release .lib files found in lib/release"
+          cp lib/debug/* build/artifacts/lib/debug/ || echo "No Debug .lib files found in lib/debug"
+          cp lib/release/* build/artifacts/lib/release/ || echo "No Release .lib files found in lib/release"
           tar -czvf build/release-package.tar.gz -C build/artifacts .
 
       - name: Create GitHub Release

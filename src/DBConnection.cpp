@@ -11,8 +11,9 @@ struct DBConnection::Imple
     MYSQL_ROW sql_row{};
 };
 
-    DBConnection::DBConnection(const psh::LPCSTR ip, const psh::uint32 port, const psh::LPCSTR id, const psh::LPCSTR pass, const psh::LPCSTR db)
-        :pImple(std::make_unique<Imple>())
+DBConnection::DBConnection(const psh::LPCSTR ip, const psh::uint32 port, const psh::LPCSTR id, const psh::LPCSTR pass
+                           , const psh::LPCSTR db)
+    : pImple(std::make_unique<Imple>())
 {
     mysql_init(&pImple->conn);
 
@@ -24,7 +25,7 @@ struct DBConnection::Imple
         const char* err = nullptr;
         err = mysql_error(&pImple->conn);
         const auto num = mysql_errno(&pImple->conn);
-        throw DBErr(err, num, std::chrono::milliseconds::zero());
+        throw DBErr(err, num, std::chrono::milliseconds::zero(), "Error connecting to database");
 
         printf("%d \n", num);
     }
@@ -66,24 +67,24 @@ std::chrono::microseconds DBConnection::Query(psh::LPCSTR query, ...)
     const auto start = steady_clock::now();
 
     if (const int query_stat = mysql_real_query(pImple->connection, queryString.c_str()
-                                              , static_cast<unsigned long>(queryString.length()));
+                                                , static_cast<unsigned long>(queryString.length()));
         query_stat != 0)
     {
-        const char *err = mysql_error(&pImple->conn);
+        const char* err = mysql_error(&pImple->conn);
 
         switch (const auto num = mysql_errno(&pImple->conn))
         {
-            case CR_SERVER_GONE_ERROR:
-            case CR_SERVER_LOST:
-            case CR_CONN_HOST_ERROR:
-            case CR_SERVER_HANDSHAKE_ERR:
-                break;
+        case CR_SERVER_GONE_ERROR:
+        case CR_SERVER_LOST:
+        case CR_CONN_HOST_ERROR:
+        case CR_SERVER_HANDSHAKE_ERR:
+            break;
 
-            default:
+        default:
             {
                 const auto dur = duration_cast<std::chrono::milliseconds>(steady_clock::now() - start);
                 const string errStr = std::to_string(dur.count()) + err;
-                throw DBErr(errStr.c_str(), num, dur);
+                throw DBErr(errStr.c_str(), num, dur, query);
             }
         }
     }
@@ -100,7 +101,7 @@ bool DBConnection::next()
     return pImple->sql_row != nullptr;
 }
 
-char * DBConnection::getString(const int index) const
+char* DBConnection::getString(const int index) const
 {
     return pImple->sql_row[index];
 }

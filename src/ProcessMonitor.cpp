@@ -1,5 +1,4 @@
-﻿
-#include "ProcessMonitor.h"
+﻿#include "ProcessMonitor.h"
 
 #include <format>
 #include <iostream>

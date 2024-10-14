@@ -1,12 +1,13 @@
 ﻿#pragma once
 
-#include "Types.h"
 #include <Pdh.h>
+#include <string>
 
 class ProcessMonitor
 {
 public:
-    ProcessMonitor(String ProcessName);
+
+    ProcessMonitor(std::wstring ProcessName);
 
     void Update();
 
@@ -21,7 +22,7 @@ public:
     double UseMemoryMB() const;
 
 private:
-    PDH_HQUERY _swQuery{};
+    void AddCounter(const std::wstring& counterPath, PDH_HCOUNTER& counter);
 
 
     int _iNumberOfProcessors = 0;
@@ -34,6 +35,7 @@ private:
     long _pageFault = 0;
     double _useMemoryMB = 0;
 
+    PDH_HQUERY _hQuery{};
     //PDH_HQUERY pCpuTotal;
     PDH_HQUERY _pCpuKernel{};
     PDH_HQUERY _pCpuUser{};
@@ -41,4 +43,6 @@ private:
     PDH_HQUERY _pPageFault{};
     PDH_HQUERY _pUseMemory{};
     PDH_HQUERY _pCpuTotal{};
+    std::wstring _processName;
+
 };

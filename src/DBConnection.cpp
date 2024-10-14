@@ -83,7 +83,7 @@ std::chrono::microseconds DBConnection::Query(psh::LPCSTR query, ...)
             {
                 const auto dur = duration_cast<std::chrono::milliseconds>(steady_clock::now() - start);
                 const string errStr = std::to_string(dur.count()) + err;
-                throw DBErr(errStr.c_str(), num, dur, query);
+                throw DBErr(errStr, num, dur, queryString);
             }
         }
     }

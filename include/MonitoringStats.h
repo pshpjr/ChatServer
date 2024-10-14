@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <algorithm>
+
 class MonitoringStats
 {
 public:
@@ -22,7 +23,18 @@ public:
 
     [[nodiscard]] double Avg() const
     {
-        return _sum / static_cast<double>(_count);
+        if (_count == 0)
+        {
+            return 0;
+        }
+
+        auto result = _sum / static_cast<double>(_count);
+        if (isnan(result))
+        {
+            return 0;
+        }
+
+        return result;
     }
 
     [[nodiscard]] int Max() const
@@ -32,6 +44,11 @@ public:
 
     [[nodiscard]] int Min() const
     {
+        if(_count == 0)
+        {
+            return 0;
+        }
+
         return _min;
     }
 

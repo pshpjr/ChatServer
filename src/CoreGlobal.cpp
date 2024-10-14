@@ -16,9 +16,7 @@ class CoreGlobal
 public:
     CoreGlobal()
     {
-#ifndef _DEBUG
         gCrashDump = new CrashDump();
-#endif
 
         gLogger = new CLogger();
         gSettingParser = new SettingParser();

@@ -5,10 +5,11 @@
 class DBErr : public std::exception
 {
 public:
-    DBErr(const char* errStr, const unsigned int errNo, const std::chrono::milliseconds dur)
-        : _errString(errStr)
+    DBErr(const char* errStr, const unsigned int errNo, const std::chrono::milliseconds dur, std::string query)
+        : _errString(std::format("ErrNo : {} Err : {} Query : {}, duration : {}", errNo, errStr, _query, dur.count()))
         , _errNo(errNo)
-        , _dur(dur) {}
+        , _dur(dur)
+        , _query{query} {}
 
     [[nodiscard]] const char* what() const override
     {
@@ -29,4 +30,5 @@ private:
     std::string _errString;
     unsigned int _errNo = 0;
     std::chrono::milliseconds _dur;
+    std::string _query;
 };

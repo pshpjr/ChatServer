@@ -17,8 +17,6 @@ DBConnection::DBConnection(const psh::LPCSTR ip, const psh::uint32 port, const p
 {
     mysql_init(&pImple->conn);
 
-    //SetReconnect(true);
-
     pImple->connection = mysql_real_connect(&pImple->conn, ip, id, pass, db, port, nullptr, 0);
     if (pImple->connection == nullptr)
     {
@@ -29,6 +27,7 @@ DBConnection::DBConnection(const psh::LPCSTR ip, const psh::uint32 port, const p
 
         printf("%d \n", num);
     }
+
     SetReconnect(true);
 }
 

@@ -16,6 +16,7 @@
 #include "GroupManager.h"
 #include "IOCP.h"
 #include "LockFreeStack.h"
+#include "optick.h"
 #include "SendBuffer.h"
 #include "Session.h"
 #include "SettingParser.h"
@@ -440,7 +441,7 @@ WSAResult<SessionID> IOCP::GetClientSession(const String& ip, const Port port)
     SessionID sessionId{};
 
     //클라이언트 사용이 많지 않고, 계속 재접속 할 거 아니고, 보통 accept 전에 하니까 그냥 풀어둬도 될 것 같음.
-    //인덱스는 안 겹침.
+    //인덱스는 안 겹침. index 전 부분은 중복 생기거나 겹치긴 할텐데
     sessionId.id = ++g_sessionId;
     sessionId.index = index;
 
@@ -830,7 +831,7 @@ void IOCP::GroupThread(LPVOID arg)
 void IOCP::WorkerThread(LPVOID arg)
 {
     using namespace std::chrono;
-
+    OPTICK_THREAD("WORKER");
     UNREFERENCED_PARAMETER(arg);
 
     srand(GetCurrentThreadId());

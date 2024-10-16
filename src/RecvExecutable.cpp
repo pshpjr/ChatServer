@@ -16,7 +16,7 @@ void RecvExecutable::Execute(const ULONG_PTR key, const DWORD transferred, void*
     IOCP& server = *reinterpret_cast<IOCP*>(iocp);
     if (session.GetGroupID() != GroupManager::BaseGroupID())
     {
-        server._groupManager->OnRecv(session.GetSessionId(), session.GetGroupID());
+        server._groupManager->OnRecv(session.GetSessionId(), session.GetGroupID(), transferred);
         return;
     }
     if (session._staticKey)
@@ -60,7 +60,7 @@ void RecvExecutable::RecvHandler(Session& session, void* iocp)
             {
                 int frontIndex = recvQ.GetFrontIndex();
                 gLogger->Write(L"Disconnect", CLogger::LogLevel::Debug, L"WrongPacketCode id : %d\n index: %d \n"
-                    , session.GetSessionId(), frontIndex);
+                               , session.GetSessionId(), frontIndex);
                 session.Close();
                 break;
             }
@@ -69,7 +69,7 @@ void RecvExecutable::RecvHandler(Session& session, void* iocp)
             {
                 int frontIndex = recvQ.GetFrontIndex();
                 gLogger->Write(L"Disconnect", CLogger::LogLevel::Debug, L"WrongPacketLen id : %d\n index: %d \n"
-                    , session.GetSessionId(), frontIndex);
+                               , session.GetSessionId(), frontIndex);
                 session.Close();
                 break;
             }
@@ -97,7 +97,7 @@ void RecvExecutable::RecvHandler(Session& session, void* iocp)
             if (!recvQ.ChecksumValid())
             {
                 gLogger->Write(L"Disconnect", CLogger::LogLevel::Debug, L"Recv Invalid Checksum id : %d"
-                    , session.GetSessionId());
+                               , session.GetSessionId());
                 session.Close();
                 break;
             }

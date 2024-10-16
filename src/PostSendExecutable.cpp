@@ -25,9 +25,7 @@ void PostSendExecutable::Execute(const ULONG_PTR key, DWORD transferred, void* i
 
     session->_needCheckSendTimeout = false;
 
-
-    session->_isSending = 0;
-
+    session->_isSending.store(false);
     session->TrySend();
 
     session->Release(L"PostSendRelease");

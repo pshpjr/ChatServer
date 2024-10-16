@@ -1,10 +1,11 @@
 ﻿#pragma once
 #include <chrono>
+#include <LockFreeFixedQueue.h>
 #include <optional>
 
 #include "CRingBuffer.h"
 #include "GroupTypes.h"
-#include "LockFreeFixedQueue.h"
+#include "LockQueue.h"
 #include "Macro.h"
 #include "SessionTypes.h"
 #include "Socket.h"
@@ -22,140 +23,141 @@ class ReleaseExecutable;
 //#define SESSION_DEBUG
 class Session
 {
-    friend class RecvExecutable;
-    friend class PostSendExecutable;
-    friend class SendExecutable;
-    friend class ReleaseExecutable;
-    friend class IOCP;
-    friend class Group;
+	friend class RecvExecutable;
+	friend class PostSendExecutable;
+	friend class SendExecutable;
+	friend class ReleaseExecutable;
+	friend class IOCP;
+	friend class Group;
 
 public:
-    Session();
-    Session(Socket socket, SessionID sessionId, IOCP& owner);
+	Session();
+	Session(Socket socket, SessionID sessionId, IOCP& owner);
 
-    Session(const Session &other) = delete;
+	Session(const Session& other) = delete;
 
-    Session(Session &&other) noexcept = delete;
+	Session(Session&& other) noexcept = delete;
 
-    Session & operator=(const Session &other) = delete;
+	Session& operator=(const Session& other) = delete;
 
-    Session & operator=(Session &&other) noexcept = delete;
+	Session& operator=(Session&& other) noexcept = delete;
 
-    void Close();
-    void Reset();
-    void PostRelease();
-
-
-    inline long IncreaseRef(psh::LPCWSTR content);
-    bool Release(psh::LPCWSTR content = L"", int type = 0);
+	void Close();
+	void Reset();
+	void PostRelease();
 
 
-    void EnqueueSendData(CSendBuffer* buffer);
-    void RegisterRecv();
-    void RecvNotIncrease();
-    void TrySend();
-    bool CanSend();
+	inline long IncreaseRef(psh::LPCWSTR content);
+	bool Release(psh::LPCWSTR content = L"", int type = 0);
 
 
-    void RegisterIOCP(HANDLE iocpHandle);
+	void EnqueueSendData(CSendBuffer* buffer);
+	void RegisterRecv();
+	void RecvNotIncrease();
+	void TrySend();
+	bool CanSend();
 
-    SessionID GetSessionId() const;
 
-    String GetIp() const;
+	void RegisterIOCP(HANDLE iocpHandle);
 
-    psh::uint16 GetPort() const;
+	SessionID GetSessionId() const;
 
-    void SetSocket(const Socket& socket);
+	String GetIp() const;
 
-    void SetSessionId(const SessionID sessionID);
+	psh::uint16 GetPort() const;
 
-    void SetErr(const int errCode);
+	void SetSocket(const Socket& socket);
 
-    int GetErr();
+	void SetSessionId(const SessionID sessionID);
 
-    void SetOwner(IOCP& owner);
+	void SetErr(const int errCode);
 
-    void SetNetSession(const char staticKey);
+	int GetErr();
 
-    void SetLanSession();
+	void SetOwner(IOCP& owner);
 
-    void SetMaxPacketLen(const int size);
+	void SetNetSession(const char staticKey);
 
-    void SetConnect();
+	void SetLanSession();
 
-    void SetDefaultTimeout(int timeoutMillisecond);
-    void SetTimeout(int timeoutMillisecond);
+	void SetMaxPacketLen(const int size);
 
-    void OffReleaseFlag();
+	void SetConnect();
 
-    void ResetTimeoutWait();
+	void SetDefaultTimeout(int timeoutMillisecond);
+	void SetTimeout(int timeoutMillisecond);
 
-    //0이면 아무 그룹 아님. 
-    GroupID GetGroupID() const;
+	void OffReleaseFlag();
 
-    void SetGroupID(const GroupID id);
+	void ResetTimeoutWait();
 
-private:
-    std::optional<timeoutInfo> CheckTimeout(std::chrono::steady_clock::time_point now);
-    void RealSend();
+	//0이면 아무 그룹 아님.
+	GroupID GetGroupID() const;
+
+	void SetGroupID(const GroupID id);
 
 private:
-    long GetRefCount(SessionID id);
+	std::optional<timeoutInfo> CheckTimeout(std::chrono::steady_clock::time_point now);
+	void RealSend();
 
-    //CONST
-    static constexpr unsigned long long ID_MASK = 0x000'7FFF'FFFF'FFFF;
-    static constexpr unsigned long long INDEX_MASK = 0x7FFF'8000'0000'0000;
-    static constexpr int MAX_SEND_COUNT = 512;
+private:
+	long GetRefCount(SessionID id);
 
-    static constexpr long RELEASE_FLAG = 0x0010'0000;
+	//CONST
+	static constexpr unsigned long long ID_MASK = 0x000'7FFF'FFFF'FFFF;
+	static constexpr unsigned long long INDEX_MASK = 0x7FFF'8000'0000'0000;
+	static constexpr int MAX_SEND_COUNT = 512;
+
+	static constexpr long RELEASE_FLAG = 0x0010'0000;
 
 
-    //Network	
-    alignas(64) SessionID _sessionId = {{0}};
-    Socket _socket;
-    GroupID _groupId = GroupID(0);
-    long _refCount = RELEASE_FLAG;
-    volatile int _errCode = -1;
-    
+	//Network
+	alignas(64) SessionID _sessionId = {{0}};
+	Socket _socket;
+	GroupID _groupId = GroupID(0);
+	long _refCount = RELEASE_FLAG;
+	volatile int _errCode = -1;
+
 #ifdef SESSION_DEBUG
 	long DebugRef = 0;
 #endif
-    char _connect = false;
+	char _connect = false;
 
-    LockFreeFixedQueue<CSendBuffer*, MAX_SEND_COUNT> _sendQ;
-    //TlsLockFreeQueue<CSendBuffer*> _sendQ;
-    CSendBuffer* _sendingQ[MAX_SEND_COUNT];
-
-
-    //TlsLockFreeQueue<CRecvBuffer*> _groupRecvQ;
-
-    IOCP* _owner;
+	LockBasedFixedQueue<CSendBuffer*, MAX_SEND_COUNT> _sendQ{};
+	//TlsLockFreeQueue<CSendBuffer*> _sendQ;
+	CSendBuffer* _sendingQ[MAX_SEND_COUNT];
 
 
-    //Executable
-    RecvExecutable& _recvExecute;
-    PostSendExecutable& _postSendExecute;
-    SendExecutable& _sendExecute;
-    ReleaseExecutable& _releaseExecutable;
+	//TlsLockFreeQueue<CRecvBuffer*> _groupRecvQ;
+
+	IOCP* _owner;
 
 
-    //Reference
-    char _isSending = false;
+	//Executable
+	RecvExecutable& _recvExecute;
+	PostSendExecutable& _postSendExecute;
+	SendExecutable& _sendExecute;
+	ReleaseExecutable& _releaseExecutable;
 
-    //Timeout
-    bool _needCheckSendTimeout = false;
 
-    int _defaultTimeout = 5000;
-    int _timeout = 5000;
-    CRingBuffer _recvQ;
-    std::chrono::steady_clock::time_point lastRecv;
-    
-    //Encrypt
-    char _staticKey = false;
-    unsigned int _maxPacketLen = 5000;
+	//Reference
 
-    //DEBUG
-    long debugCount = 0;
+	std::atomic<bool> _isSending = false;
+
+	//Timeout
+	bool _needCheckSendTimeout = false;
+
+	int _defaultTimeout = 5000;
+	int _timeout = 5000;
+	CRingBuffer _recvQ;
+	std::chrono::steady_clock::time_point lastRecv;
+
+	//Encrypt
+	char _staticKey = false;
+	unsigned int _maxPacketLen = 5000;
+
+	//DEBUG
+	long debugCount = 0;
 #ifdef SESSION_DEBUG
 
 	struct RelastinReleaseEncrypt_D
@@ -183,18 +185,18 @@ private:
 #endif
 
 
-    void WriteContentLog(unsigned int type);
+	void WriteContentLog(unsigned int type);
 };
 
 
 long Session::IncreaseRef(psh::LPCWSTR content)
 {
-    auto result = InterlockedIncrement(&_refCount);
+	auto result = InterlockedIncrement(&_refCount);
 
 #ifdef SESSION_DEBUG
 	Write(_refCount, GroupID::InvalidGroupID(), content);
 #else
-    UNREFERENCED_PARAMETER(content);
+	UNREFERENCED_PARAMETER(content);
 #endif
-    return result;
+	return result;
 }

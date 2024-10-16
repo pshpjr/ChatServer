@@ -1,4 +1,6 @@
 ﻿#include "Session.h"
+
+#include <iostream>
 #include <optional>
 
 #include "CSendBuffer.h"
@@ -17,9 +19,7 @@ Session::Session()
     , _recvExecute(*new RecvExecutable)
     , _postSendExecute(*new PostSendExecutable)
     , _sendExecute(*new SendExecutable)
-    , _releaseExecutable(*new ReleaseExecutable)
-{
-}
+    , _releaseExecutable(*new ReleaseExecutable) {}
 
 Session::Session(Socket socket, SessionID sessionId, IOCP& owner)
     : _sessionId(sessionId)
@@ -29,9 +29,7 @@ Session::Session(Socket socket, SessionID sessionId, IOCP& owner)
     , _recvExecute(*new RecvExecutable)
     , _postSendExecute(*new PostSendExecutable)
     , _sendExecute(*new SendExecutable)
-    , _releaseExecutable(*new ReleaseExecutable)
-{
-}
+    , _releaseExecutable(*new ReleaseExecutable) {}
 
 bool Session::CanSend()
 {
@@ -47,19 +45,19 @@ bool Session::CanSend()
             return false;
         }
 
-        if (_sendQ.Size() == 0)
+        auto size = _sendQ.Size();
+        if (size == 0)
         {
             return false;
         }
-        if (InterlockedExchange8(&_isSending, true) == 1)
+        if (_isSending.exchange(true) == true)
         {
             return false;
         }
 
         if (_sendQ.Size() == 0)
         {
-            InterlockedExchange8(&_isSending, false);
-
+            _isSending.store(false);
             continue;
         }
         break;
@@ -210,7 +208,7 @@ void Session::RecvNotIncrease()
             break;
         default:
             {
-            __debugbreak();
+                __debugbreak();
             }
         }
         Release(L"RecvErrorRelease");
@@ -238,7 +236,7 @@ psh::uint16 Session::GetPort() const
     return _socket.GetPort();
 }
 
-void Session::SetSocket(const Socket &socket)
+void Session::SetSocket(const Socket& socket)
 {
     _socket = socket;
 }
@@ -258,7 +256,7 @@ int Session::GetErr()
     return _errCode;
 }
 
-void Session::SetOwner(IOCP &owner)
+void Session::SetOwner(IOCP& owner)
 {
     _owner = &owner;
 }
@@ -415,7 +413,7 @@ void Session::PostRelease()
 	Write(-1, GroupID::InvalidGroupID(), L"PostRelease");
 #endif
     PostQueuedCompletionStatus(_owner->_iocp, static_cast<DWORD>(-1), reinterpret_cast<ULONG_PTR>(this)
-        , _releaseExecutable.GetOverlapped());
+                               , _releaseExecutable.GetOverlapped());
 }
 
 void Session::RealSend()
@@ -435,7 +433,8 @@ void Session::RealSend()
         for (int i = 0; i < MAX_SEND_COUNT; i++)
         {
             CSendBuffer* buffer;
-            if (!_sendQ.Dequeue(buffer))
+            volatile auto result = _sendQ.Dequeue(buffer);
+            if (result == false)
             {
                 break;
             }
@@ -491,7 +490,7 @@ void Session::RealSend()
             break;
         default:
             gLogger->Write(L"Disconnect", CLogger::LogLevel::Debug, L"SendFail errNo : %d, sessionID : %d", error
-                , GetSessionId());
+                           , GetSessionId());
             __debugbreak();
         }
         Release(L"SendErrorRelease");

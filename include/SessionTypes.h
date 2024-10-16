@@ -9,6 +9,7 @@
 #include "Utility.h"
 
 //세션 관련
+
 #pragma warning (disable:4201)
 class SessionID
 {
@@ -17,9 +18,9 @@ public:
     {
         struct
         {
-            short tmp1;
-            short tmp2;
-            short tmp3;
+            unsigned short tmp1;
+            unsigned short tmp2;
+            unsigned short tmp3;
             unsigned short index;
         };
 
@@ -36,13 +37,11 @@ public:
 };
 
 
-
-
 #pragma warning (default:4201)
 
 consteval SessionID InvalidSessionID()
 {
-    return {-1, 0};
+    return {0xffff, 0xffff, 0xffff, 0xffff};
 }
 
 struct timeoutInfo

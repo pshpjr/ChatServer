@@ -45,11 +45,6 @@ bool Session::CanSend()
             return false;
         }
 
-        auto size = _sendQ.Size();
-        if (size == 0)
-        {
-            return false;
-        }
         if (_isSending.exchange(true) == true)
         {
             return false;
@@ -58,6 +53,11 @@ bool Session::CanSend()
         if (_sendQ.Size() == 0)
         {
             _isSending.store(false);
+
+            if (_sendQ.Size() == 0)
+            {
+                return false;
+            }
             continue;
         }
         break;
@@ -65,9 +65,9 @@ bool Session::CanSend()
     return true;
 }
 
-void Session::EnqueueSendData(CSendBuffer* buffer)
+bool Session::EnqueueSendData(CSendBuffer* buffer)
 {
-    _sendQ.Enqueue(buffer);
+    return _sendQ.Enqueue(buffer);
 }
 
 bool Session::Release(psh::LPCWSTR content, int type)
@@ -125,6 +125,7 @@ void Session::TrySend()
 
     RealSend();
 }
+
 
 void Session::RegisterRecv()
 {

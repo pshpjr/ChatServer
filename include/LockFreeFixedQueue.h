@@ -47,7 +47,6 @@ public:
 
         if (buffer[tail & indexMask].isUsed.load() == true)
         {
-            ASSERT_CRASH("false");
             return false;
         }
 
@@ -71,7 +70,7 @@ public:
                 return false;
             }
 
-            if (headIndex.compare_exchange_weak(head, head + 1, std::memory_order::acq_rel))
+            if (headIndex.compare_exchange_strong(head, head + 1))
             {
                 break;
             }
@@ -80,7 +79,7 @@ public:
 
         if constexpr (std::is_class_v<T> && !std::is_move_assignable_v<T>)
         {
-            buffer[head & indexMask].~T();
+            buffer[head & indexMask].data.~T();
         }
 
 

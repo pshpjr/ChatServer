@@ -54,8 +54,12 @@ psh::int32 Group::GetLeaveTps() const
 bool Group::Enqueue(GroupJob job, bool update)
 {
     {
+        //그룹이 가득 찰 정도면 서버가 엄청 바쁜 거
         OPTICK_EVENT();
-        while (!_jobs->Enqueue(job)) {}
+        while (!_jobs->Enqueue(job))
+        {
+            std::this_thread::yield();
+        }
     }
     if (update && _isRun == 0)
     {

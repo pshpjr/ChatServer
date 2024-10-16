@@ -29,7 +29,8 @@ public:
     IOCP(bool server = true);
 
     bool Init();
-    bool ClientInit(psh::uint16 maxRunningThread, psh::uint16 workerThread, char staticKey, bool useGroup, bool useMonitor,bool useTimeout);
+    bool ClientInit(psh::uint16 maxRunningThread, psh::uint16 workerThread, char staticKey, bool useGroup
+                    , bool useMonitor, bool useTimeout);
     bool Init(const String& ip
               , Port port
               , psh::uint16 backlog
@@ -39,7 +40,7 @@ public:
     void Start();
     void Stop();
     void Wait();
-    bool SendPacket(SessionID sessionId, const SendBuffer &sendBuffer, int type = 0);
+    bool SendPacket(SessionID sessionId, const SendBuffer& sendBuffer, int type = 0);
     bool SendPacketBlocking(SessionID sessionId, SendBuffer& sendBuffer, int type = 0);
     //deprecate
     bool SendPackets(SessionID sessionId, Vector<SendBuffer>& bufArr);
@@ -55,10 +56,10 @@ public:
     void SetSessionStaticKey(SessionID id, char staticKey);
     void HandleInput();
 
-    bool GetFreeIndex(unsigned short &index);
+    bool GetFreeIndex(unsigned short& index);
 
     void ReleaseFreeIndex(unsigned short index);
-
+    void ProcessBuffer(Session& session, CSendBuffer& buffer);
     //connect
     WSAResult<SessionID> GetClientSession(const String& ip, Port port);
     bool IsValidSession(SessionID id);
@@ -67,13 +68,9 @@ public:
 
     //CONTENT VIRTUAL
 
-    virtual void OnWorkerThreadBegin()
-    {
-    }
+    virtual void OnWorkerThreadBegin() {}
 
-    virtual void OnWorkerThreadEnd()
-    {
-    }
+    virtual void OnWorkerThreadEnd() {}
 
     virtual bool OnAccept(SockAddr_in)
     {
@@ -97,17 +94,11 @@ public:
         UNREFERENCED_PARAMETER(buffer);
     }
 
-    virtual void OnInit()
-    {
-    }
+    virtual void OnInit() {}
 
-    virtual void OnStart()
-    {
-    }
+    virtual void OnStart() {}
 
-    virtual void OnEnd()
-    {
-    }
+    virtual void OnEnd() {}
 
     virtual void OnSessionTimeout(SessionID sessionId, timeoutInfo info)
     {
@@ -115,9 +106,7 @@ public:
         UNREFERENCED_PARAMETER(info);
     }
 
-    virtual void OnMonitorRun()
-    {
-    }
+    virtual void OnMonitorRun() {}
 
     //MONITOR
     psh::uint64 GetAcceptCount() const;

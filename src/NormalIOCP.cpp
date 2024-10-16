@@ -390,14 +390,19 @@ bool IOCP::SendPackets(const SessionID sessionId, std::vector<SendBuffer>& bufAr
 }
 
 
-void NormalIOCP::ProcessBuffer(Session& session, CSendBuffer& buffer)
+void IOCP::ProcessBuffer(Session& session, CSendBuffer& buffer)
 {
     buffer.IncreaseRef(L"ProcessBuffInc");
     if (buffer.GetDataSize() == 0)
     {
         __debugbreak();
     }
-    session.EnqueueSendData(&buffer);
+    //버퍼가 가득 찰 정도면 끊는다.
+    if (session.EnqueueSendData(&buffer) == false)
+    {
+        buffer.Release(L"Session SendBuffer full");
+        DisconnectSession(session.GetSessionId());
+    }
 }
 
 bool IOCP::GetFreeIndex(unsigned short& index)

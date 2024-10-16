@@ -51,7 +51,7 @@ public:
 	bool Release(psh::LPCWSTR content = L"", int type = 0);
 
 
-	void EnqueueSendData(CSendBuffer* buffer);
+	bool EnqueueSendData(CSendBuffer* buffer);
 	void RegisterRecv();
 	void RecvNotIncrease();
 	void TrySend();
@@ -123,7 +123,7 @@ private:
 #endif
 	char _connect = false;
 
-	LockBasedFixedQueue<CSendBuffer*, MAX_SEND_COUNT> _sendQ{};
+	LockFreeFixedQueue<CSendBuffer*, MAX_SEND_COUNT> _sendQ{};
 	//TlsLockFreeQueue<CSendBuffer*> _sendQ;
 	CSendBuffer* _sendingQ[MAX_SEND_COUNT];
 

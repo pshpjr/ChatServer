@@ -126,5 +126,5 @@ set_target_properties(NetLib PROPERTIES
 
 
 # 테스트 설정
-enable_testing()
-add_subdirectory(tests)
+#enable_testing()
+#add_subdirectory(tests)

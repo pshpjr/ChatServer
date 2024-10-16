@@ -4,6 +4,7 @@ add_executable(test_main
         test_main.cpp
         ModernObjectPoolTest.h
         MultiThreadObjectPoolTest.h
+        LockQTest.h
 )
 
 # 헤더 파일 경로 설정

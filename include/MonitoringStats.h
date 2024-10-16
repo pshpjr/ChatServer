@@ -44,7 +44,7 @@ public:
 
     [[nodiscard]] int Min() const
     {
-        if(_count == 0)
+        if (_count == 0)
         {
             return 0;
         }

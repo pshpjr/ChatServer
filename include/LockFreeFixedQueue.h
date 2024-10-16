@@ -1,24 +1,24 @@
 ﻿#pragma once
 #include "MyWindows.h"
 #include "Container.h"
+#include "Macro.h"
 
 
 template <typename T, int BufferSize>
 class LockFreeFixedQueue
 {
-    static_assert((BufferSize & BufferSize - 1) == 0);
+    static_assert((BufferSize & (BufferSize - 1)) == 0);
 
     struct Node
     {
-        char isUsed = 0;
+        std::atomic<bool> isUsed = false;
         T data = T();
     };
 
 public:
-    constexpr LockFreeFixedQueue() : indexMask(BufferSize - 1)
-                                   , buffer(BufferSize)
-    {
-    }
+    constexpr LockFreeFixedQueue()
+        : indexMask(BufferSize - 1)
+        , buffer(BufferSize) {}
 
     LockFreeFixedQueue(const LockFreeFixedQueue& other) = delete;
     LockFreeFixedQueue(LockFreeFixedQueue&& other) = delete;
@@ -30,8 +30,8 @@ public:
 
     int Size() const
     {
-        auto head = headIndex & indexMask;
-        auto tail = tailIndex & indexMask;
+        auto head = headIndex.load() & indexMask;
+        auto tail = tailIndex.load() & indexMask;
 
         if (tail >= head)
         {
@@ -43,16 +43,16 @@ public:
 
     bool Enqueue(const T& data)
     {
-        const long tail = InterlockedIncrement(&tailIndex) - 1;
-        //while () {};
+        const long tail = tailIndex.fetch_add(1);
 
-        if (buffer[tail & indexMask].isUsed == 1)
+        if (buffer[tail & indexMask].isUsed.load() == true)
         {
+            ASSERT_CRASH("false");
             return false;
         }
 
         buffer[tail & indexMask].data = data;
-        if (InterlockedExchange8(&buffer[tail & indexMask].isUsed, 1) == 1)
+        if (buffer[tail & indexMask].isUsed.exchange(true) == true)
         {
             __debugbreak();
         }
@@ -64,26 +64,27 @@ public:
         long head;
         for (;;)
         {
-            head = headIndex;
+            head = headIndex.load();
 
-            if (buffer[head & indexMask].isUsed == false)
+            if (buffer[head & indexMask].isUsed.load() == false)
             {
                 return false;
             }
 
-            if (InterlockedCompareExchange(&headIndex, head + 1, head) == head)
+            if (headIndex.compare_exchange_weak(head, head + 1, std::memory_order::acq_rel))
             {
                 break;
             }
         }
         data = std::move(buffer[head & indexMask].data);
-        
+
         if constexpr (std::is_class_v<T> && !std::is_move_assignable_v<T>)
         {
             buffer[head & indexMask].~T();
         }
-        
-        if (InterlockedExchange8(&buffer[head & indexMask].isUsed, false) == false)
+
+
+        if (buffer[head & indexMask].isUsed.exchange(false) == false)
         {
             __debugbreak();
         }
@@ -92,10 +93,10 @@ public:
     }
 
 #pragma warning (disable : 4324)
-    alignas( 64 ) long headIndex = 0;
-    alignas( 64 ) long tailIndex = 0;
+    alignas( 64 ) std::atomic<long> headIndex = 0;
+    alignas( 64 ) std::atomic<long> tailIndex = 0;
 #pragma warning (default : 4324)
-    int indexMask;
+    const int indexMask;
     Vector<Node> buffer;
 
 public:

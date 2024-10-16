@@ -37,6 +37,7 @@ class Group
         SessionID sessionId{};
         int errCode = -1;
         GroupID dst = GroupID(0);
+        DWORD transferred{0};
     };
 
     friend class GroupExecutable;
@@ -139,7 +140,7 @@ private:
     bool HandleJob();
 
     template <typename Header>
-    void RecvHandler(Session& session, void* iocp);
+    void RecvHandler(Session& session, void* iocp, DWORD transferred);
 
 
     void onRecvPacket(const Session& session, CRecvBuffer& buffer);
@@ -166,8 +167,8 @@ private:
 
     //MONITOR
     std::chrono::steady_clock::time_point _nextMonitor;
-    psh::int64 workTime = 0;
-    psh::int64 maxWorkTime = 0;
+    std::chrono::steady_clock::duration workTime{};
+    std::chrono::steady_clock::duration maxWorkTime{};
     psh::int64 _handledJob = 0;
     long jobQSize = 0;
 

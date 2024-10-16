@@ -4,9 +4,13 @@ cmake_minimum_required(VERSION 3.28)
 project(NetLib)
 # C++ 표준 설정
 set(CMAKE_CXX_STANDARD 20)
-
-# 컴파일러 플래그 및 링크 플래그 설정
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Zi")
+#
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    add_compile_options(-translateInclude)
+    add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG")
+endif ()
 
 # 유니코드 매크로 정의
 add_compile_definitions(_UNICODE UNICODE)
@@ -60,6 +64,9 @@ add_library(NetLib STATIC
         src/Utility.cpp
         src/WebHook.cpp
         src/stdafx.cpp
+        ThreadPool.cpp
+        ThreadPool.h
+        include/LockQueue.h
 )
 
 # 빌드 타입에 따른 매크로 정의

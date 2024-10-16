@@ -20,9 +20,13 @@ public:
 
     void Update();
 
-    bool OnRecv(SessionID sessionId, GroupID groupId);
+    bool OnRecv(SessionID sessionId, GroupID groupId, DWORD transferred);
 
-    static consteval GroupID BaseGroupID() {return GroupID(0);} 
+    static consteval GroupID BaseGroupID()
+    {
+        return GroupID(0);
+    }
+
 private:
     SRWLOCK _groupLock;
     HashMap<GroupID, std::unique_ptr<Group>> _groups;

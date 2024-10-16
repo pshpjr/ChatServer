@@ -8,6 +8,7 @@
 #include "GroupExecutable.h"
 #include "GroupManager.h"
 #include "IOCP.h"
+#include "optick.h"
 #include "Profiler.h"
 #include "Protocol.h"
 #include "stdafx.h"
@@ -52,8 +53,10 @@ psh::int32 Group::GetLeaveTps() const
 
 bool Group::Enqueue(GroupJob job, bool update)
 {
-    while (!_jobs->Enqueue(job)) {}
-
+    {
+        OPTICK_EVENT();
+        while (!_jobs->Enqueue(job)) {}
+    }
     if (update && _isRun == 0)
     {
         Update();
@@ -77,7 +80,7 @@ void Group::Update()
     {
         return;
     }
-
+    OPTICK_FRAME("Group HandleJob");
 
     auto start = steady_clock::now();
     while (hasJob() || NeedUpdate())
@@ -102,14 +105,17 @@ void Group::Update()
     }
 
     auto end = steady_clock::now();
-    auto curWorkTime = duration_cast<milliseconds>(end - start).count();
+    auto curWorkTime = end - start;
     maxWorkTime = std::max(maxWorkTime, curWorkTime);
     workTime += curWorkTime;
 
     if (end > _nextMonitor)
     {
-        oldMaxWorkTime = std::exchange(maxWorkTime, 0);
-        oldWorkTime = std::exchange(workTime, 0);
+        oldMaxWorkTime = std::chrono::duration_cast<milliseconds>(maxWorkTime).count();
+        maxWorkTime = maxWorkTime.zero();
+        oldWorkTime = std::chrono::duration_cast<milliseconds>(workTime).count();
+        workTime = workTime.zero();
+
         oldHandledJob = std::exchange(_handledJob, 0);
         _enterTps = std::exchange(_handledEnter, 0);
         _leaveTps = std::exchange(_handledLeave, 0);
@@ -124,10 +130,10 @@ void Group::Update()
 bool Group::HandleJob()
 {
     GroupJob job;
-
     int jobs = 0;
     while (_jobs->Dequeue(job))
     {
+        OPTICK_EVENT("HandleJob");
         ++jobs;
         switch (job.type)
         {
@@ -181,11 +187,11 @@ bool Group::HandleJob()
 
                 if (const char sKey = session->_staticKey)
                 {
-                    RecvHandler<NetHeader>(*session, _iocp);
+                    RecvHandler<NetHeader>(*session, _iocp, job.transferred);
                 }
                 else
                 {
-                    RecvHandler<LANHeader>(*session, _iocp);
+                    RecvHandler<LANHeader>(*session, _iocp, job.transferred);
                 }
                 session->RecvNotIncrease();
                 session->Release(L"HandlePacketRelease");
@@ -297,13 +303,15 @@ bool Group::hasJob() const
 
 
 template <typename Header>
-void Group::RecvHandler(Session& session, void* iocp)
+void Group::RecvHandler(Session& session, void* iocp, DWORD transferred)
 {
     IOCP& server = *static_cast<IOCP*>(iocp);
     int loopCount = 0;
+    DWORD handleBytes = 0;
 
     CRingBuffer& recvQ = session._recvQ;
-    while (true)
+
+    while (handleBytes < transferred)
     {
         if (session.GetGroupID() != _groupId)
         {
@@ -315,7 +323,6 @@ void Group::RecvHandler(Session& session, void* iocp)
         {
             break;
         }
-
 
         Header header;
         recvQ.Peek(reinterpret_cast<char*>(&header), sizeof(Header));
@@ -342,9 +349,8 @@ void Group::RecvHandler(Session& session, void* iocp)
                 break;
             }
         }
-
-        if (const int totPacketSize = header.len + sizeof(Header);
-            recvQ.Size() < totPacketSize)
+        const int totPacketSize = header.len + sizeof(Header);
+        if (recvQ.Size() < totPacketSize)
         {
             break;
         }
@@ -365,6 +371,7 @@ void Group::RecvHandler(Session& session, void* iocp)
         loopCount++;
         recvQ.Dequeue(sizeof(Header));
         onRecvPacket(session, buffer);
+        handleBytes += totPacketSize;
     }
 
     if (loopCount > 0)

@@ -54,14 +54,14 @@ void GroupManager::Update()
     ReleaseSRWLockShared(&_groupLock);
 }
 
-bool GroupManager::OnRecv(SessionID sessionId, GroupID groupId)
+bool GroupManager::OnRecv(SessionID sessionId, GroupID groupId, DWORD transferred)
 {
     //객체의 주소를 받아오고 나서 락을 해제해도 문제 x
     //해쉬맵에 데이터가 추가되면서 객체가 이동할 수 있으나 uniqueptr이 가리키는 원본 포인터는 변하지 않을 것.
     AcquireSRWLockShared(&_groupLock);
     auto ptr = _groups[groupId].get();
     ReleaseSRWLockShared(&_groupLock);
-    return ptr->Enqueue({Group::GroupJob::Recv, sessionId});
+    return ptr->Enqueue({Group::GroupJob::Recv, sessionId, 0, GroupID(0), transferred});
 }
 
 void GroupManager::SessionDisconnected(Session* target)

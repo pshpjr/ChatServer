@@ -300,6 +300,7 @@ void IOCP::SetDefaultTimeout(const unsigned int timeoutMillisecond)
 /*****************************/
 bool IOCP::SendPacket(const SessionID sessionId, const SendBuffer& sendBuffer, int type)
 {
+    OPTICK_EVENT()
     auto buffer = sendBuffer.getBuffer();
     const auto result = FindSession(sessionId, L"SendPacketInc");
     if (result == nullptr)
@@ -392,6 +393,7 @@ bool IOCP::SendPackets(const SessionID sessionId, std::vector<SendBuffer>& bufAr
 
 void IOCP::ProcessBuffer(Session& session, CSendBuffer& buffer)
 {
+    OPTICK_EVENT()
     buffer.IncreaseRef(L"ProcessBuffInc");
     if (buffer.GetDataSize() == 0)
     {
@@ -425,6 +427,8 @@ WSAResult<SessionID> IOCP::GetClientSession(const String& ip, const Port port)
 
     if (!s.IsValid())
     {
+        ReleaseFreeIndex(index);
+        s.Close();
         return s.LastError();
     }
 

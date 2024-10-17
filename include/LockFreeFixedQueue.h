@@ -30,27 +30,22 @@ public:
 
     int Size() const
     {
-        auto head = headIndex.load() & indexMask;
-        auto tail = tailIndex.load() & indexMask;
+        auto head = headIndex.load();
+        auto tail = tailIndex.load();
 
-        if (tail >= head)
-        {
-            return tail - head;
-        }
-
-        return BufferSize - (head - tail);
+        return tail - head;
     }
 
     bool Enqueue(const T& data)
     {
-        const long tail = tailIndex.fetch_add(1);
+        const int tail = tailIndex.fetch_add(1);
 
         if (buffer[tail & indexMask].isUsed.load() == true)
         {
             return false;
         }
 
-        buffer[tail & indexMask].data = data;
+        buffer[tail & indexMask].data = std::move(data);
         if (buffer[tail & indexMask].isUsed.exchange(true) == true)
         {
             __debugbreak();
@@ -60,7 +55,7 @@ public:
 
     bool Dequeue(T& data)
     {
-        long head;
+        int head;
         for (;;)
         {
             head = headIndex.load();
@@ -77,11 +72,6 @@ public:
         }
         data = std::move(buffer[head & indexMask].data);
 
-        if constexpr (std::is_class_v<T> && !std::is_move_assignable_v<T>)
-        {
-            buffer[head & indexMask].data.~T();
-        }
-
 
         if (buffer[head & indexMask].isUsed.exchange(false) == false)
         {
@@ -92,8 +82,8 @@ public:
     }
 
 #pragma warning (disable : 4324)
-    alignas( 64 ) std::atomic<long> headIndex = 0;
-    alignas( 64 ) std::atomic<long> tailIndex = 0;
+    alignas( 64 ) std::atomic<int> headIndex = 0;
+    alignas( 64 ) std::atomic<int> tailIndex = 0;
 #pragma warning (default : 4324)
     const int indexMask;
     Vector<Node> buffer;

@@ -73,11 +73,6 @@ std::chrono::microseconds DBConnection::Query(psh::LPCSTR query, ...)
 
         switch (const auto num = mysql_errno(&pImple->conn))
         {
-        case CR_SERVER_GONE_ERROR:
-        case CR_SERVER_LOST:
-        case CR_CONN_HOST_ERROR:
-        case CR_SERVER_HANDSHAKE_ERR:
-            break;
 
         default:
             {

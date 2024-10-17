@@ -1,6 +1,7 @@
 ﻿#include "Session.h"
 
 #include <iostream>
+#include <optick.h>
 #include <optional>
 
 #include "CSendBuffer.h"
@@ -33,6 +34,7 @@ Session::Session(Socket socket, SessionID sessionId, IOCP& owner)
 
 bool Session::CanSend()
 {
+    OPTICK_EVENT()
     if (_connect == false)
     {
         return false;
@@ -41,6 +43,11 @@ bool Session::CanSend()
     {
         //이걸로 disconnect시 전송 을 방지할 수 있을까?
         if (_refCount >= RELEASE_FLAG)
+        {
+            return false;
+        }
+
+        if (_sendQ.Size() == 0)
         {
             return false;
         }
@@ -54,10 +61,7 @@ bool Session::CanSend()
         {
             _isSending.store(false);
 
-            if (_sendQ.Size() == 0)
-            {
-                return false;
-            }
+
             continue;
         }
         break;
@@ -419,6 +423,9 @@ void Session::PostRelease()
 
 void Session::RealSend()
 {
+    OPTICK_EVENT()
+
+
     const auto refIncResult = IncreaseRef(L"realSendInc");
     if (refIncResult >= RELEASE_FLAG)
     {
@@ -429,6 +436,11 @@ void Session::RealSend()
     int sendPackets = 0;
     WSABUF sendWsaBuf[MAX_SEND_COUNT] = {};
 
+    volatile auto queueSize = _sendQ.Size();
+    if (queueSize < 1)
+    {
+        __debugbreak();
+    }
     while (sendPackets == 0)
     {
         for (int i = 0; i < MAX_SEND_COUNT; i++)

@@ -93,16 +93,6 @@ void Group::Update()
 
         if (NeedUpdate())
         {
-            //auto now = steady_clock::now();
-            //auto duration = duration_cast<milliseconds>( now - _prevUpdate);
-            //OnUpdate(duration.count());
-            //_prevUpdate += duration;
-
-            //while (now > _nextUpdate)
-            //{
-            //    _nextUpdate += milliseconds(_loopMs);
-            //}
-
             OnUpdate(_loopMs);
             _nextUpdate += milliseconds(_loopMs);
         }
@@ -200,6 +190,12 @@ bool Group::HandleJob()
                 session->RecvNotIncrease();
                 session->Release(L"HandlePacketRelease");
             }
+            break;
+        }
+
+        //주기적으로 update 여부 확인
+        if (jobs == 100)
+        {
             break;
         }
     }

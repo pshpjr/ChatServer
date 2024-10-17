@@ -123,7 +123,7 @@ private:
 #endif
 	char _connect = false;
 
-	LockFreeFixedQueue<CSendBuffer*, MAX_SEND_COUNT> _sendQ{};
+	LockBasedFixedQueue<CSendBuffer*, MAX_SEND_COUNT> _sendQ{};
 	//TlsLockFreeQueue<CSendBuffer*> _sendQ;
 	CSendBuffer* _sendingQ[MAX_SEND_COUNT];
 
@@ -155,7 +155,7 @@ private:
 	//Encrypt
 	char _staticKey = false;
 	unsigned int _maxPacketLen = 5000;
-
+	volatile std::atomic<int> _uniqueAccess;
 	//DEBUG
 	long debugCount = 0;
 #ifdef SESSION_DEBUG

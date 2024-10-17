@@ -53,7 +53,6 @@ add_library(NetLib STATIC
         src/Session.cpp
         src/SettingParser.cpp
         src/SingleThreadObjectPool.cpp
-        src/SingleThreadQ.cpp
         src/SpinLock.cpp
         src/SpinLockPool.cpp
         src/SubnetManager.cpp
@@ -67,6 +66,7 @@ add_library(NetLib STATIC
         ThreadPool.cpp
         ThreadPool.h
         include/LockQueue.h
+        include/SPSCQueue.h
 )
 
 # 빌드 타입에 따른 매크로 정의

@@ -65,9 +65,8 @@ add_library(NetLib STATIC
         src/stdafx.cpp
         ThreadPool.cpp
         ThreadPool.h
-        include/LockQueue.h
-        include/SPSCQueue.h
-)
+        "include/IOCP.h"
+        "include/Container.h")
 
 # 빌드 타입에 따른 매크로 정의
 if (CMAKE_CONFIGURATION_TYPES)
@@ -108,9 +107,7 @@ foreach (lib ${EXTERNAL_LIBS})
     target_link_libraries(NetLib INTERFACE ${lib})
 endforeach ()
 
-# 외부 패키지 링크 설정
-find_package(range-v3 REQUIRED)
-target_link_libraries(NetLib PUBLIC range-v3)
+# 외부 패키지 링크 설정s
 
 # 인클루드 디렉토리 설정
 target_include_directories(NetLib PUBLIC include)

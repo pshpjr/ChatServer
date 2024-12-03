@@ -15,6 +15,9 @@ class Client;
 template <typename T>
 class SingleThreadQ;
 
+/*TODO: 성능 비교하기.
+ * 지금 버전이 반응성 더 낮고, CPU는 조금 덜 쓰리라 예상
+ */
 class IOCP : public IOCP_CLASS
 {
     friend class RecvExecutable;
@@ -42,7 +45,7 @@ public:
     void Wait();
     bool SendPacket(SessionID sessionId, const SendBuffer& sendBuffer, int type = 0);
     bool SendPacketBlocking(SessionID sessionId, SendBuffer& sendBuffer, int type = 0);
-    //deprecate
+    [[deprecated]]
     bool SendPackets(SessionID sessionId, Vector<SendBuffer>& bufArr);
 
     static void SetDisableClickAndClose();
@@ -68,9 +71,13 @@ public:
 
     //CONTENT VIRTUAL
 
-    virtual void OnWorkerThreadBegin() {}
+    virtual void OnWorkerThreadBegin()
+    {
+    }
 
-    virtual void OnWorkerThreadEnd() {}
+    virtual void OnWorkerThreadEnd()
+    {
+    }
 
     virtual bool OnAccept(SockAddr_in)
     {
@@ -94,11 +101,17 @@ public:
         UNREFERENCED_PARAMETER(buffer);
     }
 
-    virtual void OnInit() {}
+    virtual void OnInit()
+    {
+    }
 
-    virtual void OnStart() {}
+    virtual void OnStart()
+    {
+    }
 
-    virtual void OnEnd() {}
+    virtual void OnEnd()
+    {
+    }
 
     virtual void OnSessionTimeout(SessionID sessionId, timeoutInfo info)
     {
@@ -106,7 +119,9 @@ public:
         UNREFERENCED_PARAMETER(info);
     }
 
-    virtual void OnMonitorRun() {}
+    virtual void OnMonitorRun()
+    {
+    }
 
     //MONITOR
     psh::uint64 GetAcceptCount() const;

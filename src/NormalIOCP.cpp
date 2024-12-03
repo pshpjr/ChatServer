@@ -313,6 +313,9 @@ bool IOCP::SendPacket(const SessionID sessionId, const SendBuffer& sendBuffer, i
 
     ProcessBuffer(session, *buffer);
 
+    /*TODO: 성능 비교하기.
+     * 지금 버전이 반응성 더 낮고, CPU는 조금 덜 쓰리라 예상
+     */
     session.TrySend();
 
 
@@ -347,6 +350,8 @@ bool IOCP::SendPacketBlocking(SessionID sessionId, SendBuffer& sendBuffer, int t
     return true;
 }
 
+
+//TODO: 지금 함수 정상 작동 안 할거임
 
 bool IOCP::SendPackets(const SessionID sessionId, std::vector<SendBuffer>& bufArr)
 {
@@ -1159,12 +1164,14 @@ NormalIOCP::~NormalIOCP()
 
 NormalIOCP::NormalIOCP()
     : _listenSocket{std::make_unique<Socket>()}
-    , _port(0)
-    , _freeIndex(std::make_unique<LockFreeStack<unsigned short>>())
-    , _groupManager(nullptr)
-    , _settingParser(std::make_unique<SettingParser>())
-    , _memMonitor(std::make_unique<MemoryUsage>())
-    , _cpuMonitor(std::make_unique<CCpuUsage>()) {}
+      , _port(0)
+      , _freeIndex(std::make_unique<LockFreeStack<unsigned short>>())
+      , _groupManager(nullptr)
+      , _settingParser(std::make_unique<SettingParser>())
+      , _memMonitor(std::make_unique<MemoryUsage>())
+      , _cpuMonitor(std::make_unique<CCpuUsage>())
+{
+}
 
 std::optional<Session*> NormalIOCP::findSession(const SessionID id, const psh::LPCWSTR content)
 {

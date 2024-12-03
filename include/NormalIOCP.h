@@ -105,6 +105,7 @@ protected:
     static constexpr int MAX_SESSIONS = 15000;
     static constexpr long releaseFlag = 0x0010'0000;
 
+
     virtual ~NormalIOCP();
 
 
@@ -118,7 +119,8 @@ protected:
     std::unique_ptr<Socket> _listenSocket;
 
     std::vector<std::pair<HANDLE, DWORD>> _threadArray;
-
+    /*TODO: 타입들 전부 내 타입으로 수정하기
+     */
     String _ip{};
     psh::uint16 _maxNetThread = 0;
     psh::uint16 _maxWorkerThread = 0;
@@ -156,15 +158,15 @@ protected:
 
     //vector<threadMonitor> _threadMonitors;
     std::unique_ptr<MemoryUsage> _memMonitor;
-    std::unique_ptr<CCpuUsage>  _cpuMonitor;
+    std::unique_ptr<CCpuUsage> _cpuMonitor;
 
     /*
     *
     *	SESSION_MANAGER
     *
     */
-    std::array<Session,MAX_SESSIONS> _sessions;
-    std::unique_ptr<LockFreeStack<unsigned short>>  _freeIndex;
+    std::array<Session, MAX_SESSIONS> _sessions;
+    std::unique_ptr<LockFreeStack<unsigned short>> _freeIndex;
     psh::uint64 g_sessionId = 0;
 
     /*

@@ -5,9 +5,8 @@
 #include "CLogger.h"
 #include "GroupTypes.h"
 
-#include "SessionTypes.h"
 #include "LockFreeFixedQueue.h"
-
+#include "SessionTypes.h"
 
 class Session;
 class SendBuffer;
@@ -16,22 +15,15 @@ class GroupExecutable;
 class CRecvBuffer;
 class IOCP;
 
-
 /// <summary>
-/// 구현상의 한계로 인해 생성자에서 할 동작들 중 그룹 관련된 기능(groupID 가지고 오는 등)은
-/// OnCreate에서 설정해야 함. 
+/// 구현상의 한계로 인해 생성자에서 할 동작들 중 그룹 관련된 기능(groupID 가지고
+/// 오는 등)은 OnCreate에서 설정해야 함.
 /// </summary>
 class Group
 {
     struct GroupJob
     {
-        enum type
-        {
-            Recv
-            , Enter
-            , Move
-            , Leave
-        };
+        enum type { Recv, Enter, Move, Leave };
 
         type type{};
         SessionID sessionId{};
@@ -60,39 +52,37 @@ public:
     virtual void OnLeave(SessionID id, int wsaErrCode);
     virtual void OnRecv(SessionID id, CRecvBuffer& recvBuffer);
 
-
     [[nodiscard]] GroupID GetGroupID() const;
     [[nodiscard]] int GetQueued() const;
     void SendPacket(SessionID id, const SendBuffer& buffer) const;
     void SendPackets(SessionID id, Vector<SendBuffer>& buffer);
 
-    //static constexpr int debugSize = 2001;
+    // static constexpr int debugSize = 2001;
 
-
-    //enum jobType {
+    // enum jobType {
     //	Enter,
     //	Leave,
     //	Packet,
     //	Other
-    //};
-    //struct stDebugData
+    // };
+    // struct stDebugData
     //{
     //	SessionID id;
     //	jobType type;
     //	GroupID dst = InvalidGroupID();
     //	String cause;
-    //};
+    // };
 
-    //struct stDebug
+    // struct stDebug
     //{
     //	long arrIndex;
     //	stDebugData arr[1000];
-    //};
+    // };
     ////세션 id, 종류
-    //stDebug debugArr[debugSize];
+    // stDebug debugArr[debugSize];
     ////tuple<SessionID, String, thread::id> _debugLeave[debugSize];
 
-    //void Write(SessionID id, jobType type,GroupID dst, String cause)
+    // void Write(SessionID id, jobType type,GroupID dst, String cause)
     //{
 
     //	auto index = InterlockedIncrement(&debugArr[id.index].arrIndex);
@@ -114,7 +104,6 @@ protected:
     void SetLoopMs(int loopMS);
 
     [[nodiscard]] size_t Sessions() const;
-
 
     IOCP* _iocp;
     int _loopMs = 10;
@@ -142,7 +131,6 @@ private:
     template <typename Header>
     void RecvHandler(Session& session, void* iocp, DWORD transferred);
 
-
     void onRecvPacket(const Session& session, CRecvBuffer& buffer);
 
 private:
@@ -155,17 +143,15 @@ private:
     SessionSet _sessions;
     std::unique_ptr<LockFreeFixedQueue<GroupJob, 8192>> _jobs;
 
-    //TlsLockFreeQueue<GroupJob> _jobs;
+    // TlsLockFreeQueue<GroupJob> _jobs;
 
     volatile char _isRun = 0;
 
     GroupManager* _owner;
 
-
     long debugIndex = 0;
 
-
-    //MONITOR
+    // MONITOR
     std::chrono::steady_clock::time_point _nextMonitor;
     std::chrono::steady_clock::duration workTime{};
     std::chrono::steady_clock::duration maxWorkTime{};

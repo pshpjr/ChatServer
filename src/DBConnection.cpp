@@ -41,6 +41,40 @@ DBConnection::~DBConnection()
     Close();
 }
 
+/*
+ * 가변인자는 va_list 방식으로 처리
+ * mysql 라이브러리가 윈도우 헤더를 쓰기 때문에 헤더 꼬이는 경우가 종종 있었음.
+ * cpp에 헤더 숨겨서 쓰기로 결정
+ */
+
+std::chrono::microseconds DBConnection::ExecuteQuery(const std::string& queryString)
+{
+    const auto start = std::chrono::steady_clock::now();
+
+    if (const int query_stat = mysql_real_query(pImple->connection, queryString.c_str()
+                                                , static_cast<unsigned long>(queryString.length()));
+        query_stat != 0)
+    {
+        const char* err = mysql_error(&pImple->conn);
+
+        switch (const auto num = mysql_errno(&pImple->conn))
+        {
+
+        default:
+            {
+                const auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+                const std::string errStr = std::to_string(dur.count()) + err;
+                throw DBErr(errStr, num, dur, queryString);
+            }
+        }
+    }
+
+    pImple->sql_result = mysql_store_result(pImple->connection);
+
+
+    return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start);
+}
+
 std::chrono::microseconds DBConnection::Query(psh::LPCSTR query, ...)
 {
     using std::string;
@@ -54,39 +88,19 @@ std::chrono::microseconds DBConnection::Query(psh::LPCSTR query, ...)
 
     va_list args;
 
+    // 첫 번째 vsnprintf 호출로 포맷된 문자열 길이 계산
     va_start(args, query);
     const size_t len = vsnprintf(nullptr, 0, query, args);
-
-    queryString.resize(len + 1);
-    vsnprintf(&queryString[0], len + 1, query, args);
-
-    queryString.resize(len);
     va_end(args);
 
-    const auto start = steady_clock::now();
+    // 접두사 뒤에 포맷된 문자열을 담기 위해 버퍼 크기 조정
+    queryString.resize(len + 1);
 
-    if (const int query_stat = mysql_real_query(pImple->connection, queryString.c_str()
-                                                , static_cast<unsigned long>(queryString.length()));
-        query_stat != 0)
-    {
-        const char* err = mysql_error(&pImple->conn);
+    va_start(args, query);
+    vsnprintf(&queryString[0], len + 1, query, args);
+    va_end(args);
 
-        switch (const auto num = mysql_errno(&pImple->conn))
-        {
-
-        default:
-            {
-                const auto dur = duration_cast<std::chrono::milliseconds>(steady_clock::now() - start);
-                const string errStr = std::to_string(dur.count()) + err;
-                throw DBErr(errStr, num, dur, queryString);
-            }
-        }
-    }
-
-    pImple->sql_result = mysql_store_result(pImple->connection);
-
-
-    return duration_cast<microseconds>(steady_clock::now() - start);
+    return ExecuteQuery(queryString);
 }
 
 bool DBConnection::next()

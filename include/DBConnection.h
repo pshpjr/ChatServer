@@ -11,8 +11,15 @@ public:
 
     ~DBConnection();
 
+    template<typename... Args>
+    std::chrono::microseconds QueryFormat(psh::LPCSTR query, Args&&... args);
 
+    [[deprecated("Use QueryFormat(psh::LPCSTR, ...)")]]
     std::chrono::microseconds Query(psh::LPCSTR query, ...);
+
+    //저장 프로시저 호출용
+    template<typename... Args>
+    std::chrono::microseconds CallFormat(psh::LPCSTR func, Args&&... args );
 
     bool next();
 
@@ -33,6 +40,22 @@ public:
     void SetReconnect(bool useReconnect);
 
 private:
+    std::chrono::microseconds ExecuteQuery(const std::string& queryString);
+
     struct Imple;
     std::unique_ptr<Imple> pImple;
 };
+
+template <typename ... Args>
+std::chrono::microseconds DBConnection::QueryFormat(psh::LPCSTR query, Args&&... args)
+{
+    std::string queryString = std::format(query, std::forward<Args>(args)...);
+
+    return ExecuteQuery(queryString);
+}
+
+template <typename ... Args>
+std::chrono::microseconds DBConnection::CallFormat(psh::LPCSTR func, Args&&... args)
+{
+    throw std::runtime_error("DBConnection::CallFormat: Not Implemented");
+}

@@ -11,8 +11,8 @@ public:
 
     ~DBConnection();
 
-    template<typename... Args>
-    std::chrono::microseconds QueryFormat(psh::LPCSTR query, Args&&... args);
+    template <typename... Args>
+    std::chrono::microseconds QueryFormat(std::string_view query, Args&&... args);
 
     [[deprecated("Use QueryFormat(psh::LPCSTR, ...)")]]
     std::chrono::microseconds Query(psh::LPCSTR query, ...);
@@ -47,9 +47,10 @@ private:
 };
 
 template <typename ... Args>
-std::chrono::microseconds DBConnection::QueryFormat(psh::LPCSTR query, Args&&... args)
+std::chrono::microseconds DBConnection::QueryFormat(std::string_view query, Args&&... args)
 {
-    std::string queryString = std::format(query, std::forward<Args>(args)...);
+    auto formatArgs = std::make_format_args(std::forward<Args>(args)...);
+    std::string queryString = std::vformat(query, formatArgs);
 
     return ExecuteQuery(queryString);
 }

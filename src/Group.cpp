@@ -138,9 +138,9 @@ bool Group::HandleJob()
                 _iocp->CheckPostRelease(job.sessionId, _groupId);
             }
             break;
-            [[maybe_unused]] // 처음에 만들 때 있었다가 구조 변경되면서 안 쓰는 것 같음
+            // 처음에 만들 때 있었다가 구조 변경되면서 안 쓰는 것 같음
             // TODO: 확인 후 지우기
-        case GroupJob::type::Move:
+            case GroupJob::type::Move:
             {
                 // Write(job.sessionId, Group::jobType::Leave, InvalidGroupID(), L"Leave
                 // Handled");

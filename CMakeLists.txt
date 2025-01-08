@@ -101,6 +101,8 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     file(GLOB EXTERNAL_LIBS "${CMAKE_CURRENT_SOURCE_DIR}/lib/debug/*.lib")
 elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
     file(GLOB EXTERNAL_LIBS "${CMAKE_CURRENT_SOURCE_DIR}/lib/release/*.lib")
+elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+    file(GLOB EXTERNAL_LIBS "${CMAKE_CURRENT_SOURCE_DIR}/lib/release/*.lib")
 endif ()
 
 foreach (lib ${EXTERNAL_LIBS})
@@ -120,7 +122,6 @@ set_target_properties(NetLib PROPERTIES
         COMPILE_PDB_NAME "NetLib"
         LINK_PDB_NAME "NetLib"
 )
-
 
 # 테스트 설정
 #enable_testing()

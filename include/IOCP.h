@@ -113,6 +113,9 @@ public:
     {
     }
 
+    //세션이 일정 시간 동안 응답이 없을 때 알리는 용도
+    //해당 세션을 실제로 연결 끊을 건지 아닌지는 사용자가 판단
+    //무시하면 카운터가 초기화되고, 다시 타임아웃 시간 측정
     virtual void OnSessionTimeout(SessionID sessionId, timeoutInfo info)
     {
         UNREFERENCED_PARAMETER(sessionId);

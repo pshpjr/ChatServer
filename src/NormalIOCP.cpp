@@ -316,16 +316,17 @@ bool IOCP::SendPacket(const SessionID sessionId, const SendBuffer& sendBuffer, i
     /*TODO: 성능 비교하기.
      * 지금 버전이 반응성 더 낮고, CPU는 조금 덜 쓰리라 예상
      */
-    session.TrySend();
+    //session.TrySend();
 
 
-    // if (session.CanSend())
-    // {
-    //     session._sendExecute.Clear();
-    //     //InterlockedIncrement(&_iocpCompBufferSize);
-    //     PostQueuedCompletionStatus(_iocp, static_cast<DWORD>(-1), (ULONG_PTR)&session
-    //         , &session._sendExecute._overlapped);
-    // }
+    if (session.CanSend())
+    {
+
+        session._sendExecute.Clear();
+        //InterlockedIncrement(&_iocpCompBufferSize);
+        PostQueuedCompletionStatus(_iocp, static_cast<DWORD>(-1), (ULONG_PTR)&session
+            , session._sendExecute.GetOverlapped());
+    }
 
     session.Release(L"SendPacketRelease");
     return true;

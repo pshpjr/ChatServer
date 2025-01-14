@@ -43,6 +43,8 @@ public:
     {
         std::destroy_at(obj);
         _pool.emplace_back(reinterpret_cast<storageType*>(obj));
+
+        integrity();
     }
 
     // 객체를 풀에서 할당, 가변 인수를 받아 객체를 생성
@@ -61,6 +63,10 @@ public:
         }
         _pool.pop_back();
         std::construct_at(objPtr, std::forward<Args>(args)...);
+
+        integrity();
+
+
         return PoolPtr<T>(objPtr, [this](T* ptr) {
             Deleter(ptr, this);
         });
@@ -89,8 +95,26 @@ private:
     {
         for (size_t i = 0; i < count; ++i)
         {
-            _pool.emplace_back(new storageType);
+            auto ptr = new storageType;
+            if (ptr == nullptr)
+            {
+                __debugbreak();
+            }
+            _pool.emplace_back(ptr);
         }
+    }
+
+    bool integrity()
+    {
+        for (auto& ptr : _pool)
+        {
+            if (ptr == nullptr)
+            {
+                __debugbreak();
+                return false;
+            }
+        }
+        return true;
     }
 
     // 멤버 변수: 저장된 객체를 관리하는 벡터

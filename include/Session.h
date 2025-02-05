@@ -96,6 +96,9 @@ public:
 
 	void SetGroupID(const GroupID id);
 
+	bool recvHandleWaitInGroup();
+	void setRecvHandled(bool value);
+
 private:
 	std::optional<timeoutInfo> CheckTimeout(std::chrono::steady_clock::time_point now);
 	void RealSend();
@@ -123,12 +126,9 @@ private:
 #endif
 	char _connect = false;
 
-	LockBasedFixedQueue<CSendBuffer*, MAX_SEND_COUNT> _sendQ{};
+	LockFreeFixedQueue<CSendBuffer*, MAX_SEND_COUNT> _sendQ{};
 	//TlsLockFreeQueue<CSendBuffer*> _sendQ;
 	CSendBuffer* _sendingQ[MAX_SEND_COUNT];
-
-
-	//TlsLockFreeQueue<CRecvBuffer*> _groupRecvQ;
 
 	IOCP* _owner;
 
@@ -158,6 +158,8 @@ private:
 	volatile std::atomic<int> _uniqueAccess;
 	//DEBUG
 	long debugCount = 0;
+
+	std::atomic_bool _isHandled = false;
 #ifdef SESSION_DEBUG
 
 	struct RelastinReleaseEncrypt_D
